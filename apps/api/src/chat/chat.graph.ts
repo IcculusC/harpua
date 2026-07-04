@@ -1,10 +1,6 @@
 import { Injectable } from "@nestjs/common";
-import { MessagesAnnotation } from "@langchain/langgraph";
-import {
-  AIMessage,
-  isAIMessage,
-  type BaseMessage,
-} from "@langchain/core/messages";
+import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import { AIMessage, isAIMessage } from "@langchain/core/messages";
 import {
   LangGraph,
   NodeHandler,
@@ -14,13 +10,15 @@ import {
   defineEdges,
   route,
   interrupt,
+  type StateOf,
 } from "@harpua/langgraph";
 
 import { MockChatModel, type PendingAction } from "./mock-chat-model";
 import { OrderTools } from "./order.tools";
 import { OrdersService } from "./orders.service";
 
-export type ChatState = { messages: BaseMessage[] };
+export const ChatMessagesState = new StateSchema({ messages: MessagesValue });
+export type ChatState = StateOf<typeof ChatMessagesState>;
 
 @Injectable()
 export class CallModelNode implements NodeHandler<ChatState> {
@@ -85,7 +83,7 @@ function routeAfterModel(
 
 @LangGraph({
   name: "chat",
-  state: MessagesAnnotation,
+  state: ChatMessagesState,
   tools: [OrderTools],
   recursionLimit: 10,
 })

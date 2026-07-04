@@ -1,12 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
-import { MessagesAnnotation } from "@langchain/langgraph";
-import {
-  AIMessage,
-  ToolMessage,
-  isAIMessage,
-  type BaseMessage,
-} from "@langchain/core/messages";
+import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import { AIMessage, ToolMessage, isAIMessage } from "@langchain/core/messages";
 
 import {
   LangGraph,
@@ -19,6 +14,7 @@ import {
   route,
   as,
   interrupt,
+  type StateOf,
 } from "../index";
 
 /* ------------------------------------------------------------------ */
@@ -123,7 +119,8 @@ export class ReuseGraphTwo {
 /* Agentic loop with tools                                             */
 /* ------------------------------------------------------------------ */
 
-export type MsgState = { messages: BaseMessage[] };
+export const AgentMessagesState = new StateSchema({ messages: MessagesValue });
+export type MsgState = StateOf<typeof AgentMessagesState>;
 
 @Injectable()
 export class OrderService {
@@ -182,7 +179,7 @@ function hasToolCalls(state: MsgState): typeof TOOLS | typeof END {
     : END;
 }
 
-@LangGraph({ name: "agent", state: MessagesAnnotation, tools: [OrderTools] })
+@LangGraph({ name: "agent", state: AgentMessagesState, tools: [OrderTools] })
 export class AgentGraph {
   edges = defineEdges<MsgState>([
     { from: START, to: CallModel },
@@ -215,7 +212,7 @@ export class AlwaysToolModel implements NodeHandler<MsgState> {
 
 @LangGraph({
   name: "loop",
-  state: MessagesAnnotation,
+  state: AgentMessagesState,
   tools: [OrderTools],
   recursionLimit: 3,
 })

@@ -42,6 +42,7 @@ export type {
   LangGraphModuleOptions,
   LangGraphModuleAsyncOptions,
   LangGraphRunnable,
+  StateOf,
 } from "./interfaces";
 
 // Re-export the LangGraph runtime primitives users need in nodes.

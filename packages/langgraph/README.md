@@ -29,7 +29,7 @@ that loops back to the model until it stops calling tools.
 
 ```ts
 // From the LangGraph JS docs (condensed):
-import { StateGraph, MessagesAnnotation } from "@langchain/langgraph";
+import { StateGraph, StateSchema, MessagesValue } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
@@ -46,17 +46,19 @@ const getWeather = tool(
   },
 );
 
+const AgentState = new StateSchema({ messages: MessagesValue });
+
 const toolNode = new ToolNode([getWeather]);
-const callModel = async (state: typeof MessagesAnnotation.State) => {
+const callModel = async (state: typeof AgentState.State) => {
   const response = await modelWithTools.invoke(state.messages);
   return { messages: response };
 };
-const shouldContinue = (state: typeof MessagesAnnotation.State) => {
+const shouldContinue = (state: typeof AgentState.State) => {
   const last = state.messages.at(-1);
   return "tool_calls" in last && last.tool_calls?.length ? "tools" : "__end__";
 };
 
-const graph = new StateGraph(MessagesAnnotation)
+const graph = new StateGraph(AgentState)
   .addNode("agent", callModel)
   .addNode("tools", toolNode)
   .addEdge("__start__", "agent")
@@ -67,7 +69,9 @@ const graph = new StateGraph(MessagesAnnotation)
 
 Here's the same agent as an `@harpua/langgraph` graph. The tool is a method on
 a provider, the model call is a `NodeHandler`, and the edges are a typed list
-instead of a fluent builder.
+instead of a fluent builder. State is declared with the zod-based `StateSchema`
+API shown above, but `@LangGraph({ state })` also accepts the older
+`Annotation.Root`-style state objects (or a bare zod object schema) unchanged.
 
 **`weather.tools.ts`** — a tool provider:
 
@@ -97,12 +101,14 @@ your chat model however you like (a provider wrapping `ChatAnthropic`,
 
 ```ts
 import { Inject, Injectable } from "@nestjs/common";
-import { isAIMessage, type BaseMessage } from "@langchain/core/messages";
-import type { NodeHandler } from "@harpua/langgraph";
+import { isAIMessage } from "@langchain/core/messages";
+import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import type { NodeHandler, StateOf } from "@harpua/langgraph";
 import { TOOLS, END } from "@harpua/langgraph";
 import { CHAT_MODEL, type ChatModel } from "./chat-model.provider";
 
-export type AgentState = { messages: BaseMessage[] };
+export const AgentStateSchema = new StateSchema({ messages: MessagesValue });
+export type AgentState = StateOf<typeof AgentStateSchema>;
 
 @Injectable()
 export class CallModel implements NodeHandler<AgentState> {
@@ -125,12 +131,11 @@ export function shouldContinue(state: AgentState): typeof TOOLS | typeof END {
 **`weather-agent.graph.ts`** — the graph definition:
 
 ```ts
-import { MessagesAnnotation } from "@langchain/langgraph";
 import { LangGraph, defineEdges, route, START, TOOLS, END } from "@harpua/langgraph";
-import { CallModel, shouldContinue, type AgentState } from "./call-model.node";
+import { AgentStateSchema, CallModel, shouldContinue, type AgentState } from "./call-model.node";
 import { WeatherTools } from "./weather.tools";
 
-@LangGraph({ name: "weatherAgent", state: MessagesAnnotation, tools: [WeatherTools] })
+@LangGraph({ name: "weatherAgent", state: AgentStateSchema, tools: [WeatherTools] })
 export class WeatherAgentGraph {
   edges = defineEdges<AgentState>([
     { from: START, to: CallModel },

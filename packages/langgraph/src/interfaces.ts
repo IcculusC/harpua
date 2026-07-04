@@ -95,6 +95,20 @@ export type AnyNodeRef =
   | AliasRef<any>
   | TOOLS;
 
+/**
+ * Extracts the state TS type from anything exposing a `.State` property —
+ * both a zod-based `StateSchema` instance and an `Annotation.Root` do. Lets
+ * `defineEdges<StateOf<typeof MyState>>(...)` derive the graph state type
+ * straight from the schema instead of hand-declaring a parallel type alias.
+ *
+ * @example
+ * ```ts
+ * const AgentState = new StateSchema({ messages: MessagesValue });
+ * type AgentStateT = StateOf<typeof AgentState>;
+ * ```
+ */
+export type StateOf<T extends { State: unknown }> = T["State"];
+
 /** Options accepted by the {@link LangGraph} class decorator. */
 export interface LangGraphOptions {
   /** Unique graph name; also the facade token and default node id for subgraphs. */
