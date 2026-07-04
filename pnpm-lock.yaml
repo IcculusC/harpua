@@ -14,6 +14,15 @@ importers:
 
   apps/api:
     dependencies:
+      '@harpua/langgraph':
+        specifier: workspace:*
+        version: link:../../packages/langgraph
+      '@langchain/core':
+        specifier: 1.2.1
+        version: 1.2.1
+      '@langchain/langgraph':
+        specifier: 1.4.7
+        version: 1.4.7(@langchain/core@1.2.1)(zod@3.25.76)
       '@nestjs/common':
         specifier: 11.1.27
         version: 11.1.27(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -29,6 +38,9 @@ importers:
       rxjs:
         specifier: 7.8.2
         version: 7.8.2
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
     devDependencies:
       '@harpua/eslint-config':
         specifier: workspace:*
@@ -98,7 +110,7 @@ importers:
         specifier: 9.39.4
         version: 9.39.4
 
-  packages/nestjs-langgraph:
+  packages/langgraph:
     devDependencies:
       '@harpua/eslint-config':
         specifier: workspace:*

@@ -8,14 +8,19 @@
     "dev": "nest start --watch",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "jest"
+    "test": "jest",
+    "chat": "nest build && node dist/cli.js"
   },
   "dependencies": {
+    "@harpua/langgraph": "workspace:*",
+    "@langchain/core": "1.2.1",
+    "@langchain/langgraph": "1.4.7",
     "@nestjs/common": "11.1.27",
     "@nestjs/core": "11.1.27",
     "@nestjs/platform-express": "11.1.27",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@harpua/eslint-config": "workspace:*",
