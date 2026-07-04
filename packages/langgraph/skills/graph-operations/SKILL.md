@@ -14,6 +14,9 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | A whole graph, a subgraph, a Nest module, or a checkpointer | `references/graph.md` |
 | Testing a graph, a node, or an agentic loop (unit, e2e, scripted model, interrupt, streaming, persistence, type-level) | `references/testing.md` |
 | Debugging / inspecting state (bootstrap or runtime errors, time travel, checkpoint store) | `references/debugging.md` |
+| An approval gate or any human-in-the-loop pause (interrupt payloads, resume, HTTP/SSE/CLI surfacing, multi-step) | `references/human-in-the-loop.md` |
+| Streaming a graph (choosing a mode, facade helpers, SSE controller, multi-mode tuples, interrupt terminator) | `references/streaming.md` |
+| Choosing or configuring a checkpointer backend (memory/sqlite/postgres/redis/mongodb, ownership, optional peers, TTL) | `references/checkpointers.md` |
 
 ## Three rules for every addition
 
