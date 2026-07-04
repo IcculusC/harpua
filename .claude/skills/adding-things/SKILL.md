@@ -9,13 +9,17 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 
 | Adding… | Read |
 |---|---|
-| A `@LangGraphTool` method, or a new tool provider class | `references/tool.md` |
-| A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `references/node.md` |
-| A whole graph, a subgraph, a Nest module, or a checkpointer | `references/graph.md` |
+| A `@LangGraphTool` method, or a new tool provider class | `packages/langgraph/skills/adding-things/references/tool.md`, then apply the harpua overlay below |
+| A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `packages/langgraph/skills/adding-things/references/node.md`, then apply the harpua overlay below |
+| A whole graph, a subgraph, a Nest module, or a checkpointer | `packages/langgraph/skills/adding-things/references/graph.md`, then apply the harpua overlay below |
 | A new `packages/*` library | `references/package.md` |
 
-## Three rules for every addition
+The tool/node/graph recipes ship framework-generic with `@harpua/langgraph` itself, at the workspace-relative path above — in this monorepo, read that source directly rather than a copy under `.claude/skills/`.
 
-1. **Verify with the root protocol, not per-package.** Finish with, from the repo root, `pnpm turbo build lint test --force`. If `apps/api` runtime behavior changed, also boot it and curl the affected flow, and run the piped CLI check. Full protocol and exact commands: the `verify` skill.
-2. **Tests stay deterministic.** Inject a clock or reference date; never call bare `new Date()` in logic under test, even to "match the suite."
-3. **Prefer Nest CLI schematics** over hand-writing standard Nest artifacts: `pnpm --filter @harpua/api exec nest g <schematic> <name>` (e.g. `service`, `module`, `controller`). Hand-write only what has no schematic — nodes, graphs, tool providers, edge lists.
+## Harpua overlay
+
+The package-level recipes above are framework-generic and know nothing about this repo. Three repo-specific deltas layer on top — full detail in `references/harpua.md`:
+
+1. **Verify with the root protocol, not per-package.** `pnpm turbo build lint test --force` from the repo root, plus boot/curl/CLI checks when `apps/api` runtime behavior changed. Full protocol and exact commands: the `verify` skill.
+2. **The chat demo's model is a deterministic mock**, not a real LLM (`apps/api/src/chat/mock-chat-model.ts`). Adding a user-facing tool or node? You must teach it routing *and* update its canned help text, or it's dead code the demo never reaches.
+3. **This repo's exemplar file paths** (tool/node/graph/module/test exemplars under `apps/api/src/chat/*` and `packages/langgraph/src/__tests__/*`) live in `references/harpua.md`, not in the generic recipes.

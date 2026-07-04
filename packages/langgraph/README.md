@@ -552,3 +552,15 @@ pass one explicitly only when you want persistence or plan to `resume` later.
   default that the facade merges into every `invoke`/`stream` call
   automatically. A `recursionLimit` passed explicitly in the call's `config`
   always takes precedence over the graph default.
+
+## Agent skills
+
+This package ships [Claude Code](https://claude.com/claude-code) /
+[agentskills.io](https://agentskills.io)-format skills under
+`skills/adding-things/` — recipes for adding a tool, node, edge, graph, or
+subgraph with this library. Wire them into a consuming project with
+[`skills-npm`](https://www.npmjs.com/package/skills-npm) (`npx skills-npm`
+symlinks skills from installed packages into your project's skill directory),
+or manually by symlinking/copying
+`node_modules/@harpua/langgraph/skills/adding-things` into your project's
+`.claude/skills/`.
