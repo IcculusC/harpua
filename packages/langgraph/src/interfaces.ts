@@ -5,6 +5,7 @@ import type {
   BaseCheckpointSaver,
 } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
+import type { BaseMessage } from "@langchain/core/messages";
 import type { TOOLS } from "./constants";
 
 /**
@@ -218,12 +219,101 @@ export interface LangGraphModuleAsyncOptions {
 }
 
 /**
+ * Every `streamMode` the compiled graph in `@langchain/langgraph` v1 accepts.
+ * (Verified against the installed `StreamMode` union in `pregel/types`.) The
+ * facade's typed helpers cover the three everyday ones — `values`, `updates`,
+ * `messages`; `streamModes(...)` gives typed access to any combination.
+ */
+export type StreamMode =
+  | "values"
+  | "updates"
+  | "messages"
+  | "custom"
+  | "debug"
+  | "checkpoints"
+  | "tasks"
+  | "tools";
+
+/**
+ * A single interrupt surfaced while streaming. When a super-step calls
+ * `interrupt()`, the stream emits one final chunk carrying these under the
+ * `__interrupt__` key (in both `values` and `updates` mode) and then ends.
+ * Use {@link getStreamedInterrupts} to detect it and `resume()` to continue.
+ */
+export interface StreamInterrupt<T = unknown> {
+  readonly id?: string;
+  readonly value: T;
+}
+
+/**
+ * A `updates`-mode chunk (also the shape yielded by the default `stream(...)`):
+ * a map of node id → the partial state that node returned this super-step. The
+ * interrupt terminator arrives as `{ __interrupt__: StreamInterrupt[] }`, which
+ * is why the value is widened to also allow the interrupt array.
+ */
+export type NodeUpdate<TState> = Record<
+  string,
+  Partial<TState> | readonly StreamInterrupt[]
+>;
+
+/**
+ * A `messages`-mode chunk: an LLM message (or token) chunk paired with its
+ * metadata (node id, tags, …). Token-level streaming requires a real streaming
+ * chat model; a node that returns a whole `AIMessage` still emits it as one
+ * chunk.
+ */
+export type MessageChunk = [BaseMessage, Record<string, unknown>];
+
+/**
+ * Maps one `streamMode` literal to the `[mode, chunk]` tuple that mode yields
+ * when several modes are requested together via {@link LangGraphRunnable.streamModes}.
+ */
+export type ModeChunk<TState, M extends StreamMode> = M extends "values"
+  ? ["values", TState]
+  : M extends "updates"
+    ? ["updates", NodeUpdate<TState>]
+    : M extends "messages"
+      ? ["messages", MessageChunk]
+      : [M, unknown];
+
+/**
  * Injectable facade over a compiled graph. Mirrors the compiled graph runnable
  * plus a `resume` convenience for human-in-the-loop flows.
  */
 export interface LangGraphRunnable<TState = any> {
   invoke(input: any, config?: RunnableConfig): Promise<TState>;
-  stream(input: any, config?: RunnableConfig): Promise<AsyncIterable<any>>;
+  /**
+   * Streams the graph in the default `updates` mode: one {@link NodeUpdate} per
+   * super-step. Same `thread_id`/`recursionLimit` defaulting as `invoke`.
+   */
+  stream(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<NodeUpdate<TState>>>;
+  /** Streams full state snapshots (`values` mode) — each chunk is the whole `TState`. */
+  streamValues(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<TState>>;
+  /** Streams per-node partial updates (`updates` mode); the explicit form of `stream`. */
+  streamUpdates(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<NodeUpdate<TState>>>;
+  /** Streams LLM message/token chunks (`messages` mode) as `[message, metadata]`. */
+  streamMessages(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<MessageChunk>>;
+  /**
+   * Streams several modes at once, yielding a typed `[mode, chunk]` union so
+   * each chunk is discriminated by its leading mode literal.
+   */
+  streamModes<const M extends StreamMode>(
+    input: any,
+    modes: readonly M[],
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<ModeChunk<TState, M>>>;
   getState(config: RunnableConfig): Promise<StateSnapshot>;
   updateState(
     config: RunnableConfig,

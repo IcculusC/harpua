@@ -4,7 +4,13 @@ import { Command } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { StateSnapshot } from "@langchain/langgraph";
 import type { GraphRegistry } from "./graph-registry";
-import type { LangGraphRunnable } from "./interfaces";
+import type {
+  LangGraphRunnable,
+  MessageChunk,
+  ModeChunk,
+  NodeUpdate,
+  StreamMode,
+} from "./interfaces";
 
 /**
  * Injectable facade delegating to the compiled graph held by the
@@ -39,10 +45,58 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
       .invoke(input, this.withDefaults(config));
   }
 
-  stream(input: any, config?: RunnableConfig): Promise<AsyncIterable<any>> {
-    return this.registry
-      .getCompiled(this.graphDef)
-      .stream(input, this.withDefaults(config));
+  /**
+   * Streams the graph. `streamMode` is left to the compiled graph's default
+   * (`updates`) unless one is supplied. `thread_id`/`recursionLimit` defaulting
+   * matches {@link invoke}. The compiled graph returns an `IterableReadableStream`,
+   * which is a plain `AsyncIterable`.
+   */
+  private streamWith(
+    input: any,
+    streamMode: StreamMode | StreamMode[] | undefined,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<any>> {
+    const merged = this.withDefaults(config);
+    if (streamMode !== undefined) {
+      (merged as Record<string, unknown>).streamMode = streamMode;
+    }
+    return this.registry.getCompiled(this.graphDef).stream(input, merged);
+  }
+
+  stream(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<NodeUpdate<TState>>> {
+    return this.streamWith(input, undefined, config);
+  }
+
+  streamValues(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<TState>> {
+    return this.streamWith(input, "values", config);
+  }
+
+  streamUpdates(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<NodeUpdate<TState>>> {
+    return this.streamWith(input, "updates", config);
+  }
+
+  streamMessages(
+    input: any,
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<MessageChunk>> {
+    return this.streamWith(input, "messages", config);
+  }
+
+  streamModes<const M extends StreamMode>(
+    input: any,
+    modes: readonly M[],
+    config?: RunnableConfig,
+  ): Promise<AsyncIterable<ModeChunk<TState, M>>> {
+    return this.streamWith(input, [...modes], config);
   }
 
   getState(config: RunnableConfig): Promise<StateSnapshot> {

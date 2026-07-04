@@ -23,6 +23,9 @@ export { LangGraphModule } from "./langgraph.module";
 export { GraphRegistry } from "./graph-registry";
 export { GraphFacade } from "./graph-facade";
 
+// Streaming helpers.
+export { getStreamedInterrupts, INTERRUPT_KEY } from "./stream-utils";
+
 // Public types.
 export type {
   NodeHandler,
@@ -47,6 +50,11 @@ export type {
   LangGraphModuleOptions,
   LangGraphModuleAsyncOptions,
   LangGraphRunnable,
+  StreamMode,
+  StreamInterrupt,
+  NodeUpdate,
+  MessageChunk,
+  ModeChunk,
   StateOf,
 } from "./interfaces";
 

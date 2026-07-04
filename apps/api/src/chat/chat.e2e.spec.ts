@@ -95,6 +95,112 @@ describe("Chat (e2e)", () => {
     expect(orders.statusOf("9")).toBe("shipped");
   });
 
+  // --- SSE streaming endpoint -------------------------------------------
+
+  /** Parses a raw text/event-stream body into [{ event, data }] frames. */
+  function parseSse(body: string): Array<{ event: string; data: unknown }> {
+    return body
+      .split("\n\n")
+      .map((f) => f.trim())
+      .filter((f) => f.length > 0)
+      .map((frame) => {
+        const lines = frame.split("\n");
+        const event =
+          lines.find((l) => l.startsWith("event:"))?.slice(6).trim() ??
+          "message";
+        const dataLine =
+          lines.find((l) => l.startsWith("data:"))?.slice(5).trim() ?? "";
+        let data: unknown = dataLine;
+        try {
+          data = JSON.parse(dataLine);
+        } catch {
+          /* leave as string */
+        }
+        return { event, data };
+      });
+  }
+
+  it("streams a plain turn as SSE: a node update then a final event", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/chat/sse-plain/stream")
+      .query({ message: "hello there" })
+      .buffer(true)
+      .parse((r, cb) => {
+        let body = "";
+        r.on("data", (c: Buffer) => (body += c.toString()));
+        r.on("end", () => cb(null, body));
+      })
+      .expect(200);
+
+    const frames = parseSse(res.body as string);
+    const events = frames.map((f) => f.event);
+    // At least one node-update event, then the terminal final event.
+    expect(events).toContain("CallModelNode");
+    expect(events[events.length - 1]).toBe("final");
+
+    const final = frames.at(-1)!.data as {
+      messages: string[];
+      interrupt?: unknown;
+    };
+    expect(final.interrupt).toBeUndefined();
+    expect(final.messages.join("\n")).toContain("check an order");
+  });
+
+  it("streams an order lookup, surfacing a 'tools' node update", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/chat/sse-orders/stream")
+      .query({ message: "what's the status of order 42?" })
+      .buffer(true)
+      .parse((r, cb) => {
+        let body = "";
+        r.on("data", (c: Buffer) => (body += c.toString()));
+        r.on("end", () => cb(null, body));
+      })
+      .expect(200);
+
+    const frames = parseSse(res.body as string);
+    const events = frames.map((f) => f.event);
+    expect(events).toContain("tools");
+    expect(events[events.length - 1]).toBe("final");
+
+    const final = frames.at(-1)!.data as { messages: string[] };
+    expect(final.messages.join("\n")).toContain("Order 42");
+  });
+
+  it("streams a cancel turn: terminal event carries the interrupt payload", async () => {
+    const res = await request(app.getHttpServer())
+      .get("/chat/sse-cancel/stream")
+      .query({ message: "please cancel order 7" })
+      .buffer(true)
+      .parse((r, cb) => {
+        let body = "";
+        r.on("data", (c: Buffer) => (body += c.toString()));
+        r.on("end", () => cb(null, body));
+      })
+      .expect(200);
+
+    const frames = parseSse(res.body as string);
+    const final = frames.at(-1)!;
+    expect(final.event).toBe("final");
+    const payload = final.data as { interrupt?: Record<string, unknown> };
+    expect(payload.interrupt).toEqual(
+      expect.objectContaining({
+        type: "approval_request",
+        action: "cancel_order",
+        orderId: "7",
+      }),
+    );
+
+    // The paused thread can be resumed via the existing POST endpoint.
+    const resumed = await request(app.getHttpServer())
+      .post("/chat/sse-cancel/resume")
+      .send({ approved: true })
+      .expect(201);
+    expect(resumed.body.messages.join("\n")).toContain(
+      "Order 7 has been cancelled",
+    );
+  });
+
   it("persists history across turns on the same thread", async () => {
     const server = app.getHttpServer();
     await request(server)

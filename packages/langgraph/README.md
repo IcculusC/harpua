@@ -331,6 +331,80 @@ const done = await hil.resume(thread_id, "Ada");
 `resume(threadId, value, config?)` is sugar for
 `invoke(new Command({ resume: value }), { ...config, configurable: { thread_id } })`.
 
+### Streaming
+
+`invoke` runs the graph to completion; streaming lets you observe it super-step
+by super-step. The facade exposes a typed helper per LangGraph `streamMode`, so
+you never hand-write `streamMode` strings or untangle `[mode, chunk]` tuples.
+All of them share `invoke`'s ergonomics — an ephemeral `thread_id` is filled in
+when you omit one, and the graph's default `recursionLimit` is merged the same
+way.
+
+Every helper returns a `Promise<AsyncIterable<…>>`, so the shape is
+`for await (const chunk of await agent.streamX(input, config))`.
+
+```ts
+// updates (the default): one chunk per super-step, keyed by node id ->
+// the partial state that node returned. `stream` and `streamUpdates` are equal.
+for await (const update of await agent.stream(input, cfg)) {
+  // e.g. { CallModel: { messages: [AIMessage] } }  then  { tools: { messages: [ToolMessage] } }
+  const [node, patch] = Object.entries(update)[0];
+}
+
+// values: the full TState snapshot after each step (plus the initial input state).
+for await (const state of await agent.streamValues(input, cfg)) {
+  // state is the whole TState
+}
+
+// messages: LLM message/token chunks as [message, metadata]. Token-level
+// streaming needs a real streaming chat model; a node that returns a whole
+// AIMessage still surfaces it here as one chunk.
+for await (const [message, metadata] of await agent.streamMessages(input, cfg)) {
+  process.stdout.write(typeof message.content === "string" ? message.content : "");
+}
+
+// several modes at once -> a typed, discriminated [mode, chunk] union.
+for await (const chunk of await agent.streamModes(input, ["updates", "values"], cfg)) {
+  if (chunk[0] === "values") { /* chunk[1]: TState */ }
+  else { /* chunk[1]: NodeUpdate<TState> */ }
+}
+```
+
+What each mode yields:
+
+| Mode | Helper | Chunk shape |
+|---|---|---|
+| `updates` (default) | `stream` / `streamUpdates` | `{ [nodeId]: Partial<TState> }` — one per super-step |
+| `values` | `streamValues` | the whole `TState`, once per step (starting with the input state) |
+| `messages` | `streamMessages` | `[BaseMessage, metadata]` for each emitted message/token |
+| any combination | `streamModes` | `[mode, chunk]` tuples, typed as a union of the requested modes |
+
+#### Interrupts during a stream
+
+When a node calls `interrupt()` mid-stream, the run does **not** throw and does
+**not** silently stop — it emits one final chunk carrying the interrupt and then
+the stream ends. In both `updates` and `values` mode that terminator has the
+shape `{ __interrupt__: [{ id, value }] }`. Detect it with `getStreamedInterrupts`
+and continue with `resume()`:
+
+```ts
+import { getStreamedInterrupts } from "@harpua/langgraph";
+
+let pending: unknown;
+for await (const chunk of await hil.streamUpdates(input, { configurable: { thread_id } })) {
+  const interrupts = getStreamedInterrupts(chunk);
+  if (interrupts) { pending = interrupts[0].value; break; } // graph is paused
+  // ...handle the normal node update
+}
+
+if (pending !== undefined) {
+  const done = await hil.resume(thread_id, answerFromHuman);
+}
+```
+
+`getStreamedInterrupts(chunk)` returns the `StreamInterrupt[]` when a chunk is
+the interrupt terminator, otherwise `undefined`.
+
 ### Checkpointers
 
 Every compiled graph is given a checkpointer (interrupts require one).
@@ -449,7 +523,11 @@ throw immediately at startup instead of surfacing mid-request:
 | Method | Signature | Notes |
 |---|---|---|
 | `invoke` | `(input, config?) => Promise<TState>` | Runs the graph to completion (or to the next interrupt). |
-| `stream` | `(input, config?) => Promise<AsyncIterable<any>>` | Streams graph output. |
+| `stream` | `(input, config?) => Promise<AsyncIterable<NodeUpdate<TState>>>` | Streams in the default `updates` mode: one per-node update per super-step. |
+| `streamValues` | `(input, config?) => Promise<AsyncIterable<TState>>` | Streams full state snapshots (`values` mode). |
+| `streamUpdates` | `(input, config?) => Promise<AsyncIterable<NodeUpdate<TState>>>` | Streams per-node partial updates (`updates` mode); explicit form of `stream`. |
+| `streamMessages` | `(input, config?) => Promise<AsyncIterable<[BaseMessage, metadata]>>` | Streams LLM message/token chunks (`messages` mode). |
+| `streamModes` | `(input, modes, config?) => Promise<AsyncIterable<[mode, chunk]>>` | Streams several modes at once with a typed `[mode, chunk]` union. |
 | `getState` | `(config) => Promise<StateSnapshot>` | Reads the checkpointed state for a thread. |
 | `updateState` | `(config, values, asNode?) => Promise<RunnableConfig>` | Writes into the checkpoint as if a given node produced `values`. |
 | `resume` | `(threadId, resumeValue, config?) => Promise<TState>` | Sugar for `invoke(new Command({ resume }), ...)` against `threadId`. |
