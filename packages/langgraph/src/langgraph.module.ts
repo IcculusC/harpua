@@ -6,7 +6,6 @@ import {
   type Type,
 } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
-import { MemorySaver } from "@langchain/langgraph";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 
 import {
@@ -17,6 +16,7 @@ import {
 import { getGraphMetadata } from "./decorators";
 import { GraphRegistry } from "./graph-registry";
 import { GraphFacade } from "./graph-facade";
+import { buildCheckpointer, CheckpointerLifecycle } from "./checkpointer";
 import type {
   CheckpointerOptions,
   LangGraphModuleAsyncOptions,
@@ -26,25 +26,21 @@ import type {
 function checkpointerProvider(): Provider {
   return {
     provide: LANGGRAPH_CHECKPOINTER,
+    // Runs during DI resolution — before GraphRegistry.onApplicationBootstrap
+    // compiles any graph — so async schema setup completes before compile.
     useFactory: async (
       options: LangGraphModuleOptions,
       moduleRef: ModuleRef,
+      lifecycle: CheckpointerLifecycle,
     ): Promise<BaseCheckpointSaver> => {
       const cfg: CheckpointerOptions = options?.checkpointer ?? {
         type: "memory",
       };
-      if ("useExisting" in cfg) {
-        return moduleRef.get(cfg.useExisting, { strict: false });
-      }
-      if ("useFactory" in cfg) {
-        const deps = (cfg.inject ?? []).map((t) =>
-          moduleRef.get(t, { strict: false }),
-        );
-        return cfg.useFactory(...deps);
-      }
-      return new MemorySaver();
+      const built = await buildCheckpointer(cfg, moduleRef);
+      if (built.teardown) lifecycle.register(built.teardown);
+      return built.saver;
     },
-    inject: [LANGGRAPH_MODULE_OPTIONS, ModuleRef],
+    inject: [LANGGRAPH_MODULE_OPTIONS, ModuleRef, CheckpointerLifecycle],
   };
 }
 
@@ -60,6 +56,7 @@ export class LangGraphModule {
       module: LangGraphModule,
       providers: [
         { provide: LANGGRAPH_MODULE_OPTIONS, useValue: options },
+        CheckpointerLifecycle,
         checkpointerProvider(),
         GraphRegistry,
       ],
@@ -77,6 +74,7 @@ export class LangGraphModule {
           useFactory: options.useFactory,
           inject: options.inject ?? [],
         },
+        CheckpointerLifecycle,
         checkpointerProvider(),
         GraphRegistry,
       ],

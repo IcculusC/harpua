@@ -14,13 +14,24 @@
     "test": "jest"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
-      "^.+\\.(t|j)s$": ["ts-jest", { "tsconfig": "<rootDir>/../tsconfig.json" }]
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node",
     "testTimeout": 30000
@@ -28,15 +39,29 @@
   "peerDependencies": {
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
+    "@langchain/langgraph-checkpoint-mongodb": "^1",
+    "@langchain/langgraph-checkpoint-postgres": "^1",
+    "@langchain/langgraph-checkpoint-redis": "^1",
+    "@langchain/langgraph-checkpoint-sqlite": "^1",
     "@nestjs/common": "^11",
     "@nestjs/core": "^11",
     "zod": "^3 || ^4"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/langgraph-checkpoint-mongodb": { "optional": true },
+    "@langchain/langgraph-checkpoint-postgres": { "optional": true },
+    "@langchain/langgraph-checkpoint-redis": { "optional": true },
+    "@langchain/langgraph-checkpoint-sqlite": { "optional": true }
   },
   "devDependencies": {
     "@harpua/eslint-config": "workspace:*",
     "@harpua/typescript-config": "workspace:*",
     "@langchain/core": "1.2.1",
     "@langchain/langgraph": "1.4.7",
+    "@langchain/langgraph-checkpoint-mongodb": "^1.4.0",
+    "@langchain/langgraph-checkpoint-postgres": "^1.0.4",
+    "@langchain/langgraph-checkpoint-redis": "^1.0.10",
+    "@langchain/langgraph-checkpoint-sqlite": "^1.0.3",
     "@nestjs/common": "11.1.27",
     "@nestjs/core": "11.1.27",
     "@nestjs/testing": "11.1.27",

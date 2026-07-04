@@ -137,9 +137,66 @@ export interface ToolMethodMetadata {
   schema: unknown;
 }
 
+/**
+ * Typed config for the official Postgres checkpoint saver
+ * (`@langchain/langgraph-checkpoint-postgres`). Either hand the module a
+ * connection string (the module owns and closes the resulting pool) or an
+ * existing `pg.Pool` you manage yourself (never closed by the module).
+ */
+export type PostgresCheckpointerOptions =
+  | { type: "postgres"; connectionString: string; schema?: string }
+  | { type: "postgres"; pool: unknown; schema?: string };
+
+/**
+ * Typed config for the official SQLite checkpoint saver
+ * (`@langchain/langgraph-checkpoint-sqlite`). `path` may be a file path or the
+ * special `:memory:` database. The module owns and closes the connection.
+ */
+export interface SqliteCheckpointerOptions {
+  type: "sqlite";
+  /** File path, or `:memory:` for an in-process database. */
+  path: string;
+}
+
+/**
+ * Typed config for the official MongoDB checkpoint saver
+ * (`@langchain/langgraph-checkpoint-mongodb`). The saver itself only accepts a
+ * connected `MongoClient`; pass one via `client` (never closed by the module),
+ * or pass a `url` and the module creates and closes its own client.
+ */
+export type MongoCheckpointerOptions = {
+  type: "mongodb";
+  dbName?: string;
+  checkpointCollectionName?: string;
+  checkpointWritesCollectionName?: string;
+  /** Optional TTL (seconds) for checkpoint documents; enables TTL indexes. */
+  ttl?: number;
+} & ({ client: unknown } | { url: string });
+
+/** TTL behaviour forwarded to the Redis saver. */
+export interface RedisTTLConfig {
+  defaultTTL?: number;
+  refreshOnRead?: boolean;
+}
+
+/**
+ * Typed config for the official Redis checkpoint saver
+ * (`@langchain/langgraph-checkpoint-redis`). Pass a `url` (module creates and
+ * closes its own client) or a connected node-redis `client` (never closed by
+ * the module).
+ */
+export type RedisCheckpointerOptions = {
+  type: "redis";
+  ttl?: RedisTTLConfig;
+} & ({ url: string } | { client: unknown });
+
 /** Checkpointer configuration for {@link LangGraphModule.forRoot}. */
 export type CheckpointerOptions =
   | { type: "memory" }
+  | PostgresCheckpointerOptions
+  | SqliteCheckpointerOptions
+  | MongoCheckpointerOptions
+  | RedisCheckpointerOptions
   | { useExisting: Type<BaseCheckpointSaver> }
   | {
       useFactory: (

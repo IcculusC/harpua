@@ -340,7 +340,81 @@ Configure it in `LangGraphModule.forRoot`:
 LangGraphModule.forRoot({ checkpointer: { type: "memory" } }); // MemorySaver, the default
 ```
 
-Escape hatches for a real checkpointer, resolved through the DI container:
+#### Typed configs for the official savers
+
+First-class, typed configs wire up the official LangGraph JS checkpoint savers
+directly, shaped to each package's real construction API:
+
+```ts
+// Postgres — @langchain/langgraph-checkpoint-postgres
+LangGraphModule.forRoot({
+  checkpointer: { type: "postgres", connectionString: "postgres://…", schema: "public" },
+});
+LangGraphModule.forRoot({
+  checkpointer: { type: "postgres", pool: myPgPool, schema: "public" }, // bring your own pg.Pool
+});
+
+// SQLite — @langchain/langgraph-checkpoint-sqlite
+LangGraphModule.forRoot({ checkpointer: { type: "sqlite", path: "./checkpoints.db" } });
+LangGraphModule.forRoot({ checkpointer: { type: "sqlite", path: ":memory:" } });
+
+// MongoDB — @langchain/langgraph-checkpoint-mongodb
+LangGraphModule.forRoot({
+  checkpointer: { type: "mongodb", url: "mongodb://localhost:27017", dbName: "app" },
+});
+LangGraphModule.forRoot({
+  checkpointer: { type: "mongodb", client: myMongoClient, dbName: "app" }, // bring your own MongoClient
+});
+
+// Redis — @langchain/langgraph-checkpoint-redis
+LangGraphModule.forRoot({ checkpointer: { type: "redis", url: "redis://localhost:6379" } });
+LangGraphModule.forRoot({
+  checkpointer: { type: "redis", client: myRedisClient, ttl: { defaultTTL: 3600 } }, // bring your own client
+});
+```
+
+#### Optional peer dependencies — install only what you use
+
+The four saver packages are **optional peer dependencies**. `@harpua/langgraph`
+never imports them at module load; each driver is loaded lazily, in a `try/catch`,
+only inside the factory for its `type`. Install only the one(s) you configure:
+
+```bash
+pnpm add @langchain/langgraph-checkpoint-postgres   # for { type: "postgres" }
+pnpm add @langchain/langgraph-checkpoint-sqlite     # for { type: "sqlite" }
+pnpm add @langchain/langgraph-checkpoint-mongodb    # for { type: "mongodb" }
+pnpm add @langchain/langgraph-checkpoint-redis      # for { type: "redis" }
+```
+
+Configure a `type` whose package isn't installed and bootstrap fails fast with
+the exact package name and the `pnpm add …` command to run.
+
+#### Setup and teardown lifecycle
+
+Savers that need schema/index setup have it awaited during bootstrap **before any
+graph compiles**: `PostgresSaver.setup()` and `MongoDBSaver.setup()` are called for
+you, and `RedisSaver.fromUrl(...)` builds its indexes on connect. SQLite sets up its
+table lazily on first use. You never call `setup()` yourself.
+
+Connections the **module** creates (from a `connectionString` / `url` / `path`) are
+closed on `onApplicationShutdown` — the Postgres pool and Redis client via their
+`end()`, the module-created Mongo client via `close()`, and the SQLite database via
+`close()`. Enable shutdown hooks so this fires on process signals in production:
+
+```ts
+const app = await NestFactory.create(AppModule);
+app.enableShutdownHooks();
+```
+
+#### Ownership rule
+
+Connections you pass in yourself — a `pool`, a Mongo/Redis `client` — are **never
+closed by the module**. You created them, so you own their lifecycle. Only
+module-created connections are torn down for you.
+
+#### Escape hatches
+
+Any `BaseCheckpointSaver` can still be plugged in through the DI container:
 
 ```ts
 LangGraphModule.forRoot({ checkpointer: { useExisting: PostgresSaverProvider } });
@@ -349,10 +423,6 @@ LangGraphModule.forRoot({
   checkpointer: { useFactory: (cfg: ConfigService) => new SomeSaver(cfg.get("dsn")), inject: [ConfigService] },
 });
 ```
-
-Typed, first-class configs for Postgres/SQLite/MongoDB/Redis checkpointers are
-on the roadmap; today, plug any `BaseCheckpointSaver` in via `useExisting` or
-`useFactory`.
 
 ### Bootstrap fail-fast validation
 
