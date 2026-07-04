@@ -1,0 +1,54 @@
+import "reflect-metadata";
+
+// Sentinels: START/END re-exported from LangGraph, TOOLS is ours.
+export { START, END } from "@langchain/langgraph";
+export { TOOLS, getGraphFacadeToken, LANGGRAPH_CHECKPOINTER } from "./constants";
+
+// Edge DSL.
+export { defineEdges, route, as, isAliasRef, isRouteMarker } from "./edges";
+
+// Decorators.
+export {
+  LangGraph,
+  LangGraphTool,
+  InjectLangGraphRunnable,
+  getGraphMetadata,
+  getToolMethods,
+  isGraphClass,
+} from "./decorators";
+export type { LangGraphToolOptions } from "./decorators";
+
+// Module + runtime pieces.
+export { LangGraphModule } from "./langgraph.module";
+export { GraphRegistry } from "./graph-registry";
+export { GraphFacade } from "./graph-facade";
+
+// Public types.
+export type {
+  NodeHandler,
+  StrictNodeHandler,
+  NodeClassRef,
+  AliasRef,
+  SubgraphRef,
+  RouteMarker,
+  RouteResult,
+  EdgeSource,
+  EdgeTarget,
+  GraphEdge,
+  AnyNodeRef,
+  LangGraphOptions,
+  ToolMethodMetadata,
+  CheckpointerOptions,
+  LangGraphModuleOptions,
+  LangGraphModuleAsyncOptions,
+  LangGraphRunnable,
+} from "./interfaces";
+
+// Re-export the LangGraph runtime primitives users need in nodes.
+export {
+  Command,
+  interrupt,
+  MemorySaver,
+  GraphRecursionError,
+} from "@langchain/langgraph";
+export type { LangGraphRunnableConfig } from "@langchain/langgraph";
