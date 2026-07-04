@@ -9,6 +9,7 @@ import type {
   MessageChunk,
   ModeChunk,
   NodeUpdate,
+  StateHistoryOptions,
   StreamMode,
 } from "./interfaces";
 
@@ -101,6 +102,15 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
 
   getState(config: RunnableConfig): Promise<StateSnapshot> {
     return this.registry.getCompiled(this.graphDef).getState(config);
+  }
+
+  getStateHistory(
+    config: RunnableConfig,
+    options?: StateHistoryOptions,
+  ): AsyncIterableIterator<StateSnapshot> {
+    return this.registry
+      .getCompiled(this.graphDef)
+      .getStateHistory(config, options);
   }
 
   updateState(

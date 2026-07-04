@@ -529,6 +529,7 @@ throw immediately at startup instead of surfacing mid-request:
 | `streamMessages` | `(input, config?) => Promise<AsyncIterable<[BaseMessage, metadata]>>` | Streams LLM message/token chunks (`messages` mode). |
 | `streamModes` | `(input, modes, config?) => Promise<AsyncIterable<[mode, chunk]>>` | Streams several modes at once with a typed `[mode, chunk]` union. |
 | `getState` | `(config) => Promise<StateSnapshot>` | Reads the checkpointed state for a thread. |
+| `getStateHistory` | `(config, options?) => AsyncIterableIterator<StateSnapshot>` | Streams a thread's checkpoint history, newest first — the time-travel primitive. Each snapshot's `config.configurable.checkpoint_id` can be replayed via `invoke({ configurable: { thread_id, checkpoint_id } })` to fork from that point. Same `thread_id` semantics as `getState` (no ephemeral default). |
 | `updateState` | `(config, values, asNode?) => Promise<RunnableConfig>` | Writes into the checkpoint as if a given node produced `values`. |
 | `resume` | `(threadId, resumeValue, config?) => Promise<TState>` | Sugar for `invoke(new Command({ resume }), ...)` against `threadId`. |
 

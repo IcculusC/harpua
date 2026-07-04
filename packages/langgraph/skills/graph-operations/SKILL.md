@@ -12,6 +12,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | A `@LangGraphTool` method, or a new tool provider class | `references/tool.md` |
 | A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `references/node.md` |
 | A whole graph, a subgraph, a Nest module, or a checkpointer | `references/graph.md` |
+| Debugging / inspecting state (bootstrap or runtime errors, time travel, checkpoint store) | `references/debugging.md` |
 
 ## Three rules for every addition
 

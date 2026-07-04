@@ -277,6 +277,21 @@ export type ModeChunk<TState, M extends StreamMode> = M extends "values"
       : [M, unknown];
 
 /**
+ * Options for {@link LangGraphRunnable.getStateHistory}. Structural mirror of
+ * the installed `@langchain/langgraph` `CheckpointListOptions` (which is not
+ * re-exported from the package root): cap the number of snapshots, page from a
+ * given checkpoint, or filter by checkpoint metadata.
+ */
+export interface StateHistoryOptions {
+  /** Maximum number of snapshots to yield. */
+  limit?: number;
+  /** Only snapshots created BEFORE this config's checkpoint (pagination). */
+  before?: RunnableConfig;
+  /** Match against checkpoint metadata (e.g. `{ source: "loop" }`). */
+  filter?: Record<string, unknown>;
+}
+
+/**
  * Injectable facade over a compiled graph. Mirrors the compiled graph runnable
  * plus a `resume` convenience for human-in-the-loop flows.
  */
@@ -315,6 +330,19 @@ export interface LangGraphRunnable<TState = any> {
     config?: RunnableConfig,
   ): Promise<AsyncIterable<ModeChunk<TState, M>>>;
   getState(config: RunnableConfig): Promise<StateSnapshot>;
+  /**
+   * Streams the checkpoint history for a thread, newest snapshot first — the
+   * library primitive behind time travel. Same `thread_id` semantics as
+   * {@link getState}: the `thread_id` in `config.configurable` selects the
+   * thread (no ephemeral default is injected). Each yielded {@link StateSnapshot}
+   * carries a `config.configurable.checkpoint_id`; feed that back into `invoke`
+   * (`{ configurable: { thread_id, checkpoint_id } }`) to fork/replay from that
+   * point. Requires a checkpointer.
+   */
+  getStateHistory(
+    config: RunnableConfig,
+    options?: StateHistoryOptions,
+  ): AsyncIterableIterator<StateSnapshot>;
   updateState(
     config: RunnableConfig,
     values: Record<string, unknown> | unknown,

@@ -50,6 +50,7 @@ export type {
   LangGraphModuleOptions,
   LangGraphModuleAsyncOptions,
   LangGraphRunnable,
+  StateHistoryOptions,
   StreamMode,
   StreamInterrupt,
   NodeUpdate,
