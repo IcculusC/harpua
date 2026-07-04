@@ -10,6 +10,9 @@ Reusable toolkit for LangGraph + NestJS. Libraries live in `packages/*` (the pro
 ## Conventions
 
 - pnpm workspaces + Turborepo. Run tasks from the repo root via `pnpm turbo <task>`.
+- Scope with `--filter`: `--filter @harpua/api` (just that package), `--filter ...@harpua/langgraph` (it plus everything that depends on it), `--filter @harpua/langgraph...` (it plus its dependencies). Adding a package needs no `turbo.json` change (workspace globs).
+- Use `--force` after env/config changes or when validating for a report — a cached `FULL TURBO` result replays a prior pass and can mask staleness.
+- Run one spec: `pnpm --filter <pkg> exec jest <name> -t 'pattern'`. `dev` is persistent and uncached; don't expect it to terminate. Deeper task/cache mechanics: `.claude/skills/turbo/SKILL.md`.
 - State definitions are **zod-first** (`StateSchema` + `MessagesValue`; `StateOf<>` for types). `Annotation.Root` is accepted but not the canonical style.
 - Libraries consumed by Nest 11 apps build to **CommonJS** (see `packages/langgraph/tsconfig.json`); ESM-native libs extend `library.json` unchanged.
 - Tests must be deterministic: inject clocks/reference dates, never bare `new Date()` in logic under test.
