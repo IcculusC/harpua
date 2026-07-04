@@ -4,7 +4,7 @@ Reusable toolkit for LangGraph + NestJS. Libraries live in `packages/*` (the pro
 
 ## Skills — read these before working
 
-- **Adding anything** (tool, node, graph, subgraph, module, package): read `.claude/skills/adding-things/SKILL.md` FIRST and follow the reference it routes you to. Do not rediscover conventions by skimming the codebase — the recipes state them. Framework-generic recipes live in `packages/langgraph/skills/` (they ship with the npm package); the repo overlay with harpua-specific deltas is `.claude/skills/adding-things/references/harpua.md`.
+- **Adding anything** (tool, node, graph, subgraph, module, package): read `.claude/skills/graph-operations/SKILL.md` FIRST and follow the reference it routes you to. Do not rediscover conventions by skimming the codebase — the recipes state them. Framework-generic recipes live in `packages/langgraph/skills/` (they ship with the npm package); the repo overlay with harpua-specific deltas is `.claude/skills/graph-operations/references/harpua.md`.
 - **Before claiming anything is done/verified**: follow `.claude/skills/verify/SKILL.md`. The bar is the ROOT protocol — `pnpm turbo build lint test --force` from the repo root — plus boot/curl and the piped CLI check when `apps/api` runtime behavior changed. Per-package `--filter` runs are not sufficient verification.
 
 ## Conventions

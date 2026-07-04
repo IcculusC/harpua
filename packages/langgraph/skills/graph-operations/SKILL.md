@@ -1,5 +1,5 @@
 ---
-name: adding-things
+name: graph-operations
 description: Use when adding a tool, node, edge, graph, or subgraph to a NestJS app using @harpua/langgraph. Routes to the right recipe.
 ---
 

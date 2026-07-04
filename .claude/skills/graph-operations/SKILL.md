@@ -1,5 +1,5 @@
 ---
-name: adding-things
+name: graph-operations
 description: Use when adding a tool, node, edge, graph, subgraph, Nest module, checkpointer, or a new packages/* library to the harpua monorepo (@harpua/langgraph + apps/api). Routes to the right recipe.
 ---
 
@@ -9,9 +9,9 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 
 | Adding… | Read |
 |---|---|
-| A `@LangGraphTool` method, or a new tool provider class | `packages/langgraph/skills/adding-things/references/tool.md`, then apply the harpua overlay below |
-| A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `packages/langgraph/skills/adding-things/references/node.md`, then apply the harpua overlay below |
-| A whole graph, a subgraph, a Nest module, or a checkpointer | `packages/langgraph/skills/adding-things/references/graph.md`, then apply the harpua overlay below |
+| A `@LangGraphTool` method, or a new tool provider class | `packages/langgraph/skills/graph-operations/references/tool.md`, then apply the harpua overlay below |
+| A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `packages/langgraph/skills/graph-operations/references/node.md`, then apply the harpua overlay below |
+| A whole graph, a subgraph, a Nest module, or a checkpointer | `packages/langgraph/skills/graph-operations/references/graph.md`, then apply the harpua overlay below |
 | A new `packages/*` library | `references/package.md` |
 
 The tool/node/graph recipes ship framework-generic with `@harpua/langgraph` itself, at the workspace-relative path above — in this monorepo, read that source directly rather than a copy under `.claude/skills/`.

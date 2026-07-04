@@ -1,6 +1,6 @@
 # Harpua overlay
 
-Repo-specific deltas on top of the framework-generic `@harpua/langgraph` recipes at `packages/langgraph/skills/adding-things/references/{tool,node,graph}.md`. Read the matching generic recipe first, then apply this.
+Repo-specific deltas on top of the framework-generic `@harpua/langgraph` recipes at `packages/langgraph/skills/graph-operations/references/{tool,node,graph}.md`. Read the matching generic recipe first, then apply this.
 
 ## Verification
 
