@@ -17,6 +17,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | An approval gate or any human-in-the-loop pause (interrupt payloads, resume, HTTP/SSE/CLI surfacing, multi-step) | `references/human-in-the-loop.md` |
 | Streaming a graph (choosing a mode, facade helpers, SSE controller, multi-mode tuples, interrupt terminator) | `references/streaming.md` |
 | Choosing or configuring a checkpointer backend (memory/sqlite/postgres/redis/mongodb, ownership, optional peers, TTL) | `references/checkpointers.md` |
+| Tracing graphs/nodes/tools with OpenTelemetry (span hierarchy + attributes, enabling an SDK, Langfuse wiring, span tests) | `references/observability.md` |
 
 ## Three rules for every addition
 

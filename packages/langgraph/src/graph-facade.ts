@@ -4,6 +4,12 @@ import { Command } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { StateSnapshot } from "@langchain/langgraph";
 import type { GraphRegistry } from "./graph-registry";
+import { getGraphMetadata } from "./decorators";
+import {
+  threadIdOf,
+  withGraphSpan,
+  withGraphStreamSpan,
+} from "./observability";
 import type {
   LangGraphRunnable,
   MessageChunk,
@@ -40,10 +46,16 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
     return merged;
   }
 
+  private get graphName(): string {
+    return getGraphMetadata(this.graphDef)?.name ?? this.graphDef.name;
+  }
+
   invoke(input: any, config?: RunnableConfig): Promise<TState> {
-    return this.registry
-      .getCompiled(this.graphDef)
-      .invoke(input, this.withDefaults(config));
+    const merged = this.withDefaults(config);
+    return withGraphSpan(
+      { graphName: this.graphName, threadId: threadIdOf(merged) },
+      () => this.registry.getCompiled(this.graphDef).invoke(input, merged),
+    );
   }
 
   /**
@@ -61,7 +73,10 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
     if (streamMode !== undefined) {
       (merged as Record<string, unknown>).streamMode = streamMode;
     }
-    return this.registry.getCompiled(this.graphDef).stream(input, merged);
+    return withGraphStreamSpan(
+      { graphName: this.graphName, threadId: threadIdOf(merged) },
+      () => this.registry.getCompiled(this.graphDef).stream(input, merged),
+    );
   }
 
   stream(

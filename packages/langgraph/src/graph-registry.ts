@@ -13,6 +13,7 @@ import { tool } from "@langchain/core/tools";
 import { LANGGRAPH_CHECKPOINTER, TOOLS, TOOLS_NODE_ID } from "./constants";
 import { getGraphMetadata, getToolMethods, isGraphClass } from "./decorators";
 import { isAliasRef, isRouteMarker } from "./edges";
+import { instrumentNode, instrumentTool } from "./observability";
 import type {
   AnyNodeRef,
   GraphEdge,
@@ -188,7 +189,13 @@ export class GraphRegistry implements OnApplicationBootstrap {
           `Graph '${meta.name}' references the TOOLS node but no tool providers were configured (set 'tools' in @LangGraph).`,
         );
       }
-      graph.addNode(TOOLS_NODE_ID, this.buildToolNode(toolClasses, meta.name));
+      const toolNode = this.buildToolNode(toolClasses, meta.name);
+      graph.addNode(
+        TOOLS_NODE_ID,
+        instrumentNode(TOOLS_NODE_ID, meta.name, (state: any, config: any) =>
+          toolNode.invoke(state, config),
+        ),
+      );
     }
 
     // Add nodes and subgraphs, resolving each from DI (fail fast).
@@ -198,8 +205,9 @@ export class GraphRegistry implements OnApplicationBootstrap {
         graph.addNode(id, child);
       } else {
         const nodeInstance = this.resolveNode(spec.target, meta.name);
-        const bound = (state: any, config: any): any =>
-          nodeInstance.run(state, config);
+        const bound = instrumentNode(id, meta.name, (state: any, config: any) =>
+          nodeInstance.run(state, config),
+        );
         graph.addNode(id, bound);
       }
     }
@@ -252,12 +260,13 @@ export class GraphRegistry implements OnApplicationBootstrap {
       }
       const methods = getToolMethods(cls);
       for (const m of methods) {
+        const toolName = m.name ?? String(m.methodName);
         const fn = (instance[m.methodName] as (...a: any[]) => any).bind(
           instance,
         );
         tools.push(
-          tool(fn, {
-            name: m.name ?? String(m.methodName),
+          tool(instrumentTool(toolName, fn), {
+            name: toolName,
             description: m.description,
             schema: m.schema as any,
           }),

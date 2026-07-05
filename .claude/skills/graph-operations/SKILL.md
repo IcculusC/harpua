@@ -18,6 +18,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | An approval gate or any human-in-the-loop pause (interrupt payloads, resume, HTTP/SSE/CLI surfacing, multi-step) | `packages/langgraph/skills/graph-operations/references/human-in-the-loop.md` |
 | Streaming a graph (choosing a mode, facade helpers, SSE controller, multi-mode tuples, interrupt terminator) | `packages/langgraph/skills/graph-operations/references/streaming.md` |
 | Choosing or configuring a checkpointer backend (memory/sqlite/postgres/redis/mongodb, ownership, optional peers, TTL) | `packages/langgraph/skills/graph-operations/references/checkpointers.md` |
+| Tracing graphs/nodes/tools with OpenTelemetry (span hierarchy + attributes, enabling an SDK, Langfuse wiring, span tests) | `packages/langgraph/skills/graph-operations/references/observability.md` |
 
 The tool/node/graph recipes ship framework-generic with `@harpua/langgraph` itself, at the workspace-relative path above — in this monorepo, read that source directly rather than a copy under `.claude/skills/`.
 

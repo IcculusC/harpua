@@ -498,6 +498,24 @@ LangGraphModule.forRoot({
 });
 ```
 
+### OpenTelemetry tracing
+
+Compiled graphs emit OpenTelemetry spans through `@opentelemetry/api` — an
+**optional** peer dependency. When it resolves, every run produces a
+`langgraph.graph <name>` span with a child `langgraph.node <id>` span per node
+and a `langgraph.tool <name>` span per tool call under the `tools` node; failures
+set the span to `error` and record the exception. Because `@opentelemetry/api` is
+a no-op until an SDK is registered, this is always-on and free until you wire a
+`TracerProvider`, and silently absent if the package isn't installed. Only
+names/ids and `thread_id` are recorded — never message contents or tool args.
+Streaming keeps the graph span open until the async iterator is fully consumed.
+
+Register any OTel SDK (e.g. `@opentelemetry/sdk-node`) at process start to
+collect them; add `@langfuse/otel`'s `LangfuseSpanProcessor` to that SDK to ship
+them to Langfuse — no Langfuse code lives in this library. Full wiring, the
+attribute scheme, and an `InMemorySpanExporter` test recipe are in
+`skills/graph-operations/references/observability.md`.
+
 ### Bootstrap fail-fast validation
 
 Graphs are built and compiled once, during `onApplicationBootstrap`, from the
