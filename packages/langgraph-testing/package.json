@@ -1,0 +1,69 @@
+{
+  "name": "@harpua/langgraph-testing",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "jest"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "peerDependencies": {
+    "@harpua/langgraph": "workspace:*",
+    "@langchain/core": "^1",
+    "@langchain/langgraph": "^1",
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/testing": "^11",
+    "zod": "^3 || ^4"
+  },
+  "devDependencies": {
+    "@harpua/eslint-config": "workspace:*",
+    "@harpua/langgraph": "workspace:*",
+    "@harpua/typescript-config": "workspace:*",
+    "@langchain/core": "1.2.1",
+    "@langchain/langgraph": "1.4.7",
+    "@langchain/langgraph-checkpoint-sqlite": "^1.0.3",
+    "@nestjs/common": "11.1.27",
+    "@nestjs/core": "11.1.27",
+    "@nestjs/testing": "11.1.27",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.15.30",
+    "eslint": "9.39.4",
+    "jest": "30.4.2",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "ts-jest": "29.4.11",
+    "typescript": "5.9.3",
+    "zod": "3.25.76"
+  }
+}

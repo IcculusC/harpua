@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@harpua/eslint-config": "workspace:*",
+    "@harpua/langgraph-testing": "workspace:*",
     "@harpua/typescript-config": "workspace:*",
     "@nestjs/cli": "11.0.23",
     "@nestjs/schematics": "11.0.9",

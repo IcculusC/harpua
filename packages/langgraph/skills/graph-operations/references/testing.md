@@ -1,6 +1,22 @@
 # Testing graphs and nodes
 
-Framework-generic recipes. Pick the layer that matches what you changed.
+## If `@harpua/langgraph-testing` is available, prefer its helpers
+
+When the app dev-depends on `@harpua/langgraph-testing`, reach for it before
+hand-rolling the patterns below — it is these recipes, extracted and typed. The
+recipes stay as the no-package fallback. API mapping:
+
+| Recipe (below) | Helper |
+|---|---|
+| 2. Graph e2e boilerplate (`Test.createTestingModule` + `createNestApplication` + `app.init` + `getGraphFacadeToken`) | `createGraphTestingModule({ graphs, providers, imports?, checkpointer? })` → `{ get(GraphClass), getByName(name), app, module, close() }` |
+| 3. Scripted model (fake CallModel node) | `scriptedModel().toolCall(name, args).say(text).build()` (sequence) or `ruleModel().onToolResult(...).onHuman(re, ...).fallback(...).build()` (match latest turn); both build an injectable `respond(messages) => AIMessage` |
+| 4. Interrupt / resume — asserting `__interrupt__` | `expectInterrupt<T>(result)` returns the payload or throws a helpful error; pairs with the facade's `resume` |
+| 5. Streaming — the local `collect` + terminator detection | `collectStream(iterable)`; `collectUntilInterrupt(iterable)` → `{ chunks, interrupts }` |
+| 6. Real persistence | pass `checkpointer: { type: "sqlite", path: ":memory:" }` to `createGraphTestingModule` |
+| 7. Determinism | `fixedClock(iso)` / `provideFixedClock(iso)` + the `CLOCK` token |
+
+See that package's README for one snippet per helper. The rest of this file is
+the framework-generic fallback for when the package is not installed.
 
 ## 1. Unit-test a node (no graph)
 
