@@ -252,3 +252,29 @@ export function instrumentTool(toolName: string, fn: ToolFn): ToolFn {
       );
   };
 }
+
+/**
+ * Wraps a raw LangChain tool INSTANCE so its `invoke` runs inside a
+ * `langgraph.tool <name>` span — the same span a DI-bound tool gets via
+ * {@link instrumentTool}. Returns a transparent proxy: every other property and
+ * method (including `name`, `schema`, and the prototype chain used by
+ * `instanceof`) is forwarded to the original tool, with methods bound to it so
+ * private-field access keeps working. The original instance is never mutated.
+ */
+export function instrumentRawTool<T extends { name: string }>(rawTool: T): T {
+  const boundInvoke = (rawTool as unknown as { invoke: ToolFn }).invoke.bind(
+    rawTool,
+  );
+  const wrappedInvoke = instrumentTool(rawTool.name, (...args: any[]) =>
+    boundInvoke(...args),
+  );
+  return new Proxy(rawTool, {
+    get(target, prop): unknown {
+      if (prop === "invoke") return wrappedInvoke;
+      // Read against the real target so getters and private-field access see the
+      // original instance, and bind methods to it for the same reason.
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}

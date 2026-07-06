@@ -278,6 +278,22 @@ library resolves each provider from DI, binds its `@LangGraphTool` methods,
 wraps them with `tool(...)`, and mounts them as a single `ToolNode` under the
 `TOOLS` sentinel — reference `TOOLS` in your edges exactly like a node class.
 
+The `tools` array also accepts **raw LangChain tool instances** (any
+`StructuredToolInterface`, e.g. a `tool(...)` from `@langchain/core/tools` or a
+prebuilt tool such as [`@harpua/agent-tools`](https://www.npmjs.com/package/@harpua/agent-tools)'
+`thinkTool()`), mixed freely with provider classes:
+
+```ts
+import { thinkTool } from "@harpua/agent-tools";
+
+@LangGraph({ name: "weatherAgent", state: AgentStateSchema, tools: [WeatherTools, thinkTool()] })
+export class WeatherAgentGraph { /* … */ }
+```
+
+Raw instances are mounted into the same `ToolNode` as-is (and traced the same
+way). Reach for a provider class when a tool needs DI; use a raw instance for
+self-contained tools. An entry that is neither fails fast at bootstrap.
+
 ### Subgraphs
 
 A `@LangGraph` class can appear as an edge target inside another graph — it's

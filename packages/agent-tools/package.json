@@ -1,0 +1,59 @@
+{
+  "name": "@harpua/agent-tools",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Framework-agnostic prebuilt LangChain tools for agents (works with any LangChain/LangGraph app)",
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "jest"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "peerDependencies": {
+    "@langchain/core": "^1",
+    "zod": "^3 || ^4"
+  },
+  "devDependencies": {
+    "@harpua/eslint-config": "workspace:*",
+    "@harpua/typescript-config": "workspace:*",
+    "@langchain/core": "1.2.1",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.15.30",
+    "eslint": "9.39.4",
+    "jest": "30.4.2",
+    "ts-jest": "29.4.11",
+    "typescript": "5.9.3",
+    "zod": "3.25.76"
+  }
+}

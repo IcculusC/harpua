@@ -29,6 +29,27 @@ export class WeatherTools {
 }
 ```
 
+## Mounting a raw LangChain tool
+
+A `tools` entry may also be a raw LangChain tool INSTANCE — anything from
+`tool(...)` in `@langchain/core/tools` — not just a provider class. Raw tools are
+mounted into the same `ToolNode` as-is, mixed freely with provider classes, and
+get the same `langgraph.tool <name>` tracing. This is how you drop in prebuilt
+tools that carry no DI dependency, such as [`@harpua/agent-tools`](https://www.npmjs.com/package/@harpua/agent-tools)'
+`thinkTool()`.
+
+```ts
+import { thinkTool } from "@harpua/agent-tools";
+
+@LangGraph({ name: "agent", state: AgentState, tools: [OrderTools, thinkTool()] })
+export class AgentGraph { /* … */ }
+```
+
+Use a provider class when the tool needs DI (services, config, a repository);
+use a raw instance for self-contained tools with no dependencies. An entry that
+is neither a decorated provider class nor a raw tool instance fails fast at
+bootstrap.
+
 ## Tests
 
 - **Unit**: instantiate the provider directly (or via `Test.createTestingModule`) and assert the method's return, plus that its injected service was hit.

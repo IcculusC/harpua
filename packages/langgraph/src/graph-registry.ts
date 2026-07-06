@@ -9,17 +9,33 @@ import { StateGraph, START, END } from "@langchain/langgraph";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 import { tool } from "@langchain/core/tools";
+import type { StructuredToolInterface } from "@langchain/core/tools";
+import { z } from "zod";
 
 import { LANGGRAPH_CHECKPOINTER, TOOLS, TOOLS_NODE_ID } from "./constants";
 import { getGraphMetadata, getToolMethods, isGraphClass } from "./decorators";
 import { isAliasRef, isRouteMarker } from "./edges";
-import { instrumentNode, instrumentTool } from "./observability";
+import { instrumentNode, instrumentRawTool, instrumentTool } from "./observability";
 import type {
   AnyNodeRef,
   GraphEdge,
   LangGraphOptions,
   NodeHandler,
+  ToolEntry,
 } from "./interfaces";
+
+/**
+ * Structural, fork-safe test for a raw LangChain tool INSTANCE. A `tool(...)`
+ * result is an object exposing `lc_namespace`, a `name`, and an `invoke`
+ * method; a provider CLASS is a constructor `function` and fails this parse.
+ * Kept structural (not `instanceof`) so a tool built against a pnpm-forked
+ * copy of `@langchain/core` is still recognised.
+ */
+const rawToolSchema = z.object({
+  lc_namespace: z.array(z.string()),
+  name: z.string().min(1),
+  invoke: z.custom<(...args: any[]) => unknown>((v) => typeof v === "function"),
+});
 
 type NodeSpec =
   | { kind: "node"; target: Type<any> }
@@ -183,13 +199,13 @@ export class GraphRegistry implements OnApplicationBootstrap {
 
     // Add the ToolNode if referenced.
     if (usesTools) {
-      const toolClasses = meta.tools ?? [];
-      if (toolClasses.length === 0) {
+      const toolEntries = meta.tools ?? [];
+      if (toolEntries.length === 0) {
         throw new Error(
           `Graph '${meta.name}' references the TOOLS node but no tool providers were configured (set 'tools' in @LangGraph).`,
         );
       }
-      const toolNode = this.buildToolNode(toolClasses, meta.name);
+      const toolNode = this.buildToolNode(toolEntries, meta.name);
       graph.addNode(
         TOOLS_NODE_ID,
         instrumentNode(TOOLS_NODE_ID, meta.name, (state: any, config: any) =>
@@ -244,34 +260,46 @@ export class GraphRegistry implements OnApplicationBootstrap {
     );
   }
 
-  private buildToolNode(
-    toolClasses: Type<any>[],
-    graphName: string,
-  ): ToolNode {
+  private buildToolNode(toolEntries: ToolEntry[], graphName: string): ToolNode {
     const tools: any[] = [];
-    for (const cls of toolClasses) {
-      let instance: any;
-      try {
-        instance = this.moduleRef.get(cls, { strict: false });
-      } catch {
-        throw new Error(
-          `Tool provider ${cls.name} is listed by graph '${graphName}' but not provided in any module.`,
-        );
+    for (const entry of toolEntries) {
+      // Raw LangChain tool instance: mount as-is, wrapped for tracing.
+      if (rawToolSchema.safeParse(entry).success) {
+        tools.push(instrumentRawTool(entry as StructuredToolInterface));
+        continue;
       }
-      const methods = getToolMethods(cls);
-      for (const m of methods) {
-        const toolName = m.name ?? String(m.methodName);
-        const fn = (instance[m.methodName] as (...a: any[]) => any).bind(
-          instance,
-        );
-        tools.push(
-          tool(instrumentTool(toolName, fn), {
-            name: toolName,
-            description: m.description,
-            schema: m.schema as any,
-          }),
-        );
+      // Provider class: resolve from DI and wrap each @LangGraphTool method.
+      if (typeof entry === "function") {
+        const cls = entry as Type<any>;
+        let instance: any;
+        try {
+          instance = this.moduleRef.get(cls, { strict: false });
+        } catch {
+          throw new Error(
+            `Tool provider ${cls.name} is listed by graph '${graphName}' but not provided in any module.`,
+          );
+        }
+        const methods = getToolMethods(cls);
+        for (const m of methods) {
+          const toolName = m.name ?? String(m.methodName);
+          const fn = (instance[m.methodName] as (...a: any[]) => any).bind(
+            instance,
+          );
+          tools.push(
+            tool(instrumentTool(toolName, fn), {
+              name: toolName,
+              description: m.description,
+              schema: m.schema as any,
+            }),
+          );
+        }
+        continue;
       }
+      throw new Error(
+        `Graph '${graphName}': tools entry ${String(
+          entry,
+        )} is neither a tool provider class nor a raw LangChain tool instance.`,
+      );
     }
     if (tools.length === 0) {
       throw new Error(

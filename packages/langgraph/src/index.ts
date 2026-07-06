@@ -40,6 +40,7 @@ export type {
   GraphEdge,
   AnyNodeRef,
   LangGraphOptions,
+  ToolEntry,
   ToolMethodMetadata,
   CheckpointerOptions,
   PostgresCheckpointerOptions,

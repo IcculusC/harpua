@@ -6,6 +6,7 @@ import type {
 } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { BaseMessage } from "@langchain/core/messages";
+import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { TOOLS } from "./constants";
 
 /**
@@ -110,6 +111,15 @@ export type AnyNodeRef =
  */
 export type StateOf<T extends { State: unknown }> = T["State"];
 
+/**
+ * A single entry in a graph's `tools` array. Either a provider CLASS carrying
+ * `@LangGraphTool` methods (DI-resolved and wrapped at bootstrap) or a raw
+ * LangChain tool INSTANCE (a `StructuredToolInterface`, e.g. the result of
+ * `tool(...)` or `@harpua/agent-tools`' `thinkTool()`), mounted into the same
+ * `ToolNode` as-is. The two may be mixed freely.
+ */
+export type ToolEntry = Type<any> | StructuredToolInterface;
+
 /** Options accepted by the {@link LangGraph} class decorator. */
 export interface LangGraphOptions {
   /** Unique graph name; also the facade token and default node id for subgraphs. */
@@ -120,8 +130,12 @@ export interface LangGraphOptions {
    * `Annotation.Root`, or a `StateSchema` instance.
    */
   state: unknown;
-  /** Provider classes carrying `@LangGraphTool` methods, wrapped into a ToolNode. */
-  tools?: Type<any>[];
+  /**
+   * Tools mounted into a single `ToolNode` under the `TOOLS` sentinel. Each
+   * entry is either a provider class carrying `@LangGraphTool` methods or a raw
+   * LangChain tool instance ({@link ToolEntry}); the two may be mixed.
+   */
+  tools?: ToolEntry[];
   /** Default recursion limit merged into every invoke/stream call. */
   recursionLimit?: number;
   /** Static interrupt-before targets (resolved to node ids at compile). */
