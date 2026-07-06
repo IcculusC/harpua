@@ -1,8 +1,11 @@
 {
   "name": "@harpua/langgraph-testing",
-  "version": "0.0.0",
-  "private": true,
-  "license": "UNLICENSED",
+  "version": "0.1.0",
+  "license": "MIT",
+  "description": "Deterministic testing helpers for @harpua/langgraph graphs: scripted chat models, stream collectors, interrupt assertions, and a Nest testing-module harness",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -38,7 +41,7 @@
     "testTimeout": 30000
   },
   "peerDependencies": {
-    "@harpua/langgraph": "workspace:*",
+    "@harpua/langgraph": "workspace:^",
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
     "@nestjs/common": "^11",
