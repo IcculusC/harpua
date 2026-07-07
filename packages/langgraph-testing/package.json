@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "license": "MIT",
   "description": "Deterministic testing helpers for @harpua/langgraph graphs: scripted chat models, stream collectors, interrupt assertions, and a Nest testing-module harness",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IcculusC/harpua.git",
+    "directory": "packages/langgraph-testing"
+  },
+  "homepage": "https://github.com/IcculusC/harpua/tree/main/packages/langgraph-testing#readme",
+  "bugs": {
+    "url": "https://github.com/IcculusC/harpua/issues"
+  },
   "publishConfig": {
     "access": "public"
   },

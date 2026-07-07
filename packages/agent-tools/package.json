@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "license": "MIT",
   "description": "Framework-agnostic prebuilt LangChain tools for agents (works with any LangChain/LangGraph app)",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IcculusC/harpua.git",
+    "directory": "packages/agent-tools"
+  },
+  "homepage": "https://github.com/IcculusC/harpua/tree/main/packages/agent-tools#readme",
+  "bugs": {
+    "url": "https://github.com/IcculusC/harpua/issues"
+  },
   "publishConfig": {
     "access": "public"
   },

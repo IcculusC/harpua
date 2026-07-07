@@ -3,6 +3,15 @@
   "version": "0.1.0",
   "license": "MIT",
   "description": "Idiomatic NestJS integration for LangGraph: nodes as providers, typed edge lists, checkpointers, streaming, interrupts, and OpenTelemetry tracing",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IcculusC/harpua.git",
+    "directory": "packages/langgraph"
+  },
+  "homepage": "https://github.com/IcculusC/harpua/tree/main/packages/langgraph#readme",
+  "bugs": {
+    "url": "https://github.com/IcculusC/harpua/issues"
+  },
   "publishConfig": {
     "access": "public"
   },
