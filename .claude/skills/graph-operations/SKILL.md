@@ -13,6 +13,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `packages/langgraph/skills/graph-operations/references/node.md`, then apply the harpua overlay below |
 | A whole graph, a subgraph, a Nest module, or a checkpointer | `packages/langgraph/skills/graph-operations/references/graph.md`, then apply the harpua overlay below |
 | A new `packages/*` library | `references/package.md` |
+| Wiring a chat model (env-driven, named models, OpenRouter/Ollama/openai-compatible, mock default) with `@harpua/models` | `packages/langgraph/skills/graph-operations/references/models.md` |
 | Testing a graph, a node, or an agentic loop (unit, e2e, scripted model, interrupt, streaming, persistence, type-level) | `packages/langgraph/skills/graph-operations/references/testing.md` |
 | Debugging / inspecting state (bootstrap or runtime errors, time travel, checkpoint store) | `packages/langgraph/skills/graph-operations/references/debugging.md` |
 | An approval gate or any human-in-the-loop pause (interrupt payloads, resume, HTTP/SSE/CLI surfacing, multi-step) | `packages/langgraph/skills/graph-operations/references/human-in-the-loop.md` |

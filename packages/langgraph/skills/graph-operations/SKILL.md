@@ -12,6 +12,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | A `@LangGraphTool` method, or a new tool provider class | `references/tool.md` |
 | A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `references/node.md` |
 | A whole graph, a subgraph, a Nest module, or a checkpointer | `references/graph.md` |
+| Wiring a chat model (env-driven, named models, OpenRouter/Ollama/openai-compatible, mock default) with `@harpua/models` | `references/models.md` |
 | Testing a graph, a node, or an agentic loop (unit, e2e, scripted model, interrupt, streaming, persistence, type-level) | `references/testing.md` |
 | Debugging / inspecting state (bootstrap or runtime errors, time travel, checkpoint store) | `references/debugging.md` |
 | An approval gate or any human-in-the-loop pause (interrupt payloads, resume, HTTP/SSE/CLI surfacing, multi-step) | `references/human-in-the-loop.md` |
