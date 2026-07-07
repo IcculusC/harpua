@@ -590,12 +590,21 @@ pass one explicitly only when you want persistence or plan to `resume` later.
 
 ## Agent skills
 
-This package ships [Claude Code](https://claude.com/claude-code) /
-[agentskills.io](https://agentskills.io)-format skills under
-`skills/graph-operations/` — recipes for adding a tool, node, edge, graph, or
-subgraph with this library. Wire them into a consuming project with
-[`skills-npm`](https://www.npmjs.com/package/skills-npm) (`npx skills-npm`
-symlinks skills from installed packages into your project's skill directory),
-or manually by symlinking/copying
-`node_modules/@harpua/langgraph/skills/graph-operations` into your project's
-`.claude/skills/`.
+This package ships [agentskills.io](https://agentskills.io)-format skills
+under `skills/graph-operations/` — recipes for adding a tool, node, edge,
+graph, or subgraph with this library. The format is an open standard
+supported by [Claude Code](https://claude.com/claude-code),
+[OpenAI Codex](https://developers.openai.com/codex/skills), and other agents;
+both follow symlinks, so wiring is one line per agent from your project root:
+
+```bash
+# Claude Code
+mkdir -p .claude/skills && ln -s ../../node_modules/@harpua/langgraph/skills/graph-operations .claude/skills/graph-operations
+
+# Codex (also honors the user-level ~/.agents/skills)
+mkdir -p .agents/skills && ln -s ../../node_modules/@harpua/langgraph/skills/graph-operations .agents/skills/graph-operations
+```
+
+[`skills-npm`](https://www.npmjs.com/package/skills-npm) (`npx skills-npm`)
+automates the same symlinking from installed packages, or copy the directory
+outright if you prefer vendoring.

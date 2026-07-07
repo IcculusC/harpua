@@ -15,7 +15,7 @@ A reusable toolkit for building [LangGraph](https://langchain-ai.github.io/langg
 
 ## Agent skills
 
-`@harpua/langgraph` ships [agentskills.io](https://agentskills.io)-format recipes under `skills/graph-operations/` covering tools, nodes, graphs, testing, debugging (including Postgres/Redis checkpoint time travel), human-in-the-loop, streaming, checkpointers, and observability. See the package README for wiring them into your agent setup.
+`@harpua/langgraph` ships [agentskills.io](https://agentskills.io)-format recipes under `skills/graph-operations/` covering tools, nodes, graphs, testing, debugging (including Postgres/Redis checkpoint time travel), human-in-the-loop, streaming, checkpointers, and observability. The format is an open standard — the same skills work in Claude Code, OpenAI Codex, and other compatible agents. See the package README for wiring. This repo itself exposes its skills to both: `.claude/skills/` is the source of truth and `.agents/skills/` symlinks into it (with `AGENTS.md` → `CLAUDE.md` for Codex contributors).
 
 ## Requirements
 
