@@ -30,6 +30,10 @@ CREATE src/chat/summary.graph.spec.ts # class generates no module wiring
 
 The class name is the PascalCase of the last path segment with **no** `.provider` suffix (`sentiment` → `Sentiment`); rename the class/file to your convention after generating. Keep the generated spec — don't pass `--no-spec`.
 
+## Adding a plain zod field to a graph's StateSchema fails to typecheck here
+
+At this repo's pins (`zod@3.25.76` + `@langchain/langgraph@1.4.7`), `new StateSchema({ messages: MessagesValue, myField: z.enum([...]) })` is a type error — langgraph's `SerializableSchema` wants `~standard.jsonSchema`, which this zod version doesn't type. It reproduces with even a bare `z.string()`, and with `zod/v4` imports. Do NOT bump the pinned zod to fix a feature branch. Use `new UntrackedValue<T>()` (schema arg omitted) for the channel when the value is recomputed every turn and doesn't need checkpoint durability; add a one-line comment saying why. If the value MUST survive checkpoint/resume, stop and raise it — that needs the dependency question answered first.
+
 ## Verification
 
 Always finish with the root protocol, not a per-package command:
