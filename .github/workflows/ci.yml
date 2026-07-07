@@ -33,6 +33,9 @@ jobs:
   template-smoke:
     needs: build
     runs-on: ubuntu-latest
+    env:
+      # corepack's non-TTY download prompt otherwise fails the scaffold install
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
     steps:
       - uses: actions/checkout@v4
 
