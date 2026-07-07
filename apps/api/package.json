@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@harpua/langgraph": "workspace:*",
+    "@harpua/models": "workspace:*",
     "@langchain/core": "1.2.1",
     "@langchain/langgraph": "1.4.7",
     "@nestjs/common": "11.1.27",

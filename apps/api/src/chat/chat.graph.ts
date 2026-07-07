@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { AIMessage, isAIMessage } from "@langchain/core/messages";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { InjectChatModel } from "@harpua/models";
 import {
   LangGraph,
   NodeHandler,
@@ -13,7 +15,7 @@ import {
   type StateOf,
 } from "@harpua/langgraph";
 
-import { MockChatModel, type PendingAction } from "./mock-chat-model";
+import { type PendingAction } from "./mock-chat-model";
 import { OrderTools } from "./order.tools";
 import { OrdersService } from "./orders.service";
 
@@ -22,7 +24,9 @@ export type ChatState = StateOf<typeof ChatMessagesState>;
 
 @Injectable()
 export class CallModelNode implements NodeHandler<ChatState> {
-  constructor(private readonly model: MockChatModel) {}
+  constructor(
+    @InjectChatModel() private readonly model: BaseChatModel,
+  ) {}
 
   async run(state: ChatState) {
     return { messages: [await this.model.invoke(state.messages)] };

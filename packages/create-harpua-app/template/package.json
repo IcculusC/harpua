@@ -16,10 +16,12 @@
   "dependencies": {
     "@harpua/agent-tools": "^0.1.0",
     "@harpua/langgraph": "^0.1.1",
+    "@harpua/models": "^0.1.0",
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
     "@langchain/ollama": "^1",
     "@langchain/openai": "^1",
+    "@langchain/openrouter": "^0.4.3",
     "@nestjs/common": "^11",
     "@nestjs/core": "^11",
     "@nestjs/platform-express": "^11",

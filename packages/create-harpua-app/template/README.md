@@ -38,39 +38,56 @@ pnpm test
 
 ## Choosing a model — `MODEL_PROVIDER`
 
-The chat model is selected at boot by the `MODEL_PROVIDER` env var and validated
-with zod (a misconfiguration fails fast with a precise message). Copy
-`.env.example` to `.env` and set the values.
+The chat model comes from [`@harpua/models`](https://www.npmjs.com/package/@harpua/models),
+wired in `agent.module.ts` via `ChatModelModule.forRoot(...)`. It boots on a mock
+by default and goes real with one env flip — validated with zod, so a
+misconfiguration fails fast with a precise message. Copy `.env.example` to `.env`
+and set the values.
+
+**Mock to boot, OpenRouter to go real.** OpenRouter is the expected path for a
+real model: one API key, hundreds of models (many cheap, several free).
 
 | `MODEL_PROVIDER` | Model | Required env | Notes |
 |---|---|---|---|
+| `openrouter` **(recommended real arm)** | `ChatOpenRouter` (`@langchain/openrouter`) | `OPENROUTER_MODEL`, `OPENROUTER_API_KEY` | One key, every model — cheap/free options like `meta-llama/llama-3.1-8b-instruct`. Try `anthropic/claude-sonnet-4.5`. |
 | `mock` (default) | in-project `MockChatModel` | — | Deterministic, offline. Still calls the **real** Open-Meteo API for weather. |
-| `ollama` | `ChatOllama` (`@langchain/ollama`) | `OLLAMA_MODEL`, `OLLAMA_BASE_URL` | Needs a running Ollama daemon. No API key. |
-| `openai-compatible` | `ChatOpenAI` (`@langchain/openai`) | **`OPENAI_COMPATIBLE_BASE_URL`**, `OPENAI_COMPATIBLE_MODEL`, `OPENAI_COMPATIBLE_API_KEY` | Any OpenAI-compatible server (OpenAI, vLLM, LM Studio, Together, …). |
+| `ollama` | `ChatOllama` (`@langchain/ollama`) | `OLLAMA_MODEL` (`OLLAMA_BASE_URL` optional) | Local Ollama daemon. No API key. |
+| `openai-compatible` | `ChatOpenAI` (`@langchain/openai`) | **`OPENAI_COMPATIBLE_BASE_URL`**, `OPENAI_COMPATIBLE_MODEL` (`OPENAI_COMPATIBLE_API_KEY` optional) | Any OpenAI-compatible server (vLLM, LM Studio, Together, …). |
 
-### Adding an Anthropic (Claude) arm
-
-Kept out of the box to keep the install lean. To add it, install the package and
-extend the factory:
+Go real in one line:
 
 ```bash
-pnpm add @langchain/anthropic
+MODEL_PROVIDER=openrouter OPENROUTER_API_KEY=sk-or-... \
+  OPENROUTER_MODEL=anthropic/claude-sonnet-4.5 pnpm start
 ```
 
-```ts
-// src/agent/chat-model.provider.ts
-import { ChatAnthropic } from "@langchain/anthropic";
+All three real arms ship as optional peers; install only what you use (this
+template pre-installs all three).
 
-// 1. add "anthropic" to the MODEL_PROVIDER enum
-// 2. add ANTHROPIC_API_KEY / ANTHROPIC_MODEL to envSchema (require the key in superRefine)
-// 3. add the arm:
-case "anthropic":
-  logProvider(`anthropic (${env.ANTHROPIC_MODEL})`);
-  return new ChatAnthropic({
-    model: env.ANTHROPIC_MODEL,
-    apiKey: env.ANTHROPIC_API_KEY,
-  });
+### Named roles (one key, many models)
+
+`agent.module.ts` registers three example roles alongside the default —
+injectable with `@InjectChatModel("fast" | "smart" | "tools")`. Each has an
+**arm-scoped** OpenRouter model preset, so with no env they all boot on the mock
+arm (keyless boot intact); one prefixed var flips a role real with the id already
+applied, all sharing a single `OPENROUTER_API_KEY`:
+
+| Role | Preset OpenRouter model | Approx input price¹ |
+|---|---|---|
+| `fast` | `deepseek/deepseek-v4-flash` | ≈ $0.09 / M tokens |
+| `smart` | `deepseek/deepseek-v4-pro` | ≈ $0.44 / M tokens |
+| `tools` | `openai/gpt-oss-120b` | ≈ $0.03 / M tokens |
+
+¹ Cheap enough to play freely. Prices as of 2026-07-07, subject to drift.
+
+```bash
+FAST_MODEL_PROVIDER=openrouter
+SMART_MODEL_PROVIDER=openrouter
+TOOLS_MODEL_PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-...   # one shared key covers all three
 ```
+
+See the `@harpua/models` README for the full `register()` / env-prefix contract.
 
 ## What the mock does
 
@@ -84,7 +101,10 @@ so it lives in the project. It's scripted:
    makes the real Open-Meteo call** — you get live weather without any model key.
 3. Otherwise → help text listing what the agent can do.
 
-When you teach the mock a new capability, update its help text too.
+When you teach the mock a new capability, update its help text too. The mock is
+wired as the `mock` arm's factory (`ChatModelModule.forRoot({ defaults: { mockModel } })`
+in `agent.module.ts`), so `MODEL_PROVIDER=mock` (the default) uses this scripted
+weather model rather than the generic echo mock built into `@harpua/models`.
 
 ## Agent skills
 
@@ -105,8 +125,7 @@ src/
   agent/
     weather-agent.graph.ts    # state, CallModelNode, shouldContinue, the graph
     weather.tools.ts          # get_weather (Open-Meteo), fetch injected via DI
-    chat-model.provider.ts    # MODEL_PROVIDER factory (mock | ollama | openai-compatible)
-    mock-chat-model.ts        # deterministic offline model
+    mock-chat-model.ts        # deterministic offline model (the mock arm's factory)
     fetch.token.ts            # injectable fetch (default: globalThis.fetch)
     agent.service.ts          # invokes the compiled graph facade
     agent.controller.ts       # HTTP endpoint

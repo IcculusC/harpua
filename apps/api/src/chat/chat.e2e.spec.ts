@@ -24,7 +24,7 @@ import {
   ChatGraph,
   type ChatState,
 } from "./chat.graph";
-import { MockChatModel } from "./mock-chat-model";
+import { CHAT_MODEL } from "@harpua/models";
 
 /* --------------------------------------------------------------------- *
  * Graph-level integration, via @harpua/langgraph-testing.
@@ -69,7 +69,7 @@ describe("Chat graph (integration)", () => {
         OrderTools,
         CallModelNode,
         ApprovalNode,
-        { provide: MockChatModel, useClass: model },
+        { provide: CHAT_MODEL, useClass: model },
       ],
     });
   }

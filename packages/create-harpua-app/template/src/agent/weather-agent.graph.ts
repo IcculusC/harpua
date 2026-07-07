@@ -1,6 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { isAIMessage } from "@langchain/core/messages";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { InjectChatModel } from "@harpua/models";
 import { thinkTool } from "@harpua/agent-tools";
 import {
   LangGraph,
@@ -13,7 +15,6 @@ import {
   type StateOf,
 } from "@harpua/langgraph";
 
-import { CHAT_MODEL, type ChatModel } from "./chat-model.provider";
 import { WeatherTools } from "./weather.tools";
 
 /** Zod-first agent state: just the running message list. */
@@ -23,7 +24,7 @@ export type AgentState = StateOf<typeof AgentStateSchema>;
 /** Calls the chat model and appends its reply. */
 @Injectable()
 export class CallModelNode implements NodeHandler<AgentState> {
-  constructor(@Inject(CHAT_MODEL) private readonly model: ChatModel) {}
+  constructor(@InjectChatModel() private readonly model: BaseChatModel) {}
 
   async run(state: AgentState) {
     return { messages: [await this.model.invoke(state.messages)] };

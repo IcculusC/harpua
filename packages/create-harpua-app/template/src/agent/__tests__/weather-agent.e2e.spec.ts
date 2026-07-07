@@ -16,7 +16,7 @@ import {
   type AgentState,
 } from "../weather-agent.graph";
 import { WeatherTools } from "../weather.tools";
-import { CHAT_MODEL } from "../chat-model.provider";
+import { CHAT_MODEL } from "@harpua/models";
 import { WEATHER_FETCH, type FetchFn } from "../fetch.token";
 
 /* --------------------------------------------------------------------- *

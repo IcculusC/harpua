@@ -151,8 +151,9 @@ function nextSteps(result: ScaffoldResult): string {
     `        -d '{"message":"what is the weather in berlin?"}'`,
     "",
     "The default MODEL_PROVIDER is 'mock' (deterministic, offline-friendly, but it still",
-    "calls the real Open-Meteo API for weather). Switch to a real model by setting",
-    "MODEL_PROVIDER=ollama or MODEL_PROVIDER=openai-compatible — see the README.",
+    "calls the real Open-Meteo API for weather). Go real with OpenRouter — one key,",
+    "every model: MODEL_PROVIDER=openrouter OPENROUTER_API_KEY=... OPENROUTER_MODEL=...",
+    "(or ollama / openai-compatible) — see the README.",
     "",
   ].join("\n");
 }

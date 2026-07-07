@@ -1,0 +1,92 @@
+{
+  "name": "@harpua/models",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "Env-driven chat models for NestJS by named registration: boot instantly on a built-in mock, go real with OpenRouter (one key, every model), Ollama, or any OpenAI-compatible server — each LangChain integration an optional peer",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IcculusC/harpua.git",
+    "directory": "packages/models"
+  },
+  "homepage": "https://github.com/IcculusC/harpua/tree/main/packages/models#readme",
+  "bugs": {
+    "url": "https://github.com/IcculusC/harpua/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "jest"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "peerDependencies": {
+    "@langchain/core": "^1",
+    "@langchain/ollama": "^1",
+    "@langchain/openai": "^1",
+    "@langchain/openrouter": "^0.4.3",
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "zod": "^3 || ^4"
+  },
+  "peerDependenciesMeta": {
+    "@langchain/ollama": {
+      "optional": true
+    },
+    "@langchain/openai": {
+      "optional": true
+    },
+    "@langchain/openrouter": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@harpua/eslint-config": "workspace:*",
+    "@harpua/typescript-config": "workspace:*",
+    "@langchain/core": "1.2.1",
+    "@langchain/ollama": "^1",
+    "@langchain/openai": "^1",
+    "@langchain/openrouter": "^0.4.3",
+    "@nestjs/common": "11.1.27",
+    "@nestjs/core": "11.1.27",
+    "@nestjs/testing": "11.1.27",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.15.30",
+    "eslint": "9.39.4",
+    "jest": "30.4.2",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.2",
+    "ts-jest": "29.4.11",
+    "typescript": "5.9.3",
+    "zod": "3.25.76"
+  }
+}
