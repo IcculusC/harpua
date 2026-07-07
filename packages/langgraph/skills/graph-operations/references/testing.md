@@ -9,7 +9,7 @@ recipes stay as the no-package fallback. API mapping:
 | Recipe (below) | Helper |
 |---|---|
 | 2. Graph e2e boilerplate (`Test.createTestingModule` + `createNestApplication` + `app.init` + `getGraphFacadeToken`) | `createGraphTestingModule({ graphs, providers, imports?, checkpointer? })` → `{ get(GraphClass), getByName(name), app, module, close() }` |
-| 3. Scripted model (fake CallModel node) | `scriptedModel().toolCall(name, args).say(text).build()` (sequence) or `ruleModel().onToolResult(...).onHuman(re, ...).fallback(...).build()` (match latest turn); both build an injectable `respond(messages) => AIMessage` |
+| 3. Scripted model (fake CallModel node) | `scriptedModel().toolCall(name, args).say(text).build()` (sequence) or `ruleModel().onToolResult(...).onHuman(re, ...).fallback(...).build()` (match latest turn); both build an injectable `BaseChatModel` subclass driven with `.invoke(messages)` (plus `reset()` to rewind) |
 | 4. Interrupt / resume — asserting `__interrupt__` | `expectInterrupt<T>(result)` returns the payload or throws a helpful error; pairs with the facade's `resume` |
 | 5. Streaming — the local `collect` + terminator detection | `collectStream(iterable)`; `collectUntilInterrupt(iterable)` → `{ chunks, interrupts }` |
 | 6. Real persistence | pass `checkpointer: { type: "sqlite", path: ":memory:" }` to `createGraphTestingModule` |

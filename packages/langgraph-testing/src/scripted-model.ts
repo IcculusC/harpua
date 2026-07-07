@@ -5,19 +5,28 @@ import {
   isHumanMessage,
   type BaseMessage,
 } from "@langchain/core/messages";
+import {
+  BaseChatModel,
+  type BindToolsInput,
+} from "@langchain/core/language_models/chat_models";
+import type { ChatResult } from "@langchain/core/outputs";
 import { z } from "zod";
 
 /**
- * The shape a scripted/rule model exposes: it inspects the running conversation
- * and returns the next `AIMessage`. This is the exact surface a `CallModel`-style
- * node consumes (`this.model.respond(state.messages)`), so a scripted model drops
- * in wherever a real chat model would — as an ordinary injectable, no network.
+ * A fake chat model produced by {@link scriptedModel}/{@link ruleModel}. It is a
+ * genuine `BaseChatModel` — so it drops in anywhere LangChain expects a model
+ * (vanilla LangGraph, our graphs, DI factories) and is driven with `.invoke()` —
+ * plus a `reset()` to rewind per-instance script state between runs.
  */
-export interface ScriptedChatModel {
-  respond(messages: BaseMessage[]): AIMessage;
-  /** Rewind a sequence model back to its first turn (no-op for rule models). */
-  reset?(): void;
-}
+export type FakeChatModel = BaseChatModel & { reset(): void };
+
+/**
+ * @deprecated The fakes now extend `BaseChatModel` (driven with `.invoke()`),
+ * not a bespoke `respond()` surface. This alias for {@link FakeChatModel} exists
+ * only so existing type annotations keep compiling; prefer `FakeChatModel` (or
+ * `BaseChatModel`) directly.
+ */
+export type ScriptedChatModel = FakeChatModel;
 
 /** Reads the text of a message, JSON-encoding non-string content. */
 export function textOf(message: BaseMessage): string {
@@ -54,6 +63,44 @@ function toolCallMessage(
 }
 
 /* ------------------------------------------------------------------ */
+/* BaseChatModel scaffold                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bridges scripted/rule behaviour onto the real `BaseChatModel` contract: the
+ * abstract `respondTo` drives `_generate`, which mirrors `FakeListChatModel`'s
+ * shape (`{ generations: [{ message, text }] }`). Emitting a plain `AIMessage`
+ * with `tool_calls`/`additional_kwargs` here means `.invoke()` returns exactly
+ * that message, so the agentic loop, tools, and interrupts all run for real.
+ */
+abstract class FakeChatModelBase extends BaseChatModel {
+  constructor() {
+    // No credentials/config — every param on BaseChatModelParams is optional.
+    super({});
+  }
+
+  async _generate(messages: BaseMessage[]): Promise<ChatResult> {
+    const message = this.respondTo(messages);
+    return { generations: [{ message, text: textOf(message) }] };
+  }
+
+  /**
+   * Tools are bound at the `ToolNode` level in our framework, so the model
+   * itself only needs to accept `bindTools` without crashing. Matching
+   * `FakeListChatModel`, this returns a bound runnable (here, itself).
+   */
+  bindTools(_tools: BindToolsInput[]): this {
+    return this;
+  }
+
+  /** Rewind any per-instance sequence state (no-op unless overridden). */
+  reset(): void {}
+
+  /** Produce the next assistant message for the running conversation. */
+  protected abstract respondTo(messages: BaseMessage[]): AIMessage;
+}
+
+/* ------------------------------------------------------------------ */
 /* Scripted (sequence) model                                          */
 /* ------------------------------------------------------------------ */
 
@@ -61,7 +108,7 @@ type Turn = (seq: number) => AIMessage;
 
 /**
  * Fluent builder for a deterministic model whose behaviour is a fixed SEQUENCE
- * of turns: the first `respond()` yields turn 1, the next yields turn 2, and so
+ * of turns: the first `invoke()` yields turn 1, the next yields turn 2, and so
  * on. Ideal for a known agentic script — e.g. "request a tool, then summarize".
  */
 export class ScriptedModelBuilder {
@@ -96,15 +143,19 @@ export class ScriptedModelBuilder {
     return this;
   }
 
-  /** Compile the script into an injectable model class. */
-  build(): Type<ScriptedChatModel> {
+  /** Compile the script into an injectable `BaseChatModel` class. */
+  build(): Type<FakeChatModel> {
     const turns = [...this.turns];
 
     @Injectable()
-    class ScriptedModel implements ScriptedChatModel {
+    class ScriptedModel extends FakeChatModelBase {
       private cursor = 0;
 
-      respond(): AIMessage {
+      _llmType(): string {
+        return "harpua-scripted-fake";
+      }
+
+      protected respondTo(): AIMessage {
         const turn = turns[this.cursor];
         if (!turn) {
           throw new Error(
@@ -215,17 +266,21 @@ export class RuleModelBuilder {
     return this;
   }
 
-  /** Compile the rules into an injectable model class. */
-  build(): Type<ScriptedChatModel> {
+  /** Compile the rules into an injectable `BaseChatModel` class. */
+  build(): Type<FakeChatModel> {
     const toolResultRule = this.toolResultRule;
     const humanRules = [...this.humanRules];
     const fallbackRule = this.fallbackRule;
 
     @Injectable()
-    class RuleModel implements ScriptedChatModel {
+    class RuleModel extends FakeChatModelBase {
       private seq = 0;
 
-      respond(messages: BaseMessage[]): AIMessage {
+      _llmType(): string {
+        return "harpua-rule-fake";
+      }
+
+      protected respondTo(messages: BaseMessage[]): AIMessage {
         this.seq += 1;
         const last = messages[messages.length - 1];
         if (last instanceof ToolMessage && toolResultRule) {

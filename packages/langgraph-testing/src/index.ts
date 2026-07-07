@@ -9,7 +9,11 @@ export {
   ToolCallSpec,
   textOf,
 } from "./scripted-model";
-export type { ScriptedChatModel, RuleResult } from "./scripted-model";
+export type {
+  FakeChatModel,
+  ScriptedChatModel,
+  RuleResult,
+} from "./scripted-model";
 
 // Stream collectors.
 export { collectStream, collectUntilInterrupt } from "./stream-collectors";

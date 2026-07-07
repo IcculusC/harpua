@@ -24,8 +24,8 @@ export type ChatState = StateOf<typeof ChatMessagesState>;
 export class CallModelNode implements NodeHandler<ChatState> {
   constructor(private readonly model: MockChatModel) {}
 
-  run(state: ChatState) {
-    return { messages: [this.model.respond(state.messages)] };
+  async run(state: ChatState) {
+    return { messages: [await this.model.invoke(state.messages)] };
   }
 }
 

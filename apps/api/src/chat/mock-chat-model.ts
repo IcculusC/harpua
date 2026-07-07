@@ -5,6 +5,11 @@ import {
   isHumanMessage,
   type BaseMessage,
 } from "@langchain/core/messages";
+import {
+  BaseChatModel,
+  type BindToolsInput,
+} from "@langchain/core/language_models/chat_models";
+import type { ChatResult } from "@langchain/core/outputs";
 
 export interface PendingAction {
   action: "cancel_order";
@@ -19,9 +24,10 @@ export function textOf(message: BaseMessage): string {
 }
 
 /**
- * Deterministic, scripted stand-in for a real chat model. It is a plain
- * injectable service (no LangChain model classes, no network) that inspects
- * the conversation and returns the next AIMessage:
+ * Deterministic, scripted stand-in for a real chat model. It is a genuine
+ * `BaseChatModel` (no network) driven with `.invoke()`, so it drops in wherever
+ * LangChain expects a model. Its `_generate` inspects the conversation and
+ * returns the next AIMessage:
  *
  * 1. Latest message is a ToolMessage  -> summarize the tool result.
  * 2. Latest human turn says delete/cancel -> flag a pending action so the
@@ -31,10 +37,35 @@ export function textOf(message: BaseMessage): string {
  * 4. Otherwise -> canned assistant reply.
  */
 @Injectable()
-export class MockChatModel {
+export class MockChatModel extends BaseChatModel {
   private toolCallSeq = 0;
 
-  respond(messages: BaseMessage[]): AIMessage {
+  constructor() {
+    super({});
+  }
+
+  _llmType(): string {
+    return "harpua-mock-chat";
+  }
+
+  /** Tools are bound at the ToolNode level; this only needs to not crash. */
+  bindTools(_tools: BindToolsInput[]): this {
+    return this;
+  }
+
+  async _generate(messages: BaseMessage[]): Promise<ChatResult> {
+    const message = this.reply(messages);
+    return {
+      generations: [
+        {
+          message,
+          text: typeof message.content === "string" ? message.content : "",
+        },
+      ],
+    };
+  }
+
+  private reply(messages: BaseMessage[]): AIMessage {
     const last = messages[messages.length - 1];
     if (last instanceof ToolMessage) {
       return new AIMessage(`Here's what I found: ${textOf(last)}`);

@@ -43,10 +43,12 @@ await harness.close(); // in afterAll — runs checkpointer teardown
 
 ## Scripted chat model
 
-A deterministic stand-in for a real chat model. It is an ordinary injectable
-exposing `respond(messages) => AIMessage`, so a `CallModel`-style node consumes
-it exactly as it would a real model — the agentic loop, tools, and interrupts
-all run for real.
+A deterministic stand-in for a real chat model. `.build()` returns a genuine
+`BaseChatModel` subclass (driven with `.invoke()`), so it drops in wherever
+LangChain expects a model — a `CallModel`-style node consumes it exactly as it
+would a real one, and the agentic loop, tools, and interrupts all run for real.
+The built class adds a `reset()` to rewind its script between runs; `bindTools`
+is a no-op that returns the model (graphs bind tools at the `ToolNode` level).
 
 **Sequence style** — declare the turns in order:
 

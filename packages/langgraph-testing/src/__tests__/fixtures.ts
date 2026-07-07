@@ -15,8 +15,9 @@ import {
   type StateOf,
 } from "@harpua/langgraph";
 
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
+
 import { CLOCK, type Clock } from "../clock";
-import type { ScriptedChatModel } from "../scripted-model";
 
 /* ------------------------------------------------------------------ */
 /* Linear graph (streaming / module fixtures)                          */
@@ -88,11 +89,11 @@ export class OrderTools {
 @Injectable()
 export class CallModel implements NodeHandler<AgentStateT> {
   constructor(
-    @Inject(CHAT_MODEL) private readonly model: ScriptedChatModel,
+    @Inject(CHAT_MODEL) private readonly model: BaseChatModel,
   ) {}
 
-  run(state: AgentStateT) {
-    return { messages: [this.model.respond(state.messages)] };
+  async run(state: AgentStateT) {
+    return { messages: [await this.model.invoke(state.messages)] };
   }
 }
 

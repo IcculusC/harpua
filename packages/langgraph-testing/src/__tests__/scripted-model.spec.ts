@@ -1,4 +1,5 @@
 import { HumanMessage, isAIMessage } from "@langchain/core/messages";
+import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
 import { scriptedModel, ruleModel, textOf } from "../scripted-model";
 import {
@@ -21,6 +22,27 @@ describe("scriptedModel (sequence)", () => {
   afterEach(async () => {
     await harness?.close();
     orders.calls.length = 0;
+  });
+
+  it("builds a real BaseChatModel driven with .invoke()", async () => {
+    const Model = scriptedModel()
+      .toolCall("lookup_order", { id: "7" })
+      .say("done")
+      .build();
+    const model = new Model();
+    // It is a genuine BaseChatModel, not a bespoke shape.
+    expect(model).toBeInstanceOf(BaseChatModel);
+    expect(model._llmType()).toBe("harpua-scripted-fake");
+    // bindTools must not crash (tools bind at the ToolNode level for us).
+    expect(model.bindTools([])).toBe(model);
+
+    const message = await model.invoke([new HumanMessage("hi")]);
+    expect(message.tool_calls?.[0]).toEqual({
+      name: "lookup_order",
+      args: { id: "7" },
+      id: "call_1_1",
+      type: "tool_call",
+    });
   });
 
   it("drives a real agentic loop: tool call then plain reply", async () => {
@@ -52,33 +74,21 @@ describe("scriptedModel (sequence)", () => {
     expect(texts).toContain("Your order is shipped.");
   });
 
-  it("emits a well-formed tool_call with an auto-assigned id", async () => {
-    const Model = scriptedModel().toolCall("lookup_order", { id: "7" }).build();
-    const model = new Model();
-    const message = model.respond([new HumanMessage("hi")]);
-    expect(message.tool_calls?.[0]).toEqual({
-      name: "lookup_order",
-      args: { id: "7" },
-      id: "call_1_1",
-      type: "tool_call",
-    });
-  });
-
-  it("throws a helpful error when the script is exhausted", () => {
+  it("rejects with a helpful error when the script is exhausted", async () => {
     const Model = scriptedModel().say("only turn").build();
     const model = new Model();
-    model.respond([new HumanMessage("a")]);
-    expect(() => model.respond([new HumanMessage("b")])).toThrow(
+    await model.invoke([new HumanMessage("a")]);
+    await expect(model.invoke([new HumanMessage("b")])).rejects.toThrow(
       /ran out of scripted turns/,
     );
   });
 
-  it("reset() rewinds the sequence", () => {
+  it("reset() rewinds the sequence", async () => {
     const Model = scriptedModel().say("one").say("two").build();
     const model = new Model();
-    expect(textOf(model.respond([]))).toBe("one");
-    model.reset?.();
-    expect(textOf(model.respond([]))).toBe("one");
+    expect(textOf(await model.invoke([]))).toBe("one");
+    model.reset();
+    expect(textOf(await model.invoke([]))).toBe("one");
   });
 });
 
@@ -124,15 +134,16 @@ describe("ruleModel (match on latest turn)", () => {
     expect(reply).toContain("Order 42: shipped");
   });
 
-  it("falls back when no rule matches", () => {
+  it("is a BaseChatModel and falls back when no rule matches", async () => {
     const Model = ruleModel().fallback("fallback reply").build();
     const model = new Model();
-    expect(textOf(model.respond([new HumanMessage("random")]))).toBe(
+    expect(model).toBeInstanceOf(BaseChatModel);
+    expect(textOf(await model.invoke([new HumanMessage("random")]))).toBe(
       "fallback reply",
     );
   });
 
-  it("supports additional_kwargs for approval-style flags", () => {
+  it("supports additional_kwargs for approval-style flags", async () => {
     const Model = ruleModel()
       .onHuman(/cancel/i, {
         text: "I need your approval.",
@@ -140,7 +151,9 @@ describe("ruleModel (match on latest turn)", () => {
       })
       .build();
     const model = new Model();
-    const message = model.respond([new HumanMessage("please cancel order 7")]);
+    const message = await model.invoke([
+      new HumanMessage("please cancel order 7"),
+    ]);
     expect(message.additional_kwargs.pending_action).toEqual({
       action: "cancel_order",
     });
