@@ -26,3 +26,41 @@ jobs:
 
       - name: Build, lint, and test
         run: pnpm turbo build lint test
+
+  # Registry dogfood: scaffold with the freshly built bin, then install/build/test
+  # the generated project against the LIVE npm registry. Catches template drift
+  # (wrong dep floors, stale API usage) that the offline unit tests can't.
+  template-smoke:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the scaffolder
+        run: pnpm turbo build --filter create-harpua-app
+
+      - name: Scaffold a project with the built bin
+        run: node packages/create-harpua-app/dist/cli.js /tmp/smoke-agent
+
+      - name: Install the scaffold (real registry)
+        working-directory: /tmp/smoke-agent
+        run: pnpm install
+
+      - name: Build the scaffold
+        working-directory: /tmp/smoke-agent
+        run: pnpm build
+
+      - name: Test the scaffold
+        working-directory: /tmp/smoke-agent
+        run: pnpm test

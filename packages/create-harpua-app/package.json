@@ -1,0 +1,67 @@
+{
+  "name": "create-harpua-app",
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "Scaffold a runnable NestJS + LangGraph weather agent built on @harpua/langgraph — `pnpm create harpua-app my-agent`",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IcculusC/harpua.git",
+    "directory": "packages/create-harpua-app"
+  },
+  "homepage": "https://github.com/IcculusC/harpua/tree/main/packages/create-harpua-app#readme",
+  "bugs": {
+    "url": "https://github.com/IcculusC/harpua/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "create-harpua-app": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "template",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "jest"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/../tsconfig.json"
+        }
+      ]
+    },
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node",
+    "testTimeout": 30000
+  },
+  "dependencies": {
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@harpua/eslint-config": "workspace:*",
+    "@harpua/typescript-config": "workspace:*",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.15.30",
+    "eslint": "9.39.4",
+    "jest": "30.4.2",
+    "ts-jest": "29.4.11",
+    "typescript": "5.9.3"
+  }
+}

@@ -1,0 +1,16 @@
+node_modules
+dist
+coverage
+.turbo
+*.tsbuildinfo
+
+# Env — keep the example, ignore real secrets
+.env
+.env.*
+!.env.example
+
+.DS_Store
+
+# Agent skill links wired by the `harpua-skills` prepare script
+.claude/skills
+.agents/skills

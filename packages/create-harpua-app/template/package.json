@@ -1,0 +1,55 @@
+{
+  "name": "harpua-weather-agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A NestJS + LangGraph weather agent, scaffolded with create-harpua-app",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "chat": "nest build && node dist/cli.js",
+    "lint": "eslint \"src/**/*.ts\"",
+    "test": "jest",
+    "prepare": "harpua-skills"
+  },
+  "dependencies": {
+    "@harpua/agent-tools": "^0.1.0",
+    "@harpua/langgraph": "^0.1.1",
+    "@langchain/core": "^1",
+    "@langchain/langgraph": "^1",
+    "@langchain/ollama": "^1",
+    "@langchain/openai": "^1",
+    "@nestjs/common": "^11",
+    "@nestjs/core": "^11",
+    "@nestjs/platform-express": "^11",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@harpua/langgraph-testing": "^0.2.0",
+    "@nestjs/cli": "11.0.23",
+    "@nestjs/schematics": "11.0.9",
+    "@nestjs/testing": "11.1.27",
+    "@types/jest": "30.0.0",
+    "@types/node": "22.15.30",
+    "eslint": "9.39.4",
+    "globals": "17.7.0",
+    "jest": "30.4.2",
+    "ts-jest": "29.4.11",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.62.1"
+  },
+  "jest": {
+    "moduleFileExtensions": ["js", "json", "ts"],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}

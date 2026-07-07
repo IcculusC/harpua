@@ -139,6 +139,37 @@ importers:
         specifier: 3.25.76
         version: 3.25.76
 
+  packages/create-harpua-app:
+    dependencies:
+      zod:
+        specifier: 3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@harpua/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@harpua/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/jest':
+        specifier: 30.0.0
+        version: 30.0.0
+      '@types/node':
+        specifier: 22.15.30
+        version: 22.15.30
+      eslint:
+        specifier: 9.39.4
+        version: 9.39.4
+      jest:
+        specifier: 30.4.2
+        version: 30.4.2(@types/node@22.15.30)
+      ts-jest:
+        specifier: 29.4.11
+        version: 29.4.11(@babel/core@7.29.7)(@jest/transform@30.4.1)(@jest/types@30.4.1)(babel-jest@30.4.1(@babel/core@7.29.7))(jest-util@30.4.1)(jest@30.4.2(@types/node@22.15.30))(typescript@5.9.3)
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+
   packages/eslint-config:
     dependencies:
       '@eslint/js':
