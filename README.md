@@ -34,6 +34,14 @@ pnpm test
 
 Tasks run through Turborepo; scope with `--filter` (e.g. `pnpm turbo test --filter @harpua/langgraph`).
 
+## Releases
+
+Publishing is automated with [changesets](https://github.com/changesets/changesets):
+
+- Every change to a publishable package ships with a changeset — run `pnpm exec changeset`, pick the packages and bump, and commit the generated file alongside your change. (0.x: breaking = minor, feature/fix = patch.)
+- A **Version Packages** PR is the publish button. The release workflow keeps it up to date; merging it bumps versions, writes changelogs, and publishes to npm. No other action publishes.
+- Auth is npm [trusted publishing](https://docs.npmjs.com/trusted-publishers/) via GitHub OIDC — there are no npm tokens in the repo or CI.
+
 ## License
 
 MIT for the publishable packages (`@harpua/langgraph`, `@harpua/langgraph-testing`, `@harpua/agent-tools`). See [LICENSE](LICENSE).
