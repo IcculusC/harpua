@@ -53,9 +53,10 @@ jobs:
       - name: Scaffold a project with the built bin
         run: node packages/create-harpua-app/dist/cli.js /tmp/smoke-agent
 
+      # A fresh scaffold has no lockfile; CI=true would otherwise imply --frozen-lockfile.
       - name: Install the scaffold (real registry)
         working-directory: /tmp/smoke-agent
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build the scaffold
         working-directory: /tmp/smoke-agent
