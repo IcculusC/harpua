@@ -19,6 +19,7 @@ Reusable toolkit for LangGraph + NestJS. Libraries live in `packages/*` (the pro
 - Tests must be deterministic: inject clocks/reference dates, never bare `new Date()` in logic under test.
 - **Zod for all runtime validation and parsing — never hand-roll type guards.** No `isRecord`, `isNonEmptyString`, `isNegativeNumber`, or similar helper functions: that's `z.record(...)`, `z.string().min(1)`, `z.number().negative()` with `.parse()`/`.safeParse()` at the boundary. Derive the TS type with `z.infer` instead of writing it twice. If you're writing a function whose only job is to check a value's shape, stop — it's a zod schema.
 - Prefer Nest CLI schematics (`pnpm --filter <pkg> exec nest g <schematic> <name>`) over hand-writing standard Nest artifacts.
+- **One artifact per file.** A new node, tool provider, graph def, or service gets its own file (generated with a schematic where one exists) — never appended to an existing file because the pattern is already there. No god files.
 - Package names carry no framework prefixes: `@harpua/langgraph`, not `@harpua/nestjs-langgraph`.
 - Changes to a publishable package (`@harpua/langgraph`, `@harpua/langgraph-testing`, `@harpua/agent-tools`) must include a changeset (`pnpm exec changeset`); docs-only and repo-tooling changes don't.
 - Commits: no AI attribution trailers of any kind.

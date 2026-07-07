@@ -5,7 +5,13 @@ A tool is a method decorated with `@LangGraphTool` on any `@Injectable`. At boot
 ## Decide: new method vs new provider
 
 - **Adding a method to a class already in some graph's `tools` array**: just add the method. It is auto-collected — **zero** graph, module, or edge wiring. This is the common case; don't re-derive it.
-- **Adding a new tool provider class**: add the class to (a) that graph's `tools: [...]` array and (b) the module's `providers: [...]`. Providers aren't auto-scanned from the filesystem; each must be DI-resolvable.
+- **Adding a new tool provider class**: generate it first — a tool provider IS a provider — then shape it (Steps below) and add it to that graph's `tools: [...]` array. Don't hand-create the file:
+
+  ```bash
+  nest g provider <feature>/<name> --flat
+  ```
+
+  This writes `<feature>/<name>.ts`, its spec, and the module `providers: [...]` registration. You still add the class to the graph's `tools: [...]` by hand — providers aren't auto-scanned from the filesystem, so each must be DI-resolvable. Repo-exact invocation + observed paths: `harpua.md`.
 
 ## Steps (new method on an existing provider)
 

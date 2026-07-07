@@ -2,6 +2,34 @@
 
 Repo-specific deltas on top of the framework-generic `@harpua/langgraph` recipes at `packages/langgraph/skills/graph-operations/references/{tool,node,graph}.md`. Read the matching generic recipe first, then apply this.
 
+## Generating files (apps/api)
+
+Every recipe starts by generating the file with a Nest schematic. Run it from the repo root through the workspace filter. Chat-demo files live flat in `src/chat/`, so pass `--flat` — without it the schematic nests each artifact in its own subfolder (`src/chat/<name>/<name>.ts`):
+
+```bash
+# node or tool provider → a provider
+pnpm --filter @harpua/api exec nest g provider chat/<name> --flat
+# graph definition → a class
+pnpm --filter @harpua/api exec nest g class chat/<name>.graph --flat
+```
+
+`nest-cli.json` sets `sourceRoot: src`, so the `chat/<name>` argument resolves under `src/chat/`. Observed output for `nest g provider chat/sentiment --flat`:
+
+```
+CREATE src/chat/sentiment.ts          # @Injectable() export class Sentiment {}
+CREATE src/chat/sentiment.spec.ts
+UPDATE src/chat/chat.module.ts        # adds the import + a providers[] entry
+```
+
+and for `nest g class chat/summary.graph --flat`:
+
+```
+CREATE src/chat/summary.graph.ts      # export class SummaryGraph {}
+CREATE src/chat/summary.graph.spec.ts # class generates no module wiring
+```
+
+The class name is the PascalCase of the last path segment with **no** `.provider` suffix (`sentiment` → `Sentiment`); rename the class/file to your convention after generating. Keep the generated spec — don't pass `--no-spec`.
+
 ## Verification
 
 Always finish with the root protocol, not a per-package command:

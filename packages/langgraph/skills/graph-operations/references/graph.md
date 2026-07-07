@@ -4,7 +4,15 @@ A graph is a class decorated with `@LangGraph({ name, state, tools?, recursionLi
 
 ## Steps: a new graph
 
-1. **Declare state.** Canonical for message/agent graphs: `new StateSchema({ messages: MessagesValue })`, then `type S = StateOf<typeof Schema>`. Any bare zod object (or `Annotation.Root`) also works.
+1. **Generate the graph-def file — a `@LangGraph` class IS a class.** Run the schematic first, then shape the empty class it creates:
+
+```bash
+nest g class <feature>/<graph-name>.graph --flat
+```
+
+Expected: `<feature>/<graph-name>.graph.ts` (an empty exported class) + its spec. `nest g class` writes **no** module wiring — you register the graph yourself in step 3. Repo-exact invocation + observed paths: `harpua.md`.
+
+2. **Declare state** in the generated file. Canonical for message/agent graphs: `new StateSchema({ messages: MessagesValue })`, then `type S = StateOf<typeof Schema>`. Any bare zod object (or `Annotation.Root`) also works.
 
 ```ts
 export const AgentStateSchema = new StateSchema({ messages: MessagesValue });
@@ -20,9 +28,9 @@ export class WeatherAgentGraph {
 }
 ```
 
-2. **Register** in a module: `LangGraphModule.forFeature([WeatherAgentGraph])`, and list every node and tool provider in `providers: [...]`. `LangGraphModule.forRoot({ checkpointer })` is imported **once** at the app root, not per feature.
+3. **Register** in a module: `LangGraphModule.forFeature([WeatherAgentGraph])`, and list every node and tool provider in `providers: [...]`. `LangGraphModule.forRoot({ checkpointer })` is imported **once** at the app root, not per feature.
 
-3. **Consume** the compiled graph with `@InjectLangGraphRunnable(WeatherAgentGraph) agent: LangGraphRunnable<AgentState>`. Facade methods (`invoke`, `stream`/`streamValues`/`streamUpdates`/`streamMessages`/`streamModes`, `getState`, `updateState`, `resume`) — see the package README's "Facade API" and "Streaming" sections; don't reimplement streamMode handling.
+4. **Consume** the compiled graph with `@InjectLangGraphRunnable(WeatherAgentGraph) agent: LangGraphRunnable<AgentState>`. Facade methods (`invoke`, `stream`/`streamValues`/`streamUpdates`/`streamMessages`/`streamModes`, `getState`, `updateState`, `resume`) — see the package README's "Facade API" and "Streaming" sections; don't reimplement streamMode handling.
 
 ## Subgraphs
 

@@ -23,4 +23,14 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 
 1. **Verify with your project's build and test suite before reporting done.** Run whatever your project uses to build, lint, and test — don't call a change done on a passing unit test alone if the project also has an integration or e2e layer that exercises the same path.
 2. **Tests stay deterministic.** Inject a clock or reference date; never call bare `new Date()` in logic under test, even to "match the suite."
-3. **Prefer your framework's schematics** over hand-writing standard Nest artifacts: `nest g <schematic> <name>` (e.g. `service`, `module`, `controller`). Hand-write only what has no schematic — nodes, graphs, tool providers, edge lists.
+3. **Every recipe BEGINS with a schematic that generates the file — run it before you write any code.** Nodes and tool providers ARE providers; a graph-def class IS a class, so a schematic covers almost everything you add:
+
+   | Artifact you're adding | Generate with |
+   |---|---|
+   | Node (`NodeHandler`) | `nest g provider` |
+   | Tool provider (`@LangGraphTool` methods) | `nest g provider` |
+   | Graph definition (`@LangGraph` class) | `nest g class` |
+   | Nest module | `nest g module` |
+   | Service / controller | `nest g service` / `nest g controller` |
+
+   One node, tool provider, or graph-def **per file, each from its schematic** — NEVER hand-written, and NEVER inlined into an existing file "because the pattern is already there". A class merely typed inside the graph file is not a DI provider; the schematic writes the file, its spec, and (for a provider) the module `providers: [...]` registration for you. The only things you author by hand are the edge list and decorator config INSIDE the generated file.

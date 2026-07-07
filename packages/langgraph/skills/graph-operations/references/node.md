@@ -4,7 +4,15 @@ A node is an `@Injectable` implementing `NodeHandler<TState>`. It declares **onl
 
 ## Steps
 
-1. **Write the node.** Type it against the narrowest state slice it needs — reuse an existing slice interface where possible so the class can be wired into multiple graphs.
+1. **Generate the provider — a node IS a provider.** Run the schematic first; it writes the class file, its spec, and the module `providers: [...]` registration for you (bootstrap fails fast if an edge references an unprovided node, so let the schematic wire it — don't hand-create the file):
+
+```bash
+nest g provider <feature>/<node-name> --flat
+```
+
+`--flat` drops the file beside its siblings instead of in a per-name subfolder. Expected: `<feature>/<node-name>.ts` (the `@Injectable` class), `<feature>/<node-name>.spec.ts`, and an UPDATE to the feature module. Repo-exact invocation + observed paths: `harpua.md`.
+
+2. **Shape the generated class into a `NodeHandler`.** Type it against the narrowest state slice it needs — reuse an existing slice interface where possible so the class can be wired into multiple graphs.
 
 ```ts
 @Injectable()
@@ -17,8 +25,6 @@ export class CallModel implements NodeHandler<AgentState> {
   }
 }
 ```
-
-2. **Register it** in the module's `providers: [...]`. Bootstrap fails fast if an edge references an unprovided node.
 
 3. **Wire the edge** in the graph's `defineEdges<TState>([...])`. Use `route<TState>(fn, [pathMap])` for a conditional target; the pathMap is a closed set validated at bootstrap. Use `as("alias", NodeClass)` to mount the same provider under distinct ids.
 
@@ -40,6 +46,7 @@ Boot with `Test.createTestingModule({ imports: [LangGraphModule.forRoot(), LangG
 
 ## Common Mistakes
 
+- **Inlining a new node class into `chat.graph.ts` (or any existing file) "because the pattern is already there" instead of running `nest g provider`.** A class typed inside the graph-def file is not a DI provider — it never lands in `providers: [...]`, so bootstrap can't resolve the edge that targets it, and you skip the spec the schematic would have written. Generate it as its own provider; shaping the graph-def file is only for the edge list.
 - Typing the node against the whole graph state when it only touches one channel — over-wide slices block reuse and can fail to compile against narrower graphs.
 - Returning the full next state instead of a `Partial<TState>` patch of only the channels written.
 - Adding the node to `defineEdges` but not to module `providers` (or vice versa) — bootstrap throws.
