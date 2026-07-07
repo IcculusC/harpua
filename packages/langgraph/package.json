@@ -17,6 +17,9 @@
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "harpua-skills": "dist/cli/harpua-skills.js"
+  },
   "files": [
     "dist",
     "skills",

@@ -595,7 +595,35 @@ under `skills/graph-operations/` — recipes for adding a tool, node, edge,
 graph, or subgraph with this library. The format is an open standard
 supported by [Claude Code](https://claude.com/claude-code),
 [OpenAI Codex](https://developers.openai.com/codex/skills), and other agents;
-both follow symlinks, so wiring is one line per agent from your project root:
+both follow symlinks.
+
+### Recommended: the `harpua-skills` bin
+
+The package installs a `harpua-skills` bin that discovers the skills shipped by
+every installed `@harpua/*` package and links each into both `.claude/skills/`
+and `.agents/skills/` from your project root. It is idempotent and safe: a
+correct link is left alone, a stale/broken symlink is replaced, and a real
+directory you own is never clobbered (it warns and continues). Wire it as a
+`prepare` script so it re-runs on every install:
+
+```jsonc
+// package.json
+{
+  "scripts": {
+    "prepare": "harpua-skills"
+  }
+}
+```
+
+Or run it once, ad hoc:
+
+```bash
+pnpm exec harpua-skills   # or: npx harpua-skills
+```
+
+### Fallback: manual symlinks
+
+If you'd rather not run the bin, wire each skill by hand from your project root:
 
 ```bash
 # Claude Code
