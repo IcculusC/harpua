@@ -144,6 +144,23 @@ export interface LangGraphOptions {
   interruptAfter?: AnyNodeRef[];
 }
 
+/**
+ * Builds the human-facing approval prompt for an approval-gated tool from the
+ * paused tool call's args. Its return becomes the interrupt payload's `message`.
+ * Only legal alongside `requiresApproval: true`. A throwing implementation must
+ * not corrupt the flow: the framework catches it, omits `message`, and warns.
+ */
+export type ApprovalMessageFn = (args: unknown) => string;
+
+/**
+ * Builds the decline message an approval-gated tool returns when the human says
+ * no, from the paused call's args and the optional decline reason. Overrides the
+ * default `The user declined <tool>: <reason|no reason given>.` text. Only legal
+ * alongside `requiresApproval: true`; a throwing implementation falls back to the
+ * default text (and warns) rather than corrupting the flow.
+ */
+export type DeclineMessageFn = (args: unknown, reason?: string) => string;
+
 /** Descriptor stored per `@LangGraphTool` method. */
 export interface ToolMethodMetadata {
   methodName: string | symbol;
@@ -152,6 +169,10 @@ export interface ToolMethodMetadata {
   schema: unknown;
   /** Gate execution behind a human approval interrupt (see `requiresApproval`). */
   requiresApproval?: boolean;
+  /** Custom approval-prompt builder; only set when `requiresApproval` is true. */
+  approvalMessage?: ApprovalMessageFn;
+  /** Custom decline-message builder; only set when `requiresApproval` is true. */
+  declineMessage?: DeclineMessageFn;
 }
 
 /**

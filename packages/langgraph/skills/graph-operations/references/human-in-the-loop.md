@@ -57,6 +57,42 @@ set a side-channel field, so gating on the tool call is the only mechanism that
 works with a live LLM. (Gating via a model-set `additional_kwargs` flag is a
 mock-only fiction — real models hallucinate rather than emit it.)
 
+### Custom approval / decline wording (optional)
+
+Two optional builders tailor the human-facing text. Both are **only legal with
+`requiresApproval: true`** — supplying either without the flag is a loud
+registration-time error (enforced at compile via the option types and at runtime
+via zod), never a silently-ignored option:
+
+```ts
+@LangGraphTool({
+  name: "cancel_order",
+  description: "Cancel an order by its id. Requires the user's approval.",
+  schema: z.object({ orderId: z.string() }),
+  requiresApproval: true,
+  // Adds `message` to the interrupt payload. Zod-parse the args — never assume.
+  approvalMessage: (args) => {
+    const { orderId } = z.object({ orderId: z.string() }).parse(args);
+    return `Permanently cancel order ${orderId}? This cannot be undone.`;
+  },
+  // Overrides the default "The user declined <tool>: <reason|no reason given>."
+  declineMessage: (args, reason) =>
+    `Kept the order intact${reason ? `: ${reason}` : ""}.`,
+})
+```
+
+- `approvalMessage(args)` runs when the tool pauses; its return is added to the
+  interrupt payload as `message: string` (absent when no builder is set, so an
+  unadorned tool's payload is unchanged). `ToolApprovalRequest` gains `message?`.
+- `declineMessage(args, reason?)` runs on a declined resume and replaces the
+  default decline text.
+- **Throw-safe:** a builder that throws never corrupts the flow — `approvalMessage`
+  falls back to omitting `message`, `declineMessage` falls back to the default
+  text, and the framework emits a Nest `Logger` warning.
+
+The raw-tool sibling takes the same two options as a second argument:
+`requireApproval(tool, { approvalMessage, declineMessage })`.
+
 ### Surfacing it
 
 The payload flows through the same generic interrupt surfacing as any other (see

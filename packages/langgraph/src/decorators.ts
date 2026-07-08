@@ -1,11 +1,17 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Type } from "@nestjs/common";
+import { z } from "zod";
 import {
   GRAPH_METADATA,
   TOOL_METHODS_METADATA,
   getGraphFacadeToken,
 } from "./constants";
-import type { LangGraphOptions, ToolMethodMetadata } from "./interfaces";
+import type {
+  ApprovalMessageFn,
+  DeclineMessageFn,
+  LangGraphOptions,
+  ToolMethodMetadata,
+} from "./interfaces";
 
 /**
  * Marks a class as a LangGraph graph definition. The class is expected to expose
@@ -34,19 +40,77 @@ export function isGraphClass(target: unknown): target is Type<any> {
   return getGraphMetadata(target) !== undefined;
 }
 
-export interface LangGraphToolOptions {
+/** The name/description/schema every `@LangGraphTool` carries. */
+export interface LangGraphToolBaseOptions {
   name?: string;
   description: string;
   schema: unknown;
-  /**
-   * When true, the tool pauses for human approval BEFORE it executes: the graph
-   * `interrupt()`s with a `tool_approval_request` payload and only runs the real
-   * method after a resume with `{ approved: true }`. The model-facing schema is
-   * unchanged — the model still sees and calls the tool normally; the gate lives
-   * in the tool's execution. See {@link requireApproval} for the raw-tool sibling.
-   */
-  requiresApproval?: boolean;
 }
+
+/**
+ * The approval half of {@link LangGraphToolOptions}, expressed as a discriminated
+ * union so `approvalMessage`/`declineMessage` are a COMPILE error unless
+ * `requiresApproval: true` is set — the same rule the registration-time zod check
+ * enforces at runtime (for JS callers). See {@link ApprovalMessageFn} /
+ * {@link DeclineMessageFn} for the throw-safe semantics of each.
+ */
+export type LangGraphToolApprovalOptions =
+  | {
+      /**
+       * Pauses the tool for human approval BEFORE it executes: the graph
+       * `interrupt()`s with a `tool_approval_request` payload and only runs the
+       * real method after a resume with `{ approved: true }`. The model-facing
+       * schema is unchanged — the model still sees and calls the tool normally;
+       * the gate lives in EXECUTION. See {@link requireApproval} for the raw sibling.
+       */
+      requiresApproval: true;
+      /** Custom approval-prompt builder; its result becomes the payload `message`. */
+      approvalMessage?: ApprovalMessageFn;
+      /** Custom decline-message builder; overrides the default decline text. */
+      declineMessage?: DeclineMessageFn;
+    }
+  | {
+      requiresApproval?: false;
+      /** Illegal without `requiresApproval: true` (enforced at compile & registration). */
+      approvalMessage?: never;
+      /** Illegal without `requiresApproval: true` (enforced at compile & registration). */
+      declineMessage?: never;
+    };
+
+export type LangGraphToolOptions = LangGraphToolBaseOptions &
+  LangGraphToolApprovalOptions;
+
+/**
+ * Registration-time guard mirroring the compile-time discriminated union: a
+ * message builder is only legal with `requiresApproval: true`. Catches JS callers
+ * (and any `as` cast) that TypeScript can't — a clear, loud error, never a
+ * silently-ignored option. `schema` stays `unknown` (it is itself a zod schema).
+ */
+const messageFnSchema = z.custom<(...args: any[]) => string>(
+  (v) => typeof v === "function",
+  { message: "must be a function" },
+);
+const langGraphToolOptionsSchema = z
+  .object({
+    name: z.string().optional(),
+    description: z.string(),
+    schema: z.unknown(),
+    requiresApproval: z.boolean().optional(),
+    approvalMessage: messageFnSchema.optional(),
+    declineMessage: messageFnSchema.optional(),
+  })
+  .superRefine((opts, ctx) => {
+    if (opts.requiresApproval === true) return;
+    for (const key of ["approvalMessage", "declineMessage"] as const) {
+      if (opts[key] !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is only legal with requiresApproval: true`,
+        });
+      }
+    }
+  });
 
 /**
  * Marks a method on an `@Injectable` provider as a LangGraph tool. The method is
@@ -57,7 +121,19 @@ export interface LangGraphToolOptions {
 export function LangGraphTool(
   options: LangGraphToolOptions,
 ): MethodDecorator {
+  // Validate at registration time (the factory runs while the class is defined),
+  // so an illegal option is a clear, loud bootstrap error — never silently dropped.
+  const parsed = langGraphToolOptionsSchema.safeParse(options);
+  if (!parsed.success) {
+    const label = options.name ?? "<unnamed tool>";
+    throw new Error(
+      `@LangGraphTool('${label}'): ${parsed.error.issues
+        .map((i) => i.message)
+        .join("; ")}.`,
+    );
+  }
   return (target, propertyKey) => {
+    const requiresApproval = options.requiresApproval === true;
     const ctor = target.constructor;
     const existing: ToolMethodMetadata[] =
       (Reflect.getMetadata(TOOL_METHODS_METADATA, ctor) as
@@ -68,7 +144,14 @@ export function LangGraphTool(
       name: options.name,
       description: options.description,
       schema: options.schema,
-      requiresApproval: options.requiresApproval === true,
+      requiresApproval,
+      // Only carried when gated; the union/zod guard above keeps them absent otherwise.
+      ...(requiresApproval && options.approvalMessage
+        ? { approvalMessage: options.approvalMessage }
+        : {}),
+      ...(requiresApproval && options.declineMessage
+        ? { declineMessage: options.declineMessage }
+        : {}),
     });
     Reflect.defineMetadata(TOOL_METHODS_METADATA, existing, ctor);
   };

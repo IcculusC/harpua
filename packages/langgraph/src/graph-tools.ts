@@ -1,3 +1,4 @@
+import { Logger } from "@nestjs/common";
 import type { InjectionToken, Provider, Type } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import { tool } from "@langchain/core/tools";
@@ -13,7 +14,11 @@ import { interrupt } from "@langchain/langgraph";
 import { z } from "zod";
 
 import { getGraphMetadata, getToolMethods } from "./decorators";
+import type { ApprovalMessageFn, DeclineMessageFn } from "./interfaces";
 import { instrumentRawTool, instrumentTool } from "./observability";
+
+/** Logs a warning when a user-supplied approval/decline message builder throws. */
+const approvalLogger = new Logger("LangGraphApprovalGate");
 
 /**
  * Structural, fork-safe test for a raw LangChain tool INSTANCE. A `tool(...)`
@@ -53,22 +58,47 @@ const rawToolSchema = z.object({
 const REQUIRES_APPROVAL = Symbol.for("@harpua/langgraph:requiresApproval");
 
 /**
+ * Custom wording for an approval-gated tool — the raw-tool sibling of the
+ * `@LangGraphTool({ approvalMessage, declineMessage })` options. Both are optional
+ * and share the same throw-safe semantics (see {@link ApprovalMessageFn} /
+ * {@link DeclineMessageFn}).
+ */
+export interface RequireApprovalOptions {
+  approvalMessage?: ApprovalMessageFn;
+  declineMessage?: DeclineMessageFn;
+}
+
+const messageFnSchema = z.custom<(...args: any[]) => string>(
+  (v) => typeof v === "function",
+);
+const requireApprovalOptionsSchema = z.object({
+  approvalMessage: messageFnSchema.optional(),
+  declineMessage: messageFnSchema.optional(),
+});
+
+/**
  * Marks a raw LangChain tool INSTANCE as requiring human approval before it
  * executes — the raw-tool sibling of `@LangGraphTool({ requiresApproval: true })`.
  * Returns the same instance (with a non-enumerable marker) so it stays a normal
  * `StructuredToolInterface` the model binds unchanged; the gate is applied when
- * {@link buildGraphTools} mounts it.
+ * {@link buildGraphTools} mounts it. Optional {@link RequireApprovalOptions}
+ * (approval/decline wording) ride ON the same fork-safe marker — so a pnpm-forked
+ * duplicate of this package still reads them — never on the tool's own surface.
  *
  * @example
  * ```ts
- * @LangGraph({ name: "agent", state, tools: [requireApproval(dangerousTool())] })
+ * @LangGraph({ name: "agent", state, tools: [requireApproval(dangerousTool(), {
+ *   approvalMessage: (args) => `Really wipe ${(args as { target: string }).target}?`,
+ * })] })
  * ```
  */
 export function requireApproval<T extends StructuredToolInterface>(
   rawTool: T,
+  options: RequireApprovalOptions = {},
 ): T {
+  const parsed = requireApprovalOptionsSchema.parse(options);
   Object.defineProperty(rawTool, REQUIRES_APPROVAL, {
-    value: true,
+    value: parsed,
     enumerable: false,
     configurable: true,
     writable: false,
@@ -80,8 +110,15 @@ function isApprovalRequired(rawTool: unknown): boolean {
   return (
     typeof rawTool === "object" &&
     rawTool !== null &&
-    (rawTool as Record<symbol, unknown>)[REQUIRES_APPROVAL] === true
+    (rawTool as Record<symbol, unknown>)[REQUIRES_APPROVAL] !== undefined
   );
+}
+
+/** Reads the {@link RequireApprovalOptions} carried on a marked raw tool, if any. */
+function approvalOptionsOf(rawTool: unknown): RequireApprovalOptions {
+  const marker = (rawTool as Record<symbol, unknown>)[REQUIRES_APPROVAL];
+  const parsed = requireApprovalOptionsSchema.safeParse(marker);
+  return parsed.success ? parsed.data : {};
 }
 
 /**
@@ -95,6 +132,12 @@ const toolApprovalRequestSchema = z.object({
   tool: z.string(),
   /** The arguments of the paused tool call. */
   args: z.unknown(),
+  /**
+   * Human-facing approval prompt, present only when the tool declares an
+   * `approvalMessage` builder (and it did not throw). Absent otherwise, so the
+   * payload of a tool without custom wording is byte-identical to before.
+   */
+  message: z.string().optional(),
 });
 
 export type ToolApprovalRequest = z.infer<typeof toolApprovalRequestSchema>;
@@ -135,8 +178,56 @@ function resolveDecision(
   return parsed.data;
 }
 
-function declineMessage(toolName: string, reason?: string): string {
+/** The framework default when a tool declares no custom `declineMessage`. */
+function defaultDeclineMessage(toolName: string, reason?: string): string {
   return `The user declined ${toolName}: ${reason ?? "no reason given"}.`;
+}
+
+/**
+ * Runs the tool's `approvalMessage` builder for the interrupt payload. A THROWING
+ * builder must never corrupt the flow: catch it, warn via the Nest logger, and
+ * fall back to no message (so the payload matches an unadorned approval request).
+ */
+function buildApprovalMessage(
+  fn: ApprovalMessageFn | undefined,
+  toolName: string,
+  args: unknown,
+): string | undefined {
+  if (!fn) return undefined;
+  try {
+    return fn(args);
+  } catch (err) {
+    approvalLogger.warn(
+      `approvalMessage for tool '${toolName}' threw; omitting message. ${String(
+        err,
+      )}`,
+    );
+    return undefined;
+  }
+}
+
+/**
+ * Runs the tool's `declineMessage` builder for a declined call. Same throw-safety
+ * as {@link buildApprovalMessage}, but the fallback is the framework default text
+ * rather than nothing — a declined tool always returns SOME message to the model.
+ */
+function buildDeclineMessage(
+  fn: DeclineMessageFn | undefined,
+  toolName: string,
+  args: unknown,
+  reason: string | undefined,
+): string {
+  if (!fn) return defaultDeclineMessage(toolName, reason);
+  try {
+    return fn(args, reason);
+  } catch (err) {
+    approvalLogger.warn(
+      `declineMessage for tool '${toolName}' threw; using default decline text. ${String(
+        err,
+      )}`,
+    );
+    return defaultDeclineMessage(toolName, reason);
+  }
 }
 
 type ToolFn = (...args: any[]) => unknown | Promise<unknown>;
@@ -148,17 +239,30 @@ type ToolFn = (...args: any[]) => unknown | Promise<unknown>;
  * `GraphInterrupt` throw is never recorded as a span error. A declined call
  * returns a plain string; `tool(...)` turns it into the ToolMessage the model reads.
  */
-function approvalGatedProviderTool(toolName: string, run: ToolFn): ToolFn {
+function approvalGatedProviderTool(
+  toolName: string,
+  run: ToolFn,
+  options: RequireApprovalOptions = {},
+): ToolFn {
   return (...args: any[]) => {
+    const callArgs = args[0];
+    const message = buildApprovalMessage(
+      options.approvalMessage,
+      toolName,
+      callArgs,
+    );
     const decision = interrupt(
       toolApprovalRequestSchema.parse({
         type: "tool_approval_request",
         tool: toolName,
-        args: args[0],
+        args: callArgs,
+        ...(message !== undefined ? { message } : {}),
       }),
     );
     const { approved, reason } = resolveDecision(toolName, decision);
-    return approved ? run(...args) : declineMessage(toolName, reason);
+    return approved
+      ? run(...args)
+      : buildDeclineMessage(options.declineMessage, toolName, callArgs, reason);
   };
 }
 
@@ -173,13 +277,21 @@ function approvalGatedProviderTool(toolName: string, run: ToolFn): ToolFn {
 function approvalGatedRawTool(
   instrumented: StructuredToolInterface,
   toolName: string,
+  options: RequireApprovalOptions = {},
 ): StructuredToolInterface {
   const gatedInvoke = (input: unknown, ...rest: any[]): unknown => {
+    const callArgs = callArgsOf(input);
+    const message = buildApprovalMessage(
+      options.approvalMessage,
+      toolName,
+      callArgs,
+    );
     const decision = interrupt(
       toolApprovalRequestSchema.parse({
         type: "tool_approval_request",
         tool: toolName,
-        args: callArgsOf(input),
+        args: callArgs,
+        ...(message !== undefined ? { message } : {}),
       }),
     );
     const { approved, reason } = resolveDecision(toolName, decision);
@@ -188,7 +300,12 @@ function approvalGatedRawTool(
     }
     const call = toolCallSchema.safeParse(input);
     return new ToolMessage({
-      content: declineMessage(toolName, reason),
+      content: buildDeclineMessage(
+        options.declineMessage,
+        toolName,
+        callArgs,
+        reason,
+      ),
       tool_call_id: call.success ? (call.data.id ?? "") : "",
       name: toolName,
     });
@@ -252,7 +369,7 @@ export function buildGraphTools(
       const instrumented = instrumentRawTool(raw);
       tools.push(
         isApprovalRequired(raw)
-          ? approvalGatedRawTool(instrumented, raw.name)
+          ? approvalGatedRawTool(instrumented, raw.name, approvalOptionsOf(raw))
           : instrumented,
       );
       continue;
@@ -279,7 +396,10 @@ export function buildGraphTools(
         // binds the flagged tool exactly as it binds an unflagged one.
         const execute = instrumentTool(toolName, fn);
         const gated = m.requiresApproval
-          ? approvalGatedProviderTool(toolName, execute)
+          ? approvalGatedProviderTool(toolName, execute, {
+              approvalMessage: m.approvalMessage,
+              declineMessage: m.declineMessage,
+            })
           : execute;
         tools.push(
           tool(gated, {
