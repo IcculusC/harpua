@@ -78,6 +78,25 @@ describe("web_search", () => {
     expect(out).toMatch(/settings\.yml/);
   });
 
+  it("drops malformed result items and keeps the good ones", async () => {
+    const fetchFn: FetchFn = async () =>
+      jsonResponse({
+        results: [
+          { title: "Good", url: "https://ok.example" },
+          { url: "https://no-title.example" },
+          { title: 42, url: "https://bad-title.example" },
+        ],
+      });
+    const out = await runTool(
+      webSearchTool({ baseUrl: "http://searx.local", fetchFn }),
+      { query: "x" },
+    );
+    expect(out).toContain("1. Good");
+    expect(out).toContain("https://ok.example");
+    expect(out).not.toContain("no-title.example");
+    expect(out).not.toContain("unexpected response shape");
+  });
+
   it("reports network failures and unparseable bodies as strings", async () => {
     const failing: FetchFn = async () => {
       throw new Error("connect ECONNREFUSED");

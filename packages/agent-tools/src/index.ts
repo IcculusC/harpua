@@ -28,5 +28,8 @@ export type {
   FetchUrlToolOptions,
   WebResearchToolsOptions,
   FetchFn,
+  FetchResponseLike,
   SaveDirResolver,
+  ResolvedWebSearchToolOptions,
+  ResolvedFetchUrlToolOptions,
 } from "./web-research/options";

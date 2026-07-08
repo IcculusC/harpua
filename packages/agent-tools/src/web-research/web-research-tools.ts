@@ -18,10 +18,12 @@ import {
  *
  * @example
  * ```ts
+ * import fs from "node:fs";
  * import { webResearchTools, fileExplorationTools } from "@harpua/agent-tools";
  * import { ToolNode } from "@langchain/langgraph/prebuilt";
  *
  * const sources = "./sources";
+ * fs.mkdirSync(sources, { recursive: true });
  * const toolNode = new ToolNode([
  *   ...webResearchTools({ baseUrl: "http://localhost:8080", saveDir: sources }),
  *   ...fileExplorationTools({ root: sources }),

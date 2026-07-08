@@ -24,15 +24,18 @@ const webSearchInputSchema = z.object({
 
 /** Only the fields we read from a SearXNG JSON response; extras are ignored. */
 const searxngResponseSchema = z.object({
-  results: z
-    .array(
-      z.object({
-        title: z.string(),
-        url: z.string(),
-        content: z.string().optional(),
-      }),
-    )
-    .optional(),
+  results: z.array(z.unknown()).optional(),
+});
+
+/**
+ * A single SearXNG result item. SearXNG aggregates heterogeneous engines, so
+ * individual items sometimes omit `title`/`url` — those are dropped rather
+ * than failing the whole response.
+ */
+const resultItemSchema = z.object({
+  title: z.string(),
+  url: z.string(),
+  content: z.string().optional(),
 });
 
 /**
@@ -79,13 +82,18 @@ export function webSearchTool(
         );
       }
 
-      let results;
+      let rawResults;
       try {
-        results =
+        rawResults =
           searxngResponseSchema.parse(JSON.parse(await response.text())).results ?? [];
       } catch {
         return "web_search: the search service returned an unexpected response shape.";
       }
+
+      const results = rawResults
+        .map((item) => resultItemSchema.safeParse(item))
+        .filter((parsed): parsed is z.SafeParseSuccess<z.infer<typeof resultItemSchema>> => parsed.success)
+        .map((parsed) => parsed.data);
 
       const shown = results.slice(0, opts.maxResults);
       if (shown.length === 0) {

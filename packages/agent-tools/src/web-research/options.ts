@@ -67,7 +67,9 @@ export const webSearchToolOptionsSchema = z
   })
   .strict();
 
+/** Caller-facing options: `baseUrl` required, every cap optional (defaults apply). */
 export type WebSearchToolOptions = z.input<typeof webSearchToolOptionsSchema>;
+/** Fully-resolved options with all defaults applied. */
 export type ResolvedWebSearchToolOptions = z.output<typeof webSearchToolOptionsSchema>;
 
 /** Parse + default web_search options, throwing a zod error on invalid shape. */
@@ -101,7 +103,9 @@ export const fetchUrlToolOptionsSchema = z
   })
   .strict();
 
+/** Caller-facing options: `saveDir` required, every cap optional (defaults apply). */
 export type FetchUrlToolOptions = z.input<typeof fetchUrlToolOptionsSchema>;
+/** Fully-resolved options with all defaults applied. */
 export type ResolvedFetchUrlToolOptions = z.output<typeof fetchUrlToolOptionsSchema>;
 
 /** Parse + default fetch_url options, throwing a zod error on invalid shape. */
