@@ -6,9 +6,9 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "nest build",
-    "start": "node dist/main.js",
+    "start": "node --env-file-if-exists=.env dist/main.js",
     "start:dev": "nest start --watch",
-    "chat": "nest build && node dist/cli.js",
+    "chat": "nest build && node --env-file-if-exists=.env dist/cli.js",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "jest",
     "prepare": "harpua-skills"
