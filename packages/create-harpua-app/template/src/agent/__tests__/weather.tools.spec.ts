@@ -1,4 +1,5 @@
 import { WeatherTools } from "../weather.tools";
+import { OutboxService } from "../outbox.service";
 import type { FetchFn } from "../fetch.token";
 
 /** Canned Open-Meteo payloads keyed by which endpoint the URL targets. */
@@ -35,7 +36,7 @@ function cannedFetch(
 describe("WeatherTools.getWeather", () => {
   it("geocodes then forecasts and summarizes the result", async () => {
     const { fetchFn, calls } = cannedFetch();
-    const tools = new WeatherTools(fetchFn);
+    const tools = new WeatherTools(fetchFn, new OutboxService());
 
     const result = await tools.getWeather({ location: "Berlin" });
 
@@ -50,7 +51,7 @@ describe("WeatherTools.getWeather", () => {
 
   it("returns a friendly message for an unknown location (empty geocoding)", async () => {
     const { fetchFn, calls } = cannedFetch({ geocoding: { results: [] } });
-    const tools = new WeatherTools(fetchFn);
+    const tools = new WeatherTools(fetchFn, new OutboxService());
 
     const result = await tools.getWeather({ location: "Nowheresville" });
 
@@ -62,7 +63,7 @@ describe("WeatherTools.getWeather", () => {
 
   it("rejects a malformed forecast payload via zod parsing", async () => {
     const { fetchFn } = cannedFetch({ forecast: { current: {} } });
-    const tools = new WeatherTools(fetchFn);
+    const tools = new WeatherTools(fetchFn, new OutboxService());
 
     await expect(tools.getWeather({ location: "Berlin" })).rejects.toThrow();
   });

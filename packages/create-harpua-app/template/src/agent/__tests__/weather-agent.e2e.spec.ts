@@ -16,6 +16,7 @@ import {
   type AgentState,
 } from "../weather-agent.graph";
 import { WeatherTools } from "../weather.tools";
+import { OutboxService } from "../outbox.service";
 import { CHAT_MODEL } from "@harpua/models";
 import { provideGraphBoundModel } from "@harpua/langgraph";
 import { AGENT_BOUND_MODEL } from "../agent-model.token";
@@ -69,6 +70,7 @@ describe("Weather agent (integration)", () => {
       graphs: [WeatherAgentGraph],
       providers: [
         WeatherTools,
+        OutboxService,
         CallModelNode,
         { provide: CHAT_MODEL, useClass: model },
         provideGraphBoundModel({

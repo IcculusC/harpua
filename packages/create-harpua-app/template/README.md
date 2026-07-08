@@ -8,7 +8,9 @@ It's the classic LangGraph weather-agent quickstart, made runnable the idiomatic
 Nest way: the tool is a method on a DI provider, the model call is a node, and
 the edges are a typed list. A `get_weather` tool calls the keyless
 [Open-Meteo](https://open-meteo.com) API; a `think` tool lets the agent reason
-between steps.
+between steps; and a `send_weather_report` tool "emails" a report — a
+side-effectful action, so it's **approval-gated**: the graph pauses for your
+yes/no before it runs.
 
 ## Quickstart
 
@@ -34,6 +36,49 @@ Run the tests (deterministic, offline):
 
 ```bash
 pnpm test
+```
+
+## Approving a side effect — the `send_weather_report` tool
+
+`send_weather_report` "emails" a weather report. Sending is side-effectful, so
+the tool is declared `requiresApproval: true`. When the model calls it, the graph
+doesn't run it — it **pauses** and the turn returns a `tool_approval_request`
+interrupt describing exactly what's about to run. You approve or decline on a
+separate `/resume` endpoint; only `{ "approved": true }` actually sends.
+
+```bash
+# 1. Ask to send — the response is an interrupt, not a final answer:
+curl -XPOST localhost:3000/agent/t9 -H 'content-type: application/json' \
+  -d '{"message":"send a weather report for Berlin to alice@example.com"}'
+# -> {"messages":[],"interrupt":{"type":"tool_approval_request",
+#      "tool":"send_weather_report",
+#      "args":{"location":"Berlin","recipient":"alice@example.com"}}}
+
+# 2a. Approve — the tool runs and the report is "sent":
+curl -XPOST localhost:3000/agent/t9/resume -H 'content-type: application/json' \
+  -d '{"approved":true}'
+# -> {"messages":["Sent a weather report for Berlin to alice@example.com: It's currently 21.3°C ..."]}
+
+# 2b. Or decline (on a fresh thread) — the tool never runs:
+curl -XPOST localhost:3000/agent/t9d -H 'content-type: application/json' \
+  -d '{"message":"send a weather report for Berlin to alice@example.com"}'
+curl -XPOST localhost:3000/agent/t9d/resume -H 'content-type: application/json' \
+  -d '{"approved":false,"reason":"not now"}'
+# -> messages mention the tool was declined; nothing is sent.
+```
+
+The `/resume` body is zod-validated (`{ approved: boolean, reason?: string }`);
+a malformed body is a `400`. In the CLI the same gate shows up as an
+`[approval needed] run send_weather_report with {...}?` line and an
+`Approve? (y/n)` prompt:
+
+```bash
+pnpm chat
+weather> send a weather report for Berlin to alice@example.com
+[tool: send_weather_report] {"location":"Berlin","recipient":"alice@example.com"}
+[approval needed] run send_weather_report with {"location":"Berlin","recipient":"alice@example.com"}?
+Approve? (y/n) y
+[assistant] Sent a weather report for Berlin to alice@example.com: ...
 ```
 
 ## Choosing a model — `MODEL_PROVIDER`
@@ -95,11 +140,15 @@ See the `@harpua/models` README for the full `register()` / env-prefix contract.
 with no network of its own — runtime code shouldn't depend on a testing library,
 so it lives in the project. It's scripted:
 
-1. A human turn matching **"weather … in `<place>`"** → emits a `get_weather`
+1. A human turn matching a **send/email intent** with a location + recipient
+   (e.g. "send a weather report for Berlin to alice@example.com") → emits a
+   `send_weather_report` tool call. That tool is approval-gated, so the graph
+   pauses for your approval before it "sends".
+2. A human turn matching **"weather … in `<place>`"** → emits a `get_weather`
    tool call for the captured location.
-2. A tool result present → summarizes it into the reply. So **mock mode still
+3. A tool result present → summarizes it into the reply. So **mock mode still
    makes the real Open-Meteo call** — you get live weather without any model key.
-3. Otherwise → help text listing what the agent can do.
+4. Otherwise → help text listing what the agent can do.
 
 When you teach the mock a new capability, update its help text too. The mock is
 wired as the `mock` arm's factory (`ChatModelModule.forRoot({ defaults: { mockModel } })`
@@ -124,10 +173,11 @@ src/
   app.module.ts               # root module + memory checkpointer
   agent/
     weather-agent.graph.ts    # state, CallModelNode, shouldContinue, the graph
-    weather.tools.ts          # get_weather (Open-Meteo), fetch injected via DI
+    weather.tools.ts          # get_weather + approval-gated send_weather_report
+    outbox.service.ts         # in-memory outbox the send tool records into
     mock-chat-model.ts        # deterministic offline model (the mock arm's factory)
     fetch.token.ts            # injectable fetch (default: globalThis.fetch)
-    agent.service.ts          # invokes the compiled graph facade
-    agent.controller.ts       # HTTP endpoint
+    agent.service.ts          # invokes the graph facade (ask + resume)
+    agent.controller.ts       # HTTP endpoints (POST /agent/:id, /agent/:id/resume)
     agent.module.ts           # wiring
 ```

@@ -3,6 +3,7 @@ import { z } from "zod";
 import { LangGraphTool } from "@harpua/langgraph";
 
 import { WEATHER_FETCH, type FetchFn } from "./fetch.token";
+import { OutboxService } from "./outbox.service";
 
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
@@ -53,7 +54,10 @@ function describeWeather(code: number): string {
 
 @Injectable()
 export class WeatherTools {
-  constructor(@Inject(WEATHER_FETCH) private readonly fetchFn: FetchFn) {}
+  constructor(
+    @Inject(WEATHER_FETCH) private readonly fetchFn: FetchFn,
+    private readonly outbox: OutboxService,
+  ) {}
 
   @LangGraphTool({
     name: "get_weather",
@@ -66,9 +70,42 @@ export class WeatherTools {
     }),
   })
   async getWeather(input: { location: string }): Promise<string> {
-    const place = await this.geocode(input.location);
+    return this.weatherReport(input.location);
+  }
+
+  // Side-effectful (it "sends" an email), so it is approval-gated: the framework
+  // pauses with a tool_approval_request interrupt BEFORE this runs, and only
+  // executes on a resume with { approved: true }. The model still sees/calls it
+  // normally — only its execution is gated.
+  @LangGraphTool({
+    name: "send_weather_report",
+    description:
+      "Email a weather report for a location to a recipient. Sending is " +
+      "side-effectful, so it requires the user's approval before it runs.",
+    schema: z.object({
+      location: z
+        .string()
+        .describe("The location to report the weather for, e.g. 'Berlin'."),
+      recipient: z
+        .string()
+        .describe("Who to send the report to, e.g. 'alice@example.com'."),
+    }),
+    requiresApproval: true,
+  })
+  async sendWeatherReport(input: {
+    location: string;
+    recipient: string;
+  }): Promise<string> {
+    const body = await this.weatherReport(input.location);
+    this.outbox.send(input.recipient, body);
+    return `Sent a weather report for ${input.location} to ${input.recipient}: ${body}`;
+  }
+
+  /** Shared lookup: geocode + current forecast, summarized into one sentence. */
+  private async weatherReport(location: string): Promise<string> {
+    const place = await this.geocode(location);
     if (!place) {
-      return `I couldn't find a place called "${input.location}". Try a nearby city or a different spelling.`;
+      return `I couldn't find a place called "${location}". Try a nearby city or a different spelling.`;
     }
 
     const forecast = await this.forecast(place.latitude, place.longitude);
