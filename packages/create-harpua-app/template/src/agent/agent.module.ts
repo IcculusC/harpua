@@ -7,6 +7,7 @@ import { AgentService } from "./agent.service";
 import { CallModelNode, WeatherAgentGraph } from "./weather-agent.graph";
 import { AGENT_BOUND_MODEL } from "./agent-model.token";
 import { WeatherTools } from "./weather.tools";
+import { OutboxService } from "./outbox.service";
 import { MockChatModel } from "./mock-chat-model";
 import { fetchProvider } from "./fetch.token";
 
@@ -40,6 +41,8 @@ import { fetchProvider } from "./fetch.token";
   controllers: [AgentController],
   providers: [
     WeatherTools,
+    // In-memory outbox the approval-gated send_weather_report tool records into.
+    OutboxService,
     // Bind the agent graph's tools to the chat model so a real model can emit
     // the get_weather / think tool calls (the ToolNode only executes them).
     // Mock-by-default is unchanged: MockChatModel.bindTools returns itself.

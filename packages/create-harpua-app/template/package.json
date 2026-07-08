@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@harpua/agent-tools": "^0.1.0",
-    "@harpua/langgraph": "^0.1.1",
+    "@harpua/langgraph": "^0.1.3",
     "@harpua/models": "^0.1.0",
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
