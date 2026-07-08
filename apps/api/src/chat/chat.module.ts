@@ -8,6 +8,7 @@ import { ApprovalNode, CallModelNode, ChatGraph } from "./chat.graph";
 import { MockChatModel } from "./mock-chat-model";
 import { OrderTools } from "./order.tools";
 import { OrdersService } from "./orders.service";
+import { SystemPrompt } from './system-prompt';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { OrdersService } from "./orders.service";
     CallModelNode,
     ApprovalNode,
     ChatService,
+    SystemPrompt,
   ],
   exports: [ChatService],
 })

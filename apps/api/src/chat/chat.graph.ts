@@ -16,6 +16,7 @@ import {
 } from "@harpua/langgraph";
 
 import { type PendingAction } from "./mock-chat-model";
+import { SystemPrompt } from "./system-prompt";
 import { OrderTools } from "./order.tools";
 import { OrdersService } from "./orders.service";
 
@@ -26,10 +27,12 @@ export type ChatState = StateOf<typeof ChatMessagesState>;
 export class CallModelNode implements NodeHandler<ChatState> {
   constructor(
     @InjectChatModel() private readonly model: BaseChatModel,
+    private readonly systemPrompt: SystemPrompt,
   ) {}
 
   async run(state: ChatState) {
-    return { messages: [await this.model.invoke(state.messages)] };
+    const messages = [this.systemPrompt.asMessage(), ...state.messages];
+    return { messages: [await this.model.invoke(messages)] };
   }
 }
 

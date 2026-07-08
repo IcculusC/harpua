@@ -17,6 +17,7 @@ import {
 import { AppModule } from "../app.module";
 import { OrdersService } from "./orders.service";
 import { OrderTools } from "./order.tools";
+import { SystemPrompt } from "./system-prompt";
 import { ChatService } from "./chat.service";
 import {
   ApprovalNode,
@@ -69,6 +70,7 @@ describe("Chat graph (integration)", () => {
         OrderTools,
         CallModelNode,
         ApprovalNode,
+        SystemPrompt,
         { provide: CHAT_MODEL, useClass: model },
       ],
     });
