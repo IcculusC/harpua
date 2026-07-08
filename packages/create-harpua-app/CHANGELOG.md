@@ -1,5 +1,16 @@
 # create-harpua-app
 
+## 0.1.3
+
+### Patch Changes
+
+- 61399da: Template `start` and `chat` scripts now load `.env` automatically via node's
+  `--env-file-if-exists` (the README already told users to copy `.env.example`,
+  but no script actually read it). `start:dev` can't take node flags through
+  `nest start --watch`, so the README documents exporting variables instead.
+  Also keeps stray local `template/dist` build artifacts out of the published
+  tarball.
+
 ## 0.1.2
 
 ### Patch Changes
