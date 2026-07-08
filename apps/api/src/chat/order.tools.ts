@@ -20,11 +20,17 @@ export class OrderTools {
   // Destructive, so it is approval-gated: the framework pauses with a
   // tool_approval_request interrupt BEFORE this runs, and only executes on a
   // resume with { approved: true }. The model still sees/calls it normally.
+  // approvalMessage adds custom human-facing wording to that interrupt payload;
+  // it zod-parses the tool-call args rather than assuming their shape.
   @LangGraphTool({
     name: "cancel_order",
     description: "Cancel an order by its id. Requires the user's approval.",
     schema: z.object({ orderId: z.string() }),
     requiresApproval: true,
+    approvalMessage: (args) => {
+      const { orderId } = z.object({ orderId: z.string() }).parse(args);
+      return `Permanently cancel order ${orderId}? This cannot be undone.`;
+    },
   })
   cancelOrder(input: { orderId: string }): string {
     return this.orders.cancel(input.orderId);

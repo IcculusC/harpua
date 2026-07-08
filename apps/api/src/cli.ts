@@ -14,11 +14,17 @@ const toolApprovalRequestSchema = z.object({
   type: z.literal("tool_approval_request"),
   tool: z.string(),
   args: z.unknown(),
+  message: z.string().optional(),
 });
 
 function renderInterrupt(payload: unknown): string {
   const parsed = toolApprovalRequestSchema.safeParse(payload);
   if (parsed.success) {
+    // Prefer the tool's custom approval wording when present; otherwise fall
+    // back to the generic "run <tool> with <args>?" rendering.
+    if (parsed.data.message !== undefined) {
+      return `[approval needed] ${parsed.data.message}`;
+    }
     return `[approval needed] run ${parsed.data.tool} with ${JSON.stringify(
       parsed.data.args,
     )}?`;

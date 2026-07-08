@@ -46,7 +46,28 @@ await graph.resume(threadId, { approved: true });               // runs the tool
 await graph.resume(threadId, { approved: false, reason: "…" }); // declines; tool never runs
 ```
 
-A raw LangChain tool instance uses the sibling marker `requireApproval(tool)`.
+Two optional builders customize the wording (only legal with
+`requiresApproval: true` — otherwise a loud registration-time error):
+
+```ts
+@LangGraphTool({
+  name: "cancel_order",
+  description: "Cancel an order by its id. Requires the user's approval.",
+  schema: z.object({ orderId: z.string() }),
+  requiresApproval: true,
+  // Adds `message` to the interrupt payload (ToolApprovalRequest gains `message?`).
+  approvalMessage: (args) =>
+    `Permanently cancel order ${z.object({ orderId: z.string() }).parse(args).orderId}? This cannot be undone.`,
+  // Overrides the default "The user declined <tool>: <reason>." text.
+  declineMessage: (args, reason) => `Kept the order intact${reason ? `: ${reason}` : ""}.`,
+})
+```
+
+Both are throw-safe: a builder that throws falls back (no message / default
+decline text) and logs a warning rather than corrupting the run.
+
+A raw LangChain tool instance uses the sibling marker `requireApproval(tool)`
+(custom wording via `requireApproval(tool, { approvalMessage, declineMessage })`).
 See `skills/graph-operations/references/human-in-the-loop.md` for surfacing over
 HTTP/SSE/CLI, resume semantics, and multi-step approvals.
 

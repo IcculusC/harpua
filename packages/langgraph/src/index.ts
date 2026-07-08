@@ -16,7 +16,11 @@ export {
   getToolMethods,
   isGraphClass,
 } from "./decorators";
-export type { LangGraphToolOptions } from "./decorators";
+export type {
+  LangGraphToolOptions,
+  LangGraphToolBaseOptions,
+  LangGraphToolApprovalOptions,
+} from "./decorators";
 
 // Module + runtime pieces.
 export { LangGraphModule } from "./langgraph.module";
@@ -37,6 +41,7 @@ export type {
   ProvideGraphToolsOptions,
   ProvideGraphBoundModelOptions,
   ToolApprovalRequest,
+  RequireApprovalOptions,
 } from "./graph-tools";
 
 // Streaming helpers.
@@ -58,6 +63,8 @@ export type {
   LangGraphOptions,
   ToolEntry,
   ToolMethodMetadata,
+  ApprovalMessageFn,
+  DeclineMessageFn,
   CheckpointerOptions,
   PostgresCheckpointerOptions,
   SqliteCheckpointerOptions,

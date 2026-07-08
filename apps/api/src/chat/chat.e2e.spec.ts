@@ -144,12 +144,15 @@ describe("Chat graph (integration)", () => {
       type: string;
       tool: string;
       args: { orderId: string };
+      message: string;
     }>(paused);
     expect(pending).toEqual(
       expect.objectContaining({
         type: "tool_approval_request",
         tool: "cancel_order",
         args: { orderId: "7" },
+        // cancel_order's approvalMessage builder surfaces custom wording.
+        message: "Permanently cancel order 7? This cannot be undone.",
       }),
     );
     expect(orders.statusOf("7")).toBe("shipped");
@@ -222,6 +225,7 @@ describe("Chat over HTTP (e2e)", () => {
         type: "tool_approval_request",
         tool: "cancel_order",
         args: { orderId: "7" },
+        message: "Permanently cancel order 7? This cannot be undone.",
       }),
     );
 

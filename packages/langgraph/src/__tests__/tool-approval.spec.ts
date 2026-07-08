@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
@@ -448,5 +448,372 @@ describe("approval-gated tool observability", () => {
       .filter((s: ReadableSpan) => s.name === "langgraph.tool cancel_order");
     expect(toolSpans).toHaveLength(1);
     expect(toolSpans[0].attributes["langgraph.tool.name"]).toBe("cancel_order");
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Customizable approval + decline wording
+ * ------------------------------------------------------------------ */
+
+// Records the args each message builder actually receives, to prove the gate
+// hands the real tool-call args to the builder.
+const approvalArgsSeen: unknown[] = [];
+
+// Provider tool with BOTH custom builders. approvalMessage zod-parses its args
+// (never assumes their shape); declineMessage weaves in the reason.
+@Injectable()
+class MessagedCancelTools {
+  constructor(private readonly svc: CancelService) {}
+  @LangGraphTool({
+    name: "cancel_order",
+    description: cancelDescription,
+    schema: cancelSchema,
+    requiresApproval: true,
+    approvalMessage: (args) => {
+      approvalArgsSeen.push(args);
+      const { orderId } = cancelSchema.parse(args);
+      return `Permanently cancel order ${orderId}? This cannot be undone.`;
+    },
+    declineMessage: (args, reason) => {
+      const { orderId } = cancelSchema.parse(args);
+      return `Kept order ${orderId} intact${reason ? `: ${reason}` : ""}.`;
+    },
+  })
+  cancelOrder(input: { orderId: string }): string {
+    return this.svc.cancel(input.orderId);
+  }
+}
+
+// Provider tool whose approvalMessage THROWS — must not corrupt the flow.
+@Injectable()
+class ThrowingMsgCancelTools {
+  constructor(private readonly svc: CancelService) {}
+  @LangGraphTool({
+    name: "cancel_order",
+    description: cancelDescription,
+    schema: cancelSchema,
+    requiresApproval: true,
+    approvalMessage: () => {
+      throw new Error("approvalMessage kaboom");
+    },
+  })
+  cancelOrder(input: { orderId: string }): string {
+    return this.svc.cancel(input.orderId);
+  }
+}
+
+@LangGraph({
+  name: "messagedApproval",
+  state: MessagesState,
+  tools: [MessagedCancelTools],
+})
+class MessagedApprovalGraph {
+  edges = defineEdges<MsgState>([
+    { from: START, to: CancelModel },
+    { from: CancelModel, to: route<MsgState>(hasToolCalls, [TOOLS, END]) },
+    { from: TOOLS, to: CancelModel },
+  ]);
+}
+
+@LangGraph({
+  name: "throwingApproval",
+  state: MessagesState,
+  tools: [ThrowingMsgCancelTools],
+})
+class ThrowingApprovalGraph {
+  edges = defineEdges<MsgState>([
+    { from: START, to: CancelModel },
+    { from: CancelModel, to: route<MsgState>(hasToolCalls, [TOOLS, END]) },
+    { from: TOOLS, to: CancelModel },
+  ]);
+}
+
+// Raw tool with custom wording, carried on the requireApproval() marker.
+const rawMsgRuns: string[] = [];
+const rawMessagedDanger = requireApproval(
+  tool(
+    (input: { target: string }) => {
+      rawMsgRuns.push(input.target);
+      return `wiped:${input.target}`;
+    },
+    {
+      name: "wipe",
+      description: "Wipe a target — destructive.",
+      schema: z.object({ target: z.string() }),
+    },
+  ),
+  {
+    approvalMessage: (args) => {
+      const { target } = z.object({ target: z.string() }).parse(args);
+      return `Really wipe ${target}? This is irreversible.`;
+    },
+    declineMessage: (args, reason) => {
+      const { target } = z.object({ target: z.string() }).parse(args);
+      return `Left ${target} untouched${reason ? ` (${reason})` : ""}.`;
+    },
+  },
+);
+
+@LangGraph({
+  name: "rawMessagedApproval",
+  state: MessagesState,
+  tools: [rawMessagedDanger],
+})
+class RawMessagedApprovalGraph {
+  edges = defineEdges<MsgState>([
+    { from: START, to: WipeModel },
+    { from: WipeModel, to: route<MsgState>(hasToolCalls, [TOOLS, END]) },
+    { from: TOOLS, to: WipeModel },
+  ]);
+}
+
+describe("customizable approval + decline wording", () => {
+  describe("provider tool", () => {
+    let app: INestApplication;
+    let graph: LangGraphRunnable<MsgState>;
+    let svc: CancelService;
+
+    beforeAll(async () => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          LangGraphModule.forRoot({ checkpointer: { type: "memory" } }),
+          LangGraphModule.forFeature([MessagedApprovalGraph]),
+        ],
+        providers: [CancelModel, CancelService, MessagedCancelTools],
+      }).compile();
+      app = moduleRef.createNestApplication();
+      await app.init();
+      graph = app.get(getGraphFacadeToken({ name: "messagedApproval" }));
+      svc = app.get(CancelService);
+    });
+
+    afterAll(async () => {
+      await app?.close();
+    });
+
+    beforeEach(() => {
+      svc.cancelled.length = 0;
+      approvalArgsSeen.length = 0;
+    });
+
+    it("carries the approvalMessage in the interrupt payload", async () => {
+      const paused = (await graph.invoke(
+        { messages: [new HumanMessage("cancel it")] },
+        { configurable: { thread_id: "msg-pause" } },
+      )) as Record<string, unknown>;
+
+      const interrupts = paused.__interrupt__ as Array<{ value: unknown }>;
+      expect(interrupts[0].value).toEqual({
+        type: "tool_approval_request",
+        tool: "cancel_order",
+        args: { orderId: "7" },
+        message: "Permanently cancel order 7? This cannot be undone.",
+      });
+    });
+
+    it("hands the real tool-call args to the approvalMessage builder", async () => {
+      await graph.invoke(
+        { messages: [new HumanMessage("cancel it")] },
+        { configurable: { thread_id: "msg-args" } },
+      );
+      expect(approvalArgsSeen).toEqual([{ orderId: "7" }]);
+    });
+
+    it("uses declineMessage on decline (provider path)", async () => {
+      await graph.invoke(
+        { messages: [new HumanMessage("cancel it")] },
+        { configurable: { thread_id: "msg-decline" } },
+      );
+      const done = (await graph.resume("msg-decline", {
+        approved: false,
+        reason: "customer changed their mind",
+      })) as { messages: BaseMessage[] };
+
+      expect(svc.cancelled).toEqual([]);
+      const toolMsgs = done.messages.filter((m) => m instanceof ToolMessage);
+      expect(String(toolMsgs[0].content)).toBe(
+        "Kept order 7 intact: customer changed their mind.",
+      );
+    });
+  });
+
+  describe("provider tool with a throwing approvalMessage", () => {
+    let app: INestApplication;
+    let graph: LangGraphRunnable<MsgState>;
+    let warnSpy: jest.SpyInstance;
+
+    beforeAll(async () => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          LangGraphModule.forRoot({ checkpointer: { type: "memory" } }),
+          LangGraphModule.forFeature([ThrowingApprovalGraph]),
+        ],
+        providers: [CancelModel, CancelService, ThrowingMsgCancelTools],
+      }).compile();
+      app = moduleRef.createNestApplication();
+      await app.init();
+      graph = app.get(getGraphFacadeToken({ name: "throwingApproval" }));
+    });
+
+    afterAll(async () => {
+      await app?.close();
+    });
+
+    beforeEach(() => {
+      warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+    });
+
+    afterEach(() => {
+      warnSpy.mockRestore();
+    });
+
+    it("falls back to no message and warns, without corrupting the flow", async () => {
+      const paused = (await graph.invoke(
+        { messages: [new HumanMessage("cancel it")] },
+        { configurable: { thread_id: "throw-pause" } },
+      )) as Record<string, unknown>;
+
+      const interrupts = paused.__interrupt__ as Array<{ value: unknown }>;
+      // No `message` key — byte-identical to an unadorned approval request.
+      expect(interrupts[0].value).toEqual({
+        type: "tool_approval_request",
+        tool: "cancel_order",
+        args: { orderId: "7" },
+      });
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining("approvalMessage for tool 'cancel_order' threw"),
+      );
+
+      // The flow still resumes normally.
+      const svc = app.get(CancelService);
+      svc.cancelled.length = 0;
+      const done = (await graph.resume("throw-pause", { approved: true })) as {
+        messages: BaseMessage[];
+      };
+      expect(svc.cancelled).toEqual(["7"]);
+      expect(done.messages.some((m) => m instanceof ToolMessage)).toBe(true);
+    });
+  });
+
+  describe("raw tool", () => {
+    let app: INestApplication;
+    let graph: LangGraphRunnable<MsgState>;
+
+    beforeAll(async () => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          LangGraphModule.forRoot({ checkpointer: { type: "memory" } }),
+          LangGraphModule.forFeature([RawMessagedApprovalGraph]),
+        ],
+        providers: [WipeModel],
+      }).compile();
+      app = moduleRef.createNestApplication();
+      await app.init();
+      graph = app.get(getGraphFacadeToken({ name: "rawMessagedApproval" }));
+    });
+
+    afterAll(async () => {
+      await app?.close();
+    });
+
+    beforeEach(() => {
+      rawMsgRuns.length = 0;
+    });
+
+    it("carries the approvalMessage in the interrupt payload", async () => {
+      const paused = (await graph.invoke(
+        { messages: [new HumanMessage("wipe it")] },
+        { configurable: { thread_id: "raw-msg-pause" } },
+      )) as Record<string, unknown>;
+
+      const interrupts = paused.__interrupt__ as Array<{ value: unknown }>;
+      expect(interrupts[0].value).toEqual({
+        type: "tool_approval_request",
+        tool: "wipe",
+        args: { target: "db" },
+        message: "Really wipe db? This is irreversible.",
+      });
+    });
+
+    it("uses declineMessage on decline (raw path)", async () => {
+      await graph.invoke(
+        { messages: [new HumanMessage("wipe it")] },
+        { configurable: { thread_id: "raw-msg-decline" } },
+      );
+      const done = (await graph.resume("raw-msg-decline", {
+        approved: false,
+        reason: "not today",
+      })) as { messages: BaseMessage[] };
+
+      expect(rawMsgRuns).toEqual([]);
+      const declineMsg = done.messages.find((m) => m instanceof ToolMessage)!;
+      expect(String(declineMsg.content)).toBe("Left db untouched (not today).");
+    });
+  });
+
+  describe("registration-time guard", () => {
+    it("rejects a message option without requiresApproval, loudly", () => {
+      expect(() =>
+        LangGraphTool({
+          name: "oops",
+          description: "d",
+          schema: z.object({ x: z.string() }),
+          // Illegal: no requiresApproval. Cast past the compile-time union guard
+          // to prove the runtime zod check also rejects it.
+          approvalMessage: () => "hi",
+        } as never),
+      ).toThrow(/approvalMessage is only legal with requiresApproval: true/);
+    });
+
+    it("rejects a declineMessage option without requiresApproval, loudly", () => {
+      expect(() =>
+        LangGraphTool({
+          name: "oops",
+          description: "d",
+          schema: z.object({ x: z.string() }),
+          declineMessage: () => "bye",
+        } as never),
+      ).toThrow(/declineMessage is only legal with requiresApproval: true/);
+    });
+  });
+
+  // Regression pin: a gated tool with NO custom wording behaves exactly as it did
+  // in 0.1.3 — the interrupt payload has no `message` key at all.
+  describe("absent options: byte-identical to the unadorned gate", () => {
+    let app: INestApplication;
+    let graph: LangGraphRunnable<MsgState>;
+
+    beforeAll(async () => {
+      const moduleRef = await Test.createTestingModule({
+        imports: [
+          LangGraphModule.forRoot({ checkpointer: { type: "memory" } }),
+          LangGraphModule.forFeature([GatedApprovalGraph]),
+        ],
+        providers: [CancelModel, CancelService, GatedCancelTools],
+      }).compile();
+      app = moduleRef.createNestApplication();
+      await app.init();
+      graph = app.get(getGraphFacadeToken({ name: "gatedApproval" }));
+    });
+
+    afterAll(async () => {
+      await app?.close();
+    });
+
+    it("omits `message` from the interrupt payload", async () => {
+      const paused = (await graph.invoke(
+        { messages: [new HumanMessage("cancel it")] },
+        { configurable: { thread_id: "no-msg" } },
+      )) as Record<string, unknown>;
+
+      const interrupts = paused.__interrupt__ as Array<{ value: unknown }>;
+      const value = interrupts[0].value as Record<string, unknown>;
+      expect(value).not.toHaveProperty("message");
+      expect(value).toEqual({
+        type: "tool_approval_request",
+        tool: "cancel_order",
+        args: { orderId: "7" },
+      });
+    });
   });
 });
