@@ -23,3 +23,4 @@ Reusable toolkit for LangGraph + NestJS. Libraries live in `packages/*` (the pro
 - Package names carry no framework prefixes: `@harpua/langgraph`, not `@harpua/nestjs-langgraph`.
 - Changes to a publishable package (`@harpua/langgraph`, `@harpua/langgraph-testing`, `@harpua/agent-tools`) must include a changeset (`pnpm exec changeset`); docs-only and repo-tooling changes don't.
 - Commits: no AI attribution trailers of any kind.
+- Work lands via feature-branch pull requests, not direct commits to main. Branch per iteration (`feat/<slug>`, `fix/<slug>`, `docs/<slug>`), full verify before pushing the branch, PR merged by the maintainer.
