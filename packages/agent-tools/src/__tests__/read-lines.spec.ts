@@ -1,4 +1,4 @@
-import { readLinesTool } from "../code-exploration/read-lines";
+import { readLinesTool } from "../file-exploration/read-lines";
 import {
   makeTmpDir,
   numberedLines,
@@ -71,12 +71,12 @@ describe("read_lines", () => {
     expect(out).toMatch(/file_stats/);
   });
 
-  it("refuses an oversize file, pointing at search_code/file_stats", async () => {
+  it("refuses an oversize file, pointing at search_files/file_stats", async () => {
     writeFile(root, "big.txt", numberedLines(1000));
     const read = readLinesTool({ root, maxFileBytes: 100 });
     const out = await runTool(read, { path: "big.txt" });
     expect(out).toMatch(/over the 100-byte limit/);
-    expect(out).toMatch(/search_code/);
+    expect(out).toMatch(/search_files/);
   });
 
   it("reports a missing file", async () => {

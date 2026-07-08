@@ -6,13 +6,13 @@ import { createSandbox } from "./sandbox";
 import { runRg } from "./run-rg";
 import {
   resolveOptions,
-  type CodeExplorationOptions,
-  type ResolvedCodeExplorationOptions,
+  type FileExplorationOptions,
+  type ResolvedFileExplorationOptions,
 } from "./options";
 
 /** Shown when the `rg` binary is not installed on the host. */
 export const RG_MISSING_MESSAGE =
-  "ripgrep (rg) is required for search_code — install it: " +
+  "ripgrep (rg) is required for search_files — install it: " +
   "brew install ripgrep / apt install ripgrep";
 
 const DESCRIPTION =
@@ -24,7 +24,7 @@ const DESCRIPTION =
   "read: use this to locate the handful of lines you need, then open just " +
   "those with read_lines. Read-only; never searches outside the project root.";
 
-const searchCodeInputSchema = z.object({
+const searchFilesInputSchema = z.object({
   pattern: z
     .string()
     .min(1)
@@ -55,7 +55,7 @@ function buildSearchArgs(pattern: string, glob: string | undefined, maxMatches: 
 }
 
 /** Cap ripgrep output by BOTH match count and byte size, appending a marker. */
-function formatMatches(stdout: string, opts: ResolvedCodeExplorationOptions): string {
+function formatMatches(stdout: string, opts: ResolvedFileExplorationOptions): string {
   const lines = stdout
     .split("\n")
     .filter((l) => l.length > 0)
@@ -83,12 +83,12 @@ function formatMatches(stdout: string, opts: ResolvedCodeExplorationOptions): st
 }
 
 /**
- * `search_code` — regex search over the sandboxed project via ripgrep. Bounded
+ * `search_files` — regex search over the sandboxed project via ripgrep. Bounded
  * (match + byte caps with a truncation marker), read-only, and confined to the
  * configured root. Falls back to a clear install hint when `rg` is absent and
  * distinguishes "no matches" from a real ripgrep error.
  */
-export function searchCodeTool(options: CodeExplorationOptions): StructuredToolInterface {
+export function searchFilesTool(options: FileExplorationOptions): StructuredToolInterface {
   const opts = resolveOptions(options);
   const sandbox = createSandbox(opts.root);
 
@@ -101,7 +101,7 @@ export function searchCodeTool(options: CodeExplorationOptions): StructuredToolI
         );
         if (code === 1) return "No matches.";
         if (code >= 2) {
-          return `search_code failed: ${stderr.trim() || `ripgrep exited ${code}`}`;
+          return `search_files failed: ${stderr.trim() || `ripgrep exited ${code}`}`;
         }
         return formatMatches(stdout, opts);
       } catch (err) {
@@ -109,6 +109,6 @@ export function searchCodeTool(options: CodeExplorationOptions): StructuredToolI
         throw err;
       }
     },
-    { name: "search_code", description: DESCRIPTION, schema: searchCodeInputSchema },
+    { name: "search_files", description: DESCRIPTION, schema: searchFilesInputSchema },
   );
 }

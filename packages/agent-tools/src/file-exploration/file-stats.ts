@@ -10,8 +10,8 @@ import { inspectFile, type FileInfo } from "./file-info";
 import { runRg } from "./run-rg";
 import {
   resolveOptions,
-  type CodeExplorationOptions,
-  type ResolvedCodeExplorationOptions,
+  type FileExplorationOptions,
+  type ResolvedFileExplorationOptions,
 } from "./options";
 
 const DESCRIPTION =
@@ -20,7 +20,7 @@ const DESCRIPTION =
   "counts, capped with a truncation marker — pass a subdirectory `path` to " +
   "narrow. With a file `path` it reports line count, byte size, and whether " +
   "the file is binary. Use this first to learn what exists and how big things " +
-  "are, so you can search_code precisely and read_lines only the pages you " +
+  "are, so you can search_files precisely and read_lines only the pages you " +
   "need. Read-only; never looks outside the project root.";
 
 const fileStatsInputSchema = z.object({
@@ -82,7 +82,7 @@ function formatListing(
   displayPath: string,
   absDir: string,
   rels: string[],
-  opts: ResolvedCodeExplorationOptions,
+  opts: ResolvedFileExplorationOptions,
 ): string {
   const sorted = [...rels].sort();
   const total = sorted.length;
@@ -120,7 +120,7 @@ function formatListing(
  * omitted): a bounded, gitignore-aware listing with per-file line counts and a
  * truncation marker. Sandboxed and read-only.
  */
-export function fileStatsTool(options: CodeExplorationOptions): StructuredToolInterface {
+export function fileStatsTool(options: FileExplorationOptions): StructuredToolInterface {
   const opts = resolveOptions(options);
   const sandbox = createSandbox(opts.root);
 

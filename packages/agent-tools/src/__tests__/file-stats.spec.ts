@@ -1,5 +1,5 @@
-import { fileStatsTool } from "../code-exploration/file-stats";
-import * as runRgModule from "../code-exploration/run-rg";
+import { fileStatsTool } from "../file-exploration/file-stats";
+import * as runRgModule from "../file-exploration/run-rg";
 import {
   makeTmpDir,
   numberedLines,

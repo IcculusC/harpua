@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { readLinesTool } from "../code-exploration/read-lines";
-import { fileStatsTool } from "../code-exploration/file-stats";
+import { readLinesTool } from "../file-exploration/read-lines";
+import { fileStatsTool } from "../file-exploration/file-stats";
 import {
   makeTmpDir,
   removeTmpDir,

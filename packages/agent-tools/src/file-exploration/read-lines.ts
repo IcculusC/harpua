@@ -6,7 +6,7 @@ import { z } from "zod";
 
 import { createSandbox, SandboxError } from "./sandbox";
 import { looksBinary } from "./file-info";
-import { resolveOptions, type CodeExplorationOptions } from "./options";
+import { resolveOptions, type FileExplorationOptions } from "./options";
 
 const DESCRIPTION =
   "Read one bounded page of a text file inside the sandboxed project, with " +
@@ -14,7 +14,7 @@ const DESCRIPTION =
   "resolve inside it); `start` is a 1-based line number (default 1). Returns " +
   "up to one page of lines with a header (`file — lines A–B of TOTAL`) and, " +
   "when more remain, the exact `start=` to request the next page. Check size " +
-  "first with file_stats and locate lines with search_code, then page through " +
+  "first with file_stats and locate lines with search_files, then page through " +
   "with this — it never returns a whole file at once. Refuses binary and " +
   "oversize files. Read-only.";
 
@@ -37,7 +37,7 @@ const readLinesInputSchema = z.object({
  * sniff) and files over `maxFileBytes`, and always tells you the `start=` for
  * the next page when more lines remain.
  */
-export function readLinesTool(options: CodeExplorationOptions): StructuredToolInterface {
+export function readLinesTool(options: FileExplorationOptions): StructuredToolInterface {
   const opts = resolveOptions(options);
   const sandbox = createSandbox(opts.root);
 
@@ -63,7 +63,7 @@ export function readLinesTool(options: CodeExplorationOptions): StructuredToolIn
       if (stat.size > opts.maxFileBytes) {
         return (
           `read_lines: "${input}" is ${stat.size} bytes, over the ` +
-          `${opts.maxFileBytes}-byte limit — use search_code to find the lines ` +
+          `${opts.maxFileBytes}-byte limit — use search_files to find the lines ` +
           `you need, or file_stats for its size.`
         );
       }

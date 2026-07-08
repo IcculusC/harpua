@@ -67,10 +67,10 @@ export function createSandbox(rawRoot: string): Sandbox {
   try {
     stat = fs.statSync(rawRoot);
   } catch {
-    throw new Error(`code-exploration root does not exist: ${rawRoot}`);
+    throw new Error(`file-exploration root does not exist: ${rawRoot}`);
   }
   if (!stat.isDirectory()) {
-    throw new Error(`code-exploration root is not a directory: ${rawRoot}`);
+    throw new Error(`file-exploration root is not a directory: ${rawRoot}`);
   }
   const root = fs.realpathSync(rawRoot);
 

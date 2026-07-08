@@ -1,8 +1,8 @@
 import { execFileSync } from "node:child_process";
 
-import { searchCodeTool, RG_MISSING_MESSAGE } from "../code-exploration/search-code";
-import * as runRgModule from "../code-exploration/run-rg";
-import type { RgResult } from "../code-exploration/run-rg";
+import { searchFilesTool, RG_MISSING_MESSAGE } from "../file-exploration/search-files";
+import * as runRgModule from "../file-exploration/run-rg";
+import type { RgResult } from "../file-exploration/run-rg";
 import { makeTmpDir, removeTmpDir, runTool, writeFile } from "./tmp-tree";
 
 /** Build ripgrep-style `path:line:text` output for `n` synthetic matches. */
@@ -16,7 +16,7 @@ function stubRg(result: RgResult): jest.SpyInstance {
   return jest.spyOn(runRgModule, "runRg").mockResolvedValue(result);
 }
 
-describe("search_code (injected exec seam)", () => {
+describe("search_files (injected exec seam)", () => {
   let root: string;
   beforeEach(() => {
     root = makeTmpDir();
@@ -28,7 +28,7 @@ describe("search_code (injected exec seam)", () => {
 
   it("passes a safe argument array to ripgrep (no shell, `--` guard)", async () => {
     const spy = stubRg({ stdout: fakeMatches(1), stderr: "", code: 0 });
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     await runTool(search, { pattern: "--danger", glob: "src/**/*.ts" });
 
     const [args, cwd] = spy.mock.calls[0];
@@ -44,7 +44,7 @@ describe("search_code (injected exec seam)", () => {
 
   it("returns matches unchanged when under the caps", async () => {
     stubRg({ stdout: fakeMatches(3), stderr: "", code: 0 });
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "const" });
     expect(out).toContain("src/file1.ts:1:const x = 1;");
     expect(out).toContain("src/file3.ts:3:const x = 3;");
@@ -53,7 +53,7 @@ describe("search_code (injected exec seam)", () => {
 
   it("caps by maxMatches with a truncation marker", async () => {
     stubRg({ stdout: fakeMatches(60), stderr: "", code: 0 });
-    const search = searchCodeTool({ root, maxMatches: 50 });
+    const search = searchFilesTool({ root, maxMatches: 50 });
     const out = await runTool(search, { pattern: "const" });
     const shown = out.split("\n").filter((l) => l.startsWith("src/"));
     expect(shown).toHaveLength(50);
@@ -62,7 +62,7 @@ describe("search_code (injected exec seam)", () => {
 
   it("caps by maxOutputBytes with a truncation marker", async () => {
     stubRg({ stdout: fakeMatches(40), stderr: "", code: 0 });
-    const search = searchCodeTool({ root, maxMatches: 40, maxOutputBytes: 80 });
+    const search = searchFilesTool({ root, maxMatches: 40, maxOutputBytes: 80 });
     const out = await runTool(search, { pattern: "const" });
     const shown = out.split("\n").filter((l) => l.startsWith("src/"));
     expect(shown.length).toBeLessThan(40);
@@ -72,23 +72,23 @@ describe("search_code (injected exec seam)", () => {
 
   it("reports no matches distinctly from an error (exit 1)", async () => {
     stubRg({ stdout: "", stderr: "", code: 1 });
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "zzz" });
     expect(out).toBe("No matches.");
   });
 
   it("surfaces a real ripgrep error (exit >= 2)", async () => {
     stubRg({ stdout: "", stderr: "regex parse error: unclosed group", code: 2 });
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "(" });
-    expect(out).toMatch(/search_code failed: regex parse error/);
+    expect(out).toMatch(/search_files failed: regex parse error/);
   });
 
   it("gives an install hint when ripgrep is missing (ENOENT)", async () => {
     const err = new Error("spawn rg ENOENT") as NodeJS.ErrnoException;
     err.code = "ENOENT";
     jest.spyOn(runRgModule, "runRg").mockRejectedValue(err);
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "const" });
     expect(out).toBe(RG_MISSING_MESSAGE);
     expect(out).toMatch(/brew install ripgrep/);
@@ -105,7 +105,7 @@ const rgAvailable = (): boolean => {
   }
 };
 
-(rgAvailable() ? describe : describe.skip)("search_code (real ripgrep integration)", () => {
+(rgAvailable() ? describe : describe.skip)("search_files (real ripgrep integration)", () => {
   let root: string;
   beforeEach(() => {
     root = makeTmpDir();
@@ -119,7 +119,7 @@ const rgAvailable = (): boolean => {
   afterEach(() => removeTmpDir(root));
 
   it("finds a real match and honors ignore files + globs", async () => {
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "NEEDLE" });
     expect(out).toContain("src/alpha.ts:1:export const NEEDLE = 1;");
     // The ignore rule is respected, so the ignored copy is not returned.
@@ -131,7 +131,7 @@ const rgAvailable = (): boolean => {
   });
 
   it("returns 'No matches.' for a pattern that is absent", async () => {
-    const search = searchCodeTool({ root });
+    const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "definitely_absent_token_xyz" });
     expect(out).toBe("No matches.");
   });
