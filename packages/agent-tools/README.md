@@ -85,6 +85,40 @@ integer with a default; unknown keys rejected). The individual factories
 (`searchFilesTool`, `readLinesTool`, `fileStatsTool`) are exported too — the
 bundle is the primary API since the three share one sandbox configuration.
 
+### Web research — `web_search` + `fetch_url`
+
+Search the web through a [SearXNG](https://docs.searxng.org) instance and
+save pages locally as searchable markdown:
+
+- **`web_search`** — queries `{baseUrl}/search?format=json` and returns a
+  numbered list of results (title, URL, snippet). The instance must have the
+  JSON format enabled in `settings.yml` (`search: formats: [html, json]`).
+- **`fetch_url`** — fetches an http(s) page, converts HTML to markdown with a
+  built-in dependency-free extractor (plain text is saved as-is; PDFs and
+  other binary types are politely refused), and writes it to `saveDir` with
+  `url` / `title` / `fetched` frontmatter. Re-fetching a URL refreshes its
+  file. `saveDir` can be a function of the run config for per-thread dirs.
+
+Pair the family with `fileExplorationTools` jailed to the same directory so
+the agent can search what it saved:
+
+```ts
+import { webResearchTools, fileExplorationTools } from "@harpua/agent-tools";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+
+const sources = "./sources";
+const toolNode = new ToolNode([
+  ...webResearchTools({ baseUrl: "http://localhost:8080", saveDir: sources }),
+  ...fileExplorationTools({ root: sources }),
+]);
+```
+
+Both tools return every failure (network, HTTP status, content type, size
+cap, filesystem) as a friendly string — they never throw mid-graph. The
+model chooses the URLs: publicly-deployed apps should gate `fetch_url`
+(e.g. `requireApproval()` from `@harpua/langgraph`) or front it with an
+allowlist.
+
 ## Using with `@harpua/langgraph`
 
 [`@harpua/langgraph`](../langgraph) accepts these tools directly in a graph's
