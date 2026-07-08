@@ -11,12 +11,6 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import type { ChatResult } from "@langchain/core/outputs";
 
-export interface PendingAction {
-  action: "cancel_order";
-  orderId: string | null;
-  request: string;
-}
-
 export function textOf(message: BaseMessage): string {
   return typeof message.content === "string"
     ? message.content
@@ -30,8 +24,9 @@ export function textOf(message: BaseMessage): string {
  * returns the next AIMessage:
  *
  * 1. Latest message is a ToolMessage  -> summarize the tool result.
- * 2. Latest human turn says delete/cancel -> flag a pending action so the
- *    graph routes through the approval interrupt.
+ * 2. Latest human turn says delete/cancel of an order -> emit a synthetic
+ *    tool_call for `cancel_order`. That tool is approval-gated in the framework,
+ *    so the graph pauses for approval before it runs — no side-channel needed.
  * 3. Latest human turn mentions "order <id>" -> emit a synthetic tool_call
  *    for `lookup_order`.
  * 4. Otherwise -> canned assistant reply.
@@ -74,38 +69,34 @@ export class MockChatModel extends BaseChatModel {
     const lastHuman = [...messages].reverse().find((m) => isHumanMessage(m));
     const text = lastHuman ? textOf(lastHuman) : "";
     const orderId = /order\s+#?([A-Za-z0-9-]+)/i.exec(text)?.[1] ?? null;
+    const wantsCancel = /\b(delete|cancel)\b/i.test(text);
 
-    if (/\b(delete|cancel)\b/i.test(text)) {
-      const pending: PendingAction = {
-        action: "cancel_order",
-        orderId,
-        request: text,
-      };
-      return new AIMessage({
-        content: orderId
-          ? `Cancelling order ${orderId} is irreversible — I need your approval first.`
-          : "That's a destructive action — I need your approval first.",
-        additional_kwargs: { pending_action: pending },
-      });
+    if (wantsCancel && orderId) {
+      // A real cancel tool call — approval is enforced by the tool gate, not a
+      // side-channel a real model could never set.
+      return this.toolCall("cancel_order", orderId);
     }
-
+    if (wantsCancel) {
+      return new AIMessage(
+        "Which order should I cancel? Tell me the order id.",
+      );
+    }
     if (orderId) {
-      this.toolCallSeq += 1;
-      return new AIMessage({
-        content: "",
-        tool_calls: [
-          {
-            name: "lookup_order",
-            args: { orderId },
-            id: `call_${this.toolCallSeq}`,
-            type: "tool_call",
-          },
-        ],
-      });
+      return this.toolCall("lookup_order", orderId);
     }
 
     return new AIMessage(
       'Hi! I can check an order for you (try "check order 42") or cancel one with your approval.',
     );
+  }
+
+  private toolCall(name: string, orderId: string): AIMessage {
+    this.toolCallSeq += 1;
+    return new AIMessage({
+      content: "",
+      tool_calls: [
+        { name, args: { orderId }, id: `call_${this.toolCallSeq}`, type: "tool_call" },
+      ],
+    });
   }
 }

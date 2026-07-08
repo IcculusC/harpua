@@ -42,15 +42,25 @@ curl -s -XPOST localhost:3000/chat/t1 -H 'content-type: application/json' \
 # -> messages contains "Order 42: ... status shipped ..."
 ```
 
-Interrupt + resume (approval flow):
+Interrupt + resume (approval-gated `cancel_order` tool):
 
 ```bash
 curl -s -XPOST localhost:3000/chat/t2 -H 'content-type: application/json' \
   -d '{"message":"please cancel order 7"}'
-# -> body has "interrupt": { "type":"approval_request","action":"cancel_order","orderId":"7" }
+# -> body has "interrupt": { "type":"tool_approval_request","tool":"cancel_order","args":{"orderId":"7"} }
 curl -s -XPOST localhost:3000/chat/t2/resume -H 'content-type: application/json' \
   -d '{"approved":true}'
 # -> messages contains "Order 7 has been cancelled"
+```
+
+Decline path (a different thread, so order stays shipped):
+
+```bash
+curl -s -XPOST localhost:3000/chat/t2d -H 'content-type: application/json' \
+  -d '{"message":"please cancel order 7"}'          # same tool_approval_request interrupt
+curl -s -XPOST localhost:3000/chat/t2d/resume -H 'content-type: application/json' \
+  -d '{"approved":false}'
+# -> messages mention the tool was declined; the order is NOT cancelled
 ```
 
 SSE stream (node updates then a final event):
@@ -71,6 +81,14 @@ printf 'hi\nlook up order 42\nexit\n' | node apps/api/dist/cli.js t1
 ```
 
 Expect: the greeting for `hi`, then a `[tool: lookup_order]` line and an `[assistant] Here's what I found: Order 42 …` for the lookup, then a clean exit.
+
+Approval-gated cancel through the CLI (the `y` line approves the pause):
+
+```bash
+printf 'please cancel order 7\ny\nexit\n' | node apps/api/dist/cli.js t2
+```
+
+Expect: a `[tool: cancel_order]` line, an `[approval needed] run cancel_order with {"orderId":"7"}?` line and the `Approve? (y/n)` prompt, then after `y` an `[assistant] …Order 7 has been cancelled…` line, then a clean exit.
 
 ## Common Mistakes
 

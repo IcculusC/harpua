@@ -294,6 +294,68 @@ Raw instances are mounted into the same `ToolNode` as-is (and traced the same
 way). Reach for a provider class when a tool needs DI; use a raw instance for
 self-contained tools. An entry that is neither fails fast at bootstrap.
 
+#### Approval-gated tools
+
+A destructive tool can require human approval before it runs. Add
+`requiresApproval: true` to the decorator — the framework pauses execution with
+a `tool_approval_request` interrupt before the tool runs, and only executes it
+after you resume with `{ approved: true }`:
+
+```ts
+import { z } from "zod";
+import { LangGraphTool } from "@harpua/langgraph";
+
+@Injectable()
+export class OrderTools {
+  constructor(private readonly orders: OrdersService) {}
+
+  @LangGraphTool({
+    name: "cancel_order",
+    description: "Cancel an order by its id. Requires the user's approval.",
+    schema: z.object({ orderId: z.string() }),
+    requiresApproval: true, // ← pauses for approval before executing
+  })
+  cancelOrder(input: { orderId: string }): string {
+    return this.orders.cancel(input.orderId);
+  }
+}
+```
+
+The **model-facing tool is identical** to an unflagged one — the model still
+sees and calls it normally; only its execution is gated. When the model calls
+it, the run pauses and surfaces
+`{ type: "tool_approval_request", tool: "cancel_order", args: { orderId } }`;
+resume the thread with the decision:
+
+```ts
+await graph.resume(threadId, { approved: true });               // runs the tool
+await graph.resume(threadId, { approved: false, reason: "…" }); // declines; the tool
+// never runs and returns "The user declined cancel_order: …" for the model to answer.
+```
+
+A raw LangChain tool instance uses the sibling marker `requireApproval(tool)`:
+
+```ts
+import { requireApproval } from "@harpua/langgraph";
+import { tool } from "@langchain/core/tools";
+
+const wipe = requireApproval(
+  tool((input: { target: string }) => doWipe(input.target), {
+    name: "wipe",
+    description: "Wipe a target — destructive.",
+    schema: z.object({ target: z.string() }),
+  }),
+);
+
+@LangGraph({ name: "agent", state: AgentStateSchema, tools: [wipe] })
+export class AgentGraph { /* … */ }
+```
+
+This is the primary human-in-the-loop pattern: a real model can call a tool but
+can never set a mock-only side-channel field, so gating on the tool call is what
+works with a live LLM. See [Interrupts and `resume`](#interrupts-and-resume) and
+the `human-in-the-loop` skill for surfacing over HTTP/SSE/CLI.
+
 ### Give the model the graph's tools
 
 The `TOOLS` node **executes** tool calls — but a real chat model only emits a

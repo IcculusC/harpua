@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
-import { AIMessage, isAIMessage } from "@langchain/core/messages";
+import { isAIMessage } from "@langchain/core/messages";
 import {
   LangGraph,
   NodeHandler,
@@ -9,16 +9,13 @@ import {
   TOOLS,
   defineEdges,
   route,
-  interrupt,
   type StateOf,
   type GraphBoundModel,
 } from "@harpua/langgraph";
 
 import { CHAT_BOUND_MODEL } from "./chat-model.token";
-import { type PendingAction } from "./mock-chat-model";
 import { SystemPrompt } from "./system-prompt";
 import { OrderTools } from "./order.tools";
-import { OrdersService } from "./orders.service";
 
 export const ChatMessagesState = new StateSchema({ messages: MessagesValue });
 export type ChatState = StateOf<typeof ChatMessagesState>;
@@ -37,53 +34,15 @@ export class CallModelNode implements NodeHandler<ChatState> {
 }
 
 /**
- * Pauses the graph with an interrupt describing the pending action. On resume
- * the node re-runs: `interrupt()` returns the resume value, and the action is
- * executed or declined accordingly.
+ * Route on the model's output: any tool call (including the approval-gated
+ * `cancel_order`) goes to the ToolNode; the approval pause now happens INSIDE
+ * that tool via the framework's tool gate, so there is no separate approval
+ * node or side-channel to branch on.
  */
-@Injectable()
-export class ApprovalNode implements NodeHandler<ChatState> {
-  constructor(private readonly orders: OrdersService) {}
-
-  run(state: ChatState) {
-    const last = state.messages[state.messages.length - 1];
-    const pending = (last as AIMessage).additional_kwargs
-      ?.pending_action as PendingAction;
-
-    const decision = interrupt({
-      type: "approval_request",
-      action: pending.action,
-      orderId: pending.orderId,
-      message: pending.orderId
-        ? `Approve cancellation of order ${pending.orderId}?`
-        : `Approve this action: "${pending.request}"?`,
-    }) as boolean | { approved?: boolean };
-
-    const approved =
-      typeof decision === "boolean" ? decision : decision?.approved === true;
-
-    if (!approved) {
-      return {
-        messages: [
-          new AIMessage("Understood — I have not made any changes."),
-        ],
-      };
-    }
-
-    const outcome = pending.orderId
-      ? this.orders.cancel(pending.orderId)
-      : "Done.";
-    return { messages: [new AIMessage(outcome)] };
-  }
-}
-
-function routeAfterModel(
-  state: ChatState,
-): typeof TOOLS | typeof ApprovalNode | typeof END {
+function routeAfterModel(state: ChatState): typeof TOOLS | typeof END {
   const last = state.messages[state.messages.length - 1];
-  if (last && isAIMessage(last)) {
-    if ((last.tool_calls?.length ?? 0) > 0) return TOOLS;
-    if (last.additional_kwargs?.pending_action) return ApprovalNode;
+  if (last && isAIMessage(last) && (last.tool_calls?.length ?? 0) > 0) {
+    return TOOLS;
   }
   return END;
 }
@@ -99,9 +58,8 @@ export class ChatGraph {
     { from: START, to: CallModelNode },
     {
       from: CallModelNode,
-      to: route<ChatState>(routeAfterModel, [TOOLS, ApprovalNode, END]),
+      to: route<ChatState>(routeAfterModel, [TOOLS, END]),
     },
     { from: TOOLS, to: CallModelNode },
-    { from: ApprovalNode, to: END },
   ]);
 }

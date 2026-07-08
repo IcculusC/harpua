@@ -38,6 +38,14 @@ export interface LangGraphToolOptions {
   name?: string;
   description: string;
   schema: unknown;
+  /**
+   * When true, the tool pauses for human approval BEFORE it executes: the graph
+   * `interrupt()`s with a `tool_approval_request` payload and only runs the real
+   * method after a resume with `{ approved: true }`. The model-facing schema is
+   * unchanged — the model still sees and calls the tool normally; the gate lives
+   * in the tool's execution. See {@link requireApproval} for the raw-tool sibling.
+   */
+  requiresApproval?: boolean;
 }
 
 /**
@@ -60,6 +68,7 @@ export function LangGraphTool(
       name: options.name,
       description: options.description,
       schema: options.schema,
+      requiresApproval: options.requiresApproval === true,
     });
     Reflect.defineMetadata(TOOL_METHODS_METADATA, existing, ctor);
   };

@@ -35,6 +35,28 @@ export class WeatherTools {
 }
 ```
 
+## Approval-gated tools
+
+A destructive tool can require human approval before it runs: add
+`requiresApproval: true` to `@LangGraphTool({ ... })` (or wrap a raw tool
+instance with `requireApproval(...)`). The framework pauses the tool with a
+`tool_approval_request` interrupt before executing and only runs it on a resume
+with `{ approved: true }`. The model still sees and calls the tool normally —
+only its execution is gated. Full pattern (surfacing, resume, observability):
+`human-in-the-loop.md`.
+
+```ts
+@LangGraphTool({
+  name: "cancel_order",
+  description: "Cancel an order by its id. Requires the user's approval.",
+  schema: z.object({ orderId: z.string() }),
+  requiresApproval: true,
+})
+cancelOrder(input: { orderId: string }): string {
+  return this.orders.cancel(input.orderId);
+}
+```
+
 ## Mounting a raw LangChain tool
 
 A `tools` entry may also be a raw LangChain tool INSTANCE — anything from

@@ -3,9 +3,28 @@ import * as readline from "node:readline";
 import { randomUUID } from "node:crypto";
 import { NestFactory } from "@nestjs/core";
 import { isAIMessage } from "@langchain/core/messages";
+import { z } from "zod";
 
 import { AppModule } from "./app.module";
 import { ChatService, type ChatTurn } from "./chat/chat.service";
+
+// The interrupt payload an approval-gated tool raises. Render it as a readable
+// prompt when it matches; fall back to raw JSON for any other interrupt kind.
+const toolApprovalRequestSchema = z.object({
+  type: z.literal("tool_approval_request"),
+  tool: z.string(),
+  args: z.unknown(),
+});
+
+function renderInterrupt(payload: unknown): string {
+  const parsed = toolApprovalRequestSchema.safeParse(payload);
+  if (parsed.success) {
+    return `[approval needed] run ${parsed.data.tool} with ${JSON.stringify(
+      parsed.data.args,
+    )}?`;
+  }
+  return `[interrupt] ${JSON.stringify(payload)}`;
+}
 
 function printTurn(turn: ChatTurn): void {
   for (const message of turn.newMessages) {
@@ -21,7 +40,7 @@ function printTurn(turn: ChatTurn): void {
     }
   }
   if (turn.interrupt !== undefined) {
-    console.log(`[interrupt] ${JSON.stringify(turn.interrupt)}`);
+    console.log(renderInterrupt(turn.interrupt));
   }
 }
 

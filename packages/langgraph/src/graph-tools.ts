@@ -8,7 +8,8 @@ import type {
   BaseChatModel,
   BaseChatModelCallOptions,
 } from "@langchain/core/language_models/chat_models";
-import type { AIMessageChunk } from "@langchain/core/messages";
+import { ToolMessage, type AIMessageChunk } from "@langchain/core/messages";
+import { interrupt } from "@langchain/langgraph";
 import { z } from "zod";
 
 import { getGraphMetadata, getToolMethods } from "./decorators";
@@ -26,6 +27,180 @@ const rawToolSchema = z.object({
   name: z.string().min(1),
   invoke: z.custom<(...args: any[]) => unknown>((v) => typeof v === "function"),
 });
+
+/* ------------------------------------------------------------------ *
+ * Approval-gated tools
+ *
+ * A tool flagged for approval pauses via LangGraph's `interrupt()` BEFORE it
+ * runs, handing the client a structured `tool_approval_request` payload; the
+ * real tool only executes after a resume with `{ approved: true }`. Enforcement
+ * lives here in {@link buildGraphTools} — the single source of truth — so it
+ * covers the ToolNode execution path automatically, while the model-facing
+ * schema (name/description/schema) stays byte-for-byte identical to an unflagged
+ * tool: the model sees and calls the tool normally; only its EXECUTION is gated.
+ *
+ * Proven empirically against @langchain/langgraph@1.4.7 that `interrupt()` works
+ * inside a tool ToolNode executes (see __tests__/tool-interrupt-proof.spec.ts):
+ * it reads the run context via the async-local-storage config the ToolNode sets.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Fork-safe marker for a raw tool that must be approved before it runs. Uses a
+ * GLOBAL `Symbol.for` key so the mark is recognised even across a pnpm-forked
+ * duplicate of this package (a plain `Symbol()` would differ per module copy),
+ * mirroring the structural, non-`instanceof` handling {@link rawToolSchema} uses.
+ */
+const REQUIRES_APPROVAL = Symbol.for("@harpua/langgraph:requiresApproval");
+
+/**
+ * Marks a raw LangChain tool INSTANCE as requiring human approval before it
+ * executes — the raw-tool sibling of `@LangGraphTool({ requiresApproval: true })`.
+ * Returns the same instance (with a non-enumerable marker) so it stays a normal
+ * `StructuredToolInterface` the model binds unchanged; the gate is applied when
+ * {@link buildGraphTools} mounts it.
+ *
+ * @example
+ * ```ts
+ * @LangGraph({ name: "agent", state, tools: [requireApproval(dangerousTool())] })
+ * ```
+ */
+export function requireApproval<T extends StructuredToolInterface>(
+  rawTool: T,
+): T {
+  Object.defineProperty(rawTool, REQUIRES_APPROVAL, {
+    value: true,
+    enumerable: false,
+    configurable: true,
+    writable: false,
+  });
+  return rawTool;
+}
+
+function isApprovalRequired(rawTool: unknown): boolean {
+  return (
+    typeof rawTool === "object" &&
+    rawTool !== null &&
+    (rawTool as Record<symbol, unknown>)[REQUIRES_APPROVAL] === true
+  );
+}
+
+/**
+ * The payload an approval-gated tool hands the client when it pauses. A tagged
+ * discriminated object (like every harpua interrupt payload) so a client can
+ * switch on `type`. Exported as {@link ToolApprovalRequest} for clients.
+ */
+const toolApprovalRequestSchema = z.object({
+  type: z.literal("tool_approval_request"),
+  /** The gated tool's name (as the model called it). */
+  tool: z.string(),
+  /** The arguments of the paused tool call. */
+  args: z.unknown(),
+});
+
+export type ToolApprovalRequest = z.infer<typeof toolApprovalRequestSchema>;
+
+/** The resume value the client sends back to approve or decline. */
+const toolApprovalResumeSchema = z.object({
+  approved: z.boolean(),
+  reason: z.string().optional(),
+});
+
+/** A ToolCall as `ToolNode` hands it to a raw tool's `invoke`. */
+const toolCallSchema = z.object({
+  name: z.string(),
+  args: z.record(z.string(), z.unknown()).optional(),
+  id: z.string().optional(),
+});
+
+/** The call args to surface: a ToolCall's `.args`, else the input verbatim. */
+function callArgsOf(input: unknown): unknown {
+  const parsed = toolCallSchema.safeParse(input);
+  return parsed.success ? (parsed.data.args ?? {}) : input;
+}
+
+/** Zod-validate the resume value; an unknown shape is a clear, actionable error. */
+function resolveDecision(
+  toolName: string,
+  decision: unknown,
+): z.infer<typeof toolApprovalResumeSchema> {
+  const parsed = toolApprovalResumeSchema.safeParse(decision);
+  if (!parsed.success) {
+    throw new Error(
+      `Invalid resume value for approval-gated tool '${toolName}': expected ` +
+        `{ approved: boolean, reason?: string }, received ${JSON.stringify(
+          decision,
+        )}.`,
+    );
+  }
+  return parsed.data;
+}
+
+function declineMessage(toolName: string, reason?: string): string {
+  return `The user declined ${toolName}: ${reason ?? "no reason given"}.`;
+}
+
+type ToolFn = (...args: any[]) => unknown | Promise<unknown>;
+
+/**
+ * Wraps a provider tool's execution behind a human approval gate. Applied as the
+ * OUTERMOST wrapper (outside {@link instrumentTool}), so the `langgraph.tool`
+ * span covers only real execution — never the human wait — and the pause's
+ * `GraphInterrupt` throw is never recorded as a span error. A declined call
+ * returns a plain string; `tool(...)` turns it into the ToolMessage the model reads.
+ */
+function approvalGatedProviderTool(toolName: string, run: ToolFn): ToolFn {
+  return (...args: any[]) => {
+    const decision = interrupt(
+      toolApprovalRequestSchema.parse({
+        type: "tool_approval_request",
+        tool: toolName,
+        args: args[0],
+      }),
+    );
+    const { approved, reason } = resolveDecision(toolName, decision);
+    return approved ? run(...args) : declineMessage(toolName, reason);
+  };
+}
+
+/**
+ * The raw-tool sibling of {@link approvalGatedProviderTool}. Proxies `invoke`
+ * (which `ToolNode` calls) to pause first; on approval it delegates to the
+ * already-instrumented tool (so the span opens only for real execution), on
+ * decline it returns a `ToolMessage` carrying the decline text (the raw tool's
+ * `invoke` returns a ToolMessage, so we match that shape and thread the
+ * `tool_call_id` through for ToolNode to map).
+ */
+function approvalGatedRawTool(
+  instrumented: StructuredToolInterface,
+  toolName: string,
+): StructuredToolInterface {
+  const gatedInvoke = (input: unknown, ...rest: any[]): unknown => {
+    const decision = interrupt(
+      toolApprovalRequestSchema.parse({
+        type: "tool_approval_request",
+        tool: toolName,
+        args: callArgsOf(input),
+      }),
+    );
+    const { approved, reason } = resolveDecision(toolName, decision);
+    if (approved) {
+      return (instrumented.invoke as (...a: any[]) => unknown)(input, ...rest);
+    }
+    const call = toolCallSchema.safeParse(input);
+    return new ToolMessage({
+      content: declineMessage(toolName, reason),
+      tool_call_id: call.success ? (call.data.id ?? "") : "",
+      name: toolName,
+    });
+  };
+  return new Proxy(instrumented, {
+    get(target, prop): unknown {
+      if (prop === "invoke") return gatedInvoke;
+      const value = Reflect.get(target, prop, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+}
 
 /**
  * The runnable a graph-bound model exposes: `bindTools` on any `BaseChatModel`
@@ -70,9 +245,16 @@ export function buildGraphTools(
   const tools: StructuredToolInterface[] = [];
 
   for (const entry of toolEntries) {
-    // Raw LangChain tool instance: mount as-is, wrapped for tracing.
+    // Raw LangChain tool instance: mount as-is, wrapped for tracing — and
+    // behind the approval gate if marked with requireApproval().
     if (rawToolSchema.safeParse(entry).success) {
-      tools.push(instrumentRawTool(entry as StructuredToolInterface));
+      const raw = entry as StructuredToolInterface;
+      const instrumented = instrumentRawTool(raw);
+      tools.push(
+        isApprovalRequired(raw)
+          ? approvalGatedRawTool(instrumented, raw.name)
+          : instrumented,
+      );
       continue;
     }
     // Provider class: resolve from DI and wrap each @LangGraphTool method.
@@ -92,8 +274,15 @@ export function buildGraphTools(
         const fn = (instance[m.methodName] as (...a: any[]) => any).bind(
           instance,
         );
+        // Instrument first (inner), then gate (outer) when flagged — the tool's
+        // name/description/schema below are unchanged either way, so the model
+        // binds the flagged tool exactly as it binds an unflagged one.
+        const execute = instrumentTool(toolName, fn);
+        const gated = m.requiresApproval
+          ? approvalGatedProviderTool(toolName, execute)
+          : execute;
         tools.push(
-          tool(instrumentTool(toolName, fn), {
+          tool(gated, {
             name: toolName,
             description: m.description,
             schema: m.schema as any,

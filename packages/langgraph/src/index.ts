@@ -30,11 +30,13 @@ export {
   getGraphToolsToken,
   provideGraphTools,
   provideGraphBoundModel,
+  requireApproval,
 } from "./graph-tools";
 export type {
   GraphBoundModel,
   ProvideGraphToolsOptions,
   ProvideGraphBoundModelOptions,
+  ToolApprovalRequest,
 } from "./graph-tools";
 
 // Streaming helpers.

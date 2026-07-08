@@ -4,7 +4,7 @@ import { CHAT_MODEL, ChatModelModule } from "@harpua/models";
 
 import { ChatController } from "./chat.controller";
 import { ChatService } from "./chat.service";
-import { ApprovalNode, CallModelNode, ChatGraph } from "./chat.graph";
+import { CallModelNode, ChatGraph } from "./chat.graph";
 import { CHAT_BOUND_MODEL } from "./chat-model.token";
 import { MockChatModel } from "./mock-chat-model";
 import { OrderTools } from "./order.tools";
@@ -52,7 +52,6 @@ import { SystemPrompt } from './system-prompt';
       model: CHAT_MODEL,
     }),
     CallModelNode,
-    ApprovalNode,
     ChatService,
     SystemPrompt,
   ],

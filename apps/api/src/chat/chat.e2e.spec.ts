@@ -19,12 +19,7 @@ import { OrdersService } from "./orders.service";
 import { OrderTools } from "./order.tools";
 import { SystemPrompt } from "./system-prompt";
 import { ChatService } from "./chat.service";
-import {
-  ApprovalNode,
-  CallModelNode,
-  ChatGraph,
-  type ChatState,
-} from "./chat.graph";
+import { CallModelNode, ChatGraph, type ChatState } from "./chat.graph";
 import { CHAT_MODEL } from "@harpua/models";
 import { provideGraphBoundModel } from "@harpua/langgraph";
 import { CHAT_BOUND_MODEL } from "./chat-model.token";
@@ -46,14 +41,11 @@ describe("Chat graph (integration)", () => {
       .onToolResult((last) => `Here's what I found: ${textOf(last)}`)
       .onHuman(/\b(delete|cancel)\b/i, (text) => {
         const orderId = /order\s+#?([A-Za-z0-9-]+)/i.exec(text)?.[1] ?? null;
-        return {
-          text: orderId
-            ? `Cancelling order ${orderId} is irreversible — I need your approval first.`
-            : "That's a destructive action — I need your approval first.",
-          additionalKwargs: {
-            pending_action: { action: "cancel_order", orderId, request: text },
-          },
-        };
+        // A real cancel_order tool call — approval is enforced by the tool gate,
+        // not a side-channel a real model could never set.
+        return orderId
+          ? { toolCalls: [{ name: "cancel_order", args: { orderId } }] }
+          : { text: "Which order should I cancel? Tell me the order id." };
       })
       .onHuman(/order\s+#?([A-Za-z0-9-]+)/i, (_text, match) => ({
         toolCalls: [{ name: "lookup_order", args: { orderId: match[1] } }],
@@ -71,7 +63,6 @@ describe("Chat graph (integration)", () => {
         OrdersService,
         OrderTools,
         CallModelNode,
-        ApprovalNode,
         SystemPrompt,
         { provide: CHAT_MODEL, useClass: model },
         provideGraphBoundModel({
@@ -151,14 +142,14 @@ describe("Chat graph (integration)", () => {
     );
     const pending = expectInterrupt<{
       type: string;
-      action: string;
-      orderId: string;
+      tool: string;
+      args: { orderId: string };
     }>(paused);
     expect(pending).toEqual(
       expect.objectContaining({
-        type: "approval_request",
-        action: "cancel_order",
-        orderId: "7",
+        type: "tool_approval_request",
+        tool: "cancel_order",
+        args: { orderId: "7" },
       }),
     );
     expect(orders.statusOf("7")).toBe("shipped");
@@ -168,7 +159,7 @@ describe("Chat graph (integration)", () => {
     expect(orders.statusOf("7")).toBe("cancelled");
   });
 
-  it("declines the pending action when resume is not approved", async () => {
+  it("declines the pending tool call when resume is not approved", async () => {
     harness = await bootChat(chatModel());
     const chat = harness.get<ChatState>(ChatGraph);
     const orders = harness.app.get(OrdersService);
@@ -180,8 +171,10 @@ describe("Chat graph (integration)", () => {
     );
     expect(expectInterrupt(paused)).toBeDefined();
 
+    // Decline: the tool never runs, and the model gets a graceful decline
+    // message it can respond to.
     const resumed = await chat.resume("cancel-decline", { approved: false });
-    expect(aiText(resumed)).toContain("not made any changes");
+    expect(aiText(resumed)).toContain("declined cancel_order");
     expect(orders.statusOf("9")).toBe("shipped");
   });
 });
@@ -226,9 +219,9 @@ describe("Chat over HTTP (e2e)", () => {
       .expect(201);
     expect(paused.body.interrupt).toEqual(
       expect.objectContaining({
-        type: "approval_request",
-        action: "cancel_order",
-        orderId: "7",
+        type: "tool_approval_request",
+        tool: "cancel_order",
+        args: { orderId: "7" },
       }),
     );
 
@@ -331,9 +324,9 @@ describe("Chat over HTTP (e2e)", () => {
     const payload = final.data as { interrupt?: Record<string, unknown> };
     expect(payload.interrupt).toEqual(
       expect.objectContaining({
-        type: "approval_request",
-        action: "cancel_order",
-        orderId: "7",
+        type: "tool_approval_request",
+        tool: "cancel_order",
+        args: { orderId: "7" },
       }),
     );
 

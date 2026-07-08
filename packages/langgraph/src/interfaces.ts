@@ -150,6 +150,8 @@ export interface ToolMethodMetadata {
   name?: string;
   description: string;
   schema: unknown;
+  /** Gate execution behind a human approval interrupt (see `requiresApproval`). */
+  requiresApproval?: boolean;
 }
 
 /**
