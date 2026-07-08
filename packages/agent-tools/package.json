@@ -1,6 +1,6 @@
 {
   "name": "@harpua/agent-tools",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "Framework-agnostic prebuilt LangChain tools for agents (works with any LangChain/LangGraph app)",
   "repository": {
