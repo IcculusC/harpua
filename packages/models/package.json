@@ -1,6 +1,6 @@
 {
   "name": "@harpua/models",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "license": "MIT",
   "description": "Env-driven chat models for NestJS by named registration: boot instantly on a built-in mock, go real with OpenRouter (one key, every model), Ollama, or any OpenAI-compatible server — each LangChain integration an optional peer",
   "repository": {
