@@ -56,7 +56,7 @@ Strict zod option schemas plus `resolveOptions`-style parsers, mirroring
 | Option | Type | Default | Meaning |
 |---|---|---|---|
 | `saveDir` | `string` \| `(config?) => string` | required | Directory saved pages land in. A function receives the LangChain `RunnableConfig` at call time so apps can resolve per-thread/per-project dirs. |
-| `maxResponseBytes` | positive int | 2_000_000 | Response-size ceiling; the body read is aborted past it and the tool returns a friendly refusal. |
+| `maxResponseBytes` | positive int | 2_000_000 | Response-size ceiling; oversize responses are refused with a friendly string (`content-length` pre-check when the server declares it, size check after reading otherwise). |
 | `timeoutMs` | positive int | 15_000 | Abort the fetch after this long. |
 | `fetchFn` | function | `globalThis.fetch` | Injectable fetch for tests. |
 | `now` | `() => Date` | `() => new Date()` | Injectable clock for the frontmatter `fetched` date (repo rule: no bare `new Date()` in logic under test). |
@@ -184,8 +184,9 @@ Fully offline and deterministic (repo rule), in
 
 ## Process
 
-Feature branch `feat/web-research-tools`; a changeset with a **minor** bump
-for `@harpua/agent-tools` (new feature); package README section for the new
+Feature branch `feat/web-research-tools`; a changeset with a **patch** bump
+for `@harpua/agent-tools` (0.x semantics: features are patches, only
+breaking changes take minor); package README section for the new
 family; verification per the repo's ROOT protocol
 (`pnpm turbo build lint test --force`); lands via PR merged by the
 maintainer.
