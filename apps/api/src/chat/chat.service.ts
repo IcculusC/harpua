@@ -102,9 +102,12 @@ export class ChatService {
     };
   }
 
-  async resume(threadId: string, approved: boolean): Promise<ChatTurn> {
+  async resume(
+    threadId: string,
+    decision: { approved: boolean; reason?: string },
+  ): Promise<ChatTurn> {
     const before = await this.messageCount(threadId);
-    const result = await this.graph.resume(threadId, { approved });
+    const result = await this.graph.resume(threadId, decision);
     return this.toTurn(result, before);
   }
 

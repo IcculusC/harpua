@@ -77,7 +77,7 @@ async function main(): Promise<void> {
     if (awaitingApproval) {
       const approved = /^y(es)?$/i.test(line);
       awaitingApproval = false;
-      const turn = await chat.resume(threadId, approved);
+      const turn = await chat.resume(threadId, { approved });
       printTurn(turn);
       if (turn.interrupt !== undefined) awaitingApproval = true;
       prompt();

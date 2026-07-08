@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Param,
@@ -8,7 +9,13 @@ import {
   type MessageEvent,
 } from "@nestjs/common";
 import { Observable, from, map } from "rxjs";
+import { z } from "zod";
 import { ChatService, type ChatStreamEvent, type ChatTurn } from "./chat.service";
+
+const resumeBodySchema = z.object({
+  approved: z.boolean(),
+  reason: z.string().min(1).optional(),
+});
 
 interface ChatResponse {
   messages: string[];
@@ -73,8 +80,12 @@ export class ChatController {
   @Post(":threadId/resume")
   async resume(
     @Param("threadId") threadId: string,
-    @Body() body: { approved: boolean },
+    @Body() body: unknown,
   ): Promise<ChatResponse> {
-    return toResponse(await this.chat.resume(threadId, body.approved === true));
+    const decision = resumeBodySchema.safeParse(body);
+    if (!decision.success) {
+      throw new BadRequestException(decision.error.issues);
+    }
+    return toResponse(await this.chat.resume(threadId, decision.data));
   }
 }
