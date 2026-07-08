@@ -65,4 +65,13 @@ describe("htmlToMarkdown", () => {
     );
     expect(htmlToMarkdown("<body><h1></h1></body>").title).toBeUndefined();
   });
+
+  it("keeps nested inline tags inside headings", () => {
+    expect(htmlToMarkdown("<h1>Some <b>Bold</b> Text</h1>").markdown).toBe(
+      "# Some Bold Text",
+    );
+    expect(
+      htmlToMarkdown("<h2><strong>Warning</strong> Notice</h2>").markdown,
+    ).toBe("## Warning Notice");
+  });
 });

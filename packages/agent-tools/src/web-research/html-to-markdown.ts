@@ -108,7 +108,7 @@ export function htmlToMarkdown(html: string): HtmlToMarkdownResult {
     )
     // Headings h1–h6. Allow unclosed tags for pathological input.
     .replace(
-      /<h([1-6])[^>]*>([\s\S]*?)(?:<\/h\1>|(?=<)|$)/gi,
+      /<h([1-6])[^>]*>([\s\S]*?)(?:<\/h\1>|$)/gi,
       (match, level: string, inner: string) => {
         const text = inlineText(inner);
         return text.length > 0
