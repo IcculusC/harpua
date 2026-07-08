@@ -247,6 +247,21 @@ ChatModelModule.forRoot({
 This keeps runtime code free of any testing-library dependency while letting the
 app stay mock-by-default.
 
+`defaults` entries **compose** — when you add a real-arm preset, keep the
+`mockModel` line. `provider`, the arm-scoped presets, and `mockModel` each do a
+separate job, and deleting the mock while wiring a real arm silently reverts
+your tests (and any keyless boot) to the built-in echo:
+
+```ts
+ChatModelModule.forRoot({
+  defaults: {
+    provider: "openrouter",                          // preferred real arm
+    openrouter: { model: "deepseek/deepseek-v4-flash" }, // inert until that arm is live
+    mockModel: () => new MyScriptedModel(),          // still used whenever mock resolves
+  },
+});
+```
+
 ## Testing
 
 `ChatModelModule.forRoot()` configures the default model **once per process** —

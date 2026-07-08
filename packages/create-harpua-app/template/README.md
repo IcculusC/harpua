@@ -89,6 +89,11 @@ by default and goes real with one env flip — validated with zod, so a
 misconfiguration fails fast with a precise message. Copy `.env.example` to `.env`
 and set the values.
 
+`pnpm start` and `pnpm chat` load `.env` automatically (via node's
+`--env-file-if-exists`). `pnpm start:dev` runs through `nest start --watch`,
+which can't pass flags to node — export the variables in your shell (or use
+`pnpm start`) when developing against a real model.
+
 **Mock to boot, OpenRouter to go real.** OpenRouter is the expected path for a
 real model: one API key, hundreds of models (many cheap, several free).
 

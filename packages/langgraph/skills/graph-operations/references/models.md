@@ -103,3 +103,7 @@ ChatModelModule.register({
 `mock` arm — the way a demo keeps a scripted offline model while staying
 mock-by-default (e.g. `forRoot({ defaults: { mockModel: () => new MyMock() } })`).
 Runtime code stays free of any testing-library dependency.
+
+`defaults` entries compose: when adding `provider` or an arm-scoped preset,
+KEEP the existing `mockModel` line. Deleting it while switching arms silently
+reverts tests and keyless boots to the built-in echo — a known foot-gun.
