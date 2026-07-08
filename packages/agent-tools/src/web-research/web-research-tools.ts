@@ -47,6 +47,7 @@ export function webResearchTools(
         maxResponseBytes: opts.maxResponseBytes,
       }),
       ...(opts.timeoutMs !== undefined && { timeoutMs: opts.timeoutMs }),
+      ...(opts.allowPrivate !== undefined && { allowPrivate: opts.allowPrivate }),
       ...(opts.fetchFn !== undefined && { fetchFn: opts.fetchFn }),
       ...(opts.now !== undefined && { now: opts.now }),
     }),

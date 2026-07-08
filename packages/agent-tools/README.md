@@ -117,7 +117,12 @@ const toolNode = new ToolNode([
 
 Both tools return every failure (network, HTTP status, content type, size
 cap, filesystem) as a friendly string — they never throw mid-graph. The
-model chooses the URLs: publicly-deployed apps should gate `fetch_url`
+model chooses the URLs, so `fetch_url` refuses loopback/private/link-local
+addresses by default (including redirects that land on one) — pass
+`allowPrivate: true` to reach a service on your own machine or LAN. That's a
+safety net, not a boundary: it inspects the literal hostname only (no DNS
+resolution), so real egress control belongs at the deployment layer, and
+publicly-deployed apps should still gate `fetch_url`
 (e.g. `requireApproval()` from `@harpua/langgraph`) or front it with an
 allowlist.
 

@@ -9,6 +9,7 @@ import {
 } from "./options";
 import { errorMessage } from "./errors";
 import { htmlToMarkdown } from "./html-to-markdown";
+import { isPrivateAddress } from "./private-address";
 import { savePage } from "./save-page";
 
 const DESCRIPTION =
@@ -17,8 +18,9 @@ const DESCRIPTION =
   "converts HTML to markdown, saves the file, and tells you the saved path. " +
   "Then use search_files to find terms in it and read_lines to read it. " +
   "HTML and plain-text pages only — PDFs and other binary types are refused. " +
-  "SECURITY: this fetches whatever URL is supplied; publicly-deployed apps " +
-  "should gate it (e.g. requireApproval) or front it with an allowlist.";
+  "SECURITY: fetches whatever URL is supplied. Private/loopback addresses are " +
+  "refused by default; publicly-deployed apps should still gate it (e.g. " +
+  "requireApproval) or front it with an allowlist.";
 
 const fetchUrlInputSchema = z.object({
   url: z.string().min(1).describe("The absolute http(s) URL of the page to fetch."),
@@ -55,6 +57,12 @@ export function fetchUrlTool(
       if (url.protocol !== "http:" && url.protocol !== "https:") {
         return `fetch_url: only http(s) URLs are supported (got "${url.protocol}").`;
       }
+      if (!opts.allowPrivate && isPrivateAddress(url.hostname)) {
+        return (
+          `fetch_url: refusing to fetch the private/loopback address ` +
+          `"${url.hostname}" — set allowPrivate: true if this is intentional.`
+        );
+      }
 
       let response;
       try {
@@ -67,6 +75,26 @@ export function fetchUrlTool(
 
       if (!response.ok) {
         return `fetch_url: ${url.toString()} returned HTTP ${response.status}.`;
+      }
+
+      // Redirects are followed by the underlying fetch; re-check where we
+      // actually landed so a public URL can't 302 past the private-address
+      // guard, and so provenance records the real source.
+      let finalUrl = url;
+      if (response.url) {
+        try {
+          finalUrl = new URL(response.url);
+        } catch {
+          finalUrl = url;
+        }
+      }
+      if (!opts.allowPrivate && finalUrl.hostname !== url.hostname &&
+          isPrivateAddress(finalUrl.hostname)) {
+        return (
+          `fetch_url: ${url.toString()} redirected to the private/loopback ` +
+          `address "${finalUrl.hostname}" — refused (set allowPrivate: true ` +
+          `if this is intentional).`
+        );
       }
 
       const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
@@ -85,6 +113,11 @@ export function fetchUrlTool(
         );
       }
 
+      // Prefer the declared size so an oversize body is refused before it is
+      // read. When the server omits content-length (e.g. chunked responses)
+      // the body-size check below is the fallback — note it buffers the whole
+      // body first, so it bounds what we SAVE, not peak memory. A hard memory
+      // bound would need a streaming reader on FetchResponseLike.
       const declared = Number(response.headers.get("content-length") ?? "");
       if (Number.isFinite(declared) && declared > opts.maxResponseBytes) {
         return (
@@ -115,15 +148,17 @@ export function fetchUrlTool(
         typeof opts.saveDir === "function" ? opts.saveDir(config) : opts.saveDir;
       const fetched = opts.now().toISOString().slice(0, 10);
 
+      // Record where the content actually came from (post-redirect), so the
+      // frontmatter URL and the overwrite-keying slug reflect the real source.
       let saved: string;
       try {
-        saved = savePage({ dir, url, title, markdown, fetched });
+        saved = savePage({ dir, url: finalUrl, title, markdown, fetched });
       } catch (err) {
         return `fetch_url: could not save the page (${errorMessage(err)}).`;
       }
 
       const lineCount = markdown.split("\n").length;
-      const label = title ?? `${url.host}${url.pathname}`;
+      const label = title ?? `${finalUrl.host}${finalUrl.pathname}`;
       return (
         `Saved "${label}" (${lineCount} lines) to ${saved}.\n` +
         "Search it with search_files or read it with read_lines."

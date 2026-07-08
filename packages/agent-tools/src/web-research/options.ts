@@ -16,6 +16,8 @@ export const DEFAULT_MAX_RESPONSE_BYTES = 2_000_000;
 export interface FetchResponseLike {
   ok: boolean;
   status: number;
+  /** Final URL after any redirects (WHATWG `Response.url`); absent = no redirect seen. */
+  url?: string;
   headers: { get(name: string): string | null };
   text(): Promise<string>;
 }
@@ -96,6 +98,13 @@ export const fetchUrlToolOptionsSchema = z
       .default(DEFAULT_MAX_RESPONSE_BYTES),
     /** Abort the fetch after this many milliseconds. */
     timeoutMs: z.number().int().positive().default(DEFAULT_FETCH_TIMEOUT_MS),
+    /**
+     * Allow fetching loopback/private/link-local addresses. Off by default:
+     * a model-supplied URL pointing at localhost, the LAN, or a cloud metadata
+     * endpoint is refused unless this is explicitly set. See `private-address.ts`
+     * for the (deliberately literal-only) classification and its caveats.
+     */
+    allowPrivate: z.boolean().default(false),
     /** Injectable fetch (deterministic tests); defaults to globalThis.fetch. */
     fetchFn: fetchFnSchema.default(defaultFetchFn),
     /** Injectable clock for the frontmatter `fetched` date. */
@@ -127,6 +136,7 @@ export const webResearchToolsOptionsSchema = z
     maxResults: z.number().int().positive().max(MAX_RESULTS_CEILING).optional(),
     maxResponseBytes: z.number().int().positive().optional(),
     timeoutMs: z.number().int().positive().optional(),
+    allowPrivate: z.boolean().optional(),
     fetchFn: fetchFnSchema.optional(),
     now: clockSchema.optional(),
   })

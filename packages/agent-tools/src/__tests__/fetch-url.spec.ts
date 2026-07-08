@@ -169,4 +169,67 @@ describe("fetch_url", () => {
     );
     expect(out).toMatch(/could not save/i);
   });
+
+  it("refuses private/loopback/link-local addresses by default and writes nothing", async () => {
+    const seen: string[] = [];
+    const spyFetch: FetchFn = async (url) => {
+      seen.push(url);
+      return response(PAGE, "text/html");
+    };
+    const tool = fetchUrlTool({ saveDir: dir, fetchFn: spyFetch, now: FIXED_NOW });
+    for (const url of [
+      "http://localhost:6379/",
+      "http://127.0.0.1/admin",
+      "http://192.168.1.1/",
+      "http://10.0.0.5/",
+      "http://169.254.169.254/latest/meta-data/", // cloud metadata
+      "http://[::1]/",
+      "http://redis.internal/",
+    ]) {
+      const out = await runTool(tool, { url });
+      expect(out).toMatch(/private\/loopback/i);
+    }
+    expect(seen).toHaveLength(0); // refused before any fetch happened
+    expect(fs.readdirSync(dir)).toHaveLength(0);
+  });
+
+  it("fetches a private address when allowPrivate is set", async () => {
+    const tool = fetchUrlTool({
+      saveDir: dir,
+      allowPrivate: true,
+      fetchFn: htmlFetch,
+      now: FIXED_NOW,
+    });
+    const out = await runTool(tool, { url: "http://localhost:8080/page" });
+    expect(out).toContain("LM317 Product Page");
+    expect(fs.readdirSync(dir)).toHaveLength(1);
+  });
+
+  it("refuses a public URL that redirects to a private address", async () => {
+    const redirecting: FetchFn = async () => ({
+      ...response(PAGE, "text/html"),
+      url: "http://169.254.169.254/latest/meta-data/", // where we actually landed
+    });
+    const out = await runTool(
+      fetchUrlTool({ saveDir: dir, fetchFn: redirecting, now: FIXED_NOW }),
+      { url: "https://totally-legit.example/go" },
+    );
+    expect(out).toMatch(/redirected to the private\/loopback/i);
+    expect(fs.readdirSync(dir)).toHaveLength(0);
+  });
+
+  it("records the post-redirect URL in the frontmatter", async () => {
+    const redirecting: FetchFn = async () => ({
+      ...response(PAGE, "text/html"),
+      url: "https://ti.com/lm317-final",
+    });
+    await runTool(
+      fetchUrlTool({ saveDir: dir, fetchFn: redirecting, now: FIXED_NOW }),
+      { url: "https://ti.com/short" },
+    );
+    const [file] = fs.readdirSync(dir);
+    const content = fs.readFileSync(path.join(dir, file), "utf8");
+    expect(content).toContain("url: https://ti.com/lm317-final");
+    expect(content).not.toContain("url: https://ti.com/short");
+  });
 });
