@@ -26,6 +26,8 @@ import {
   type ChatState,
 } from "./chat.graph";
 import { CHAT_MODEL } from "@harpua/models";
+import { provideGraphBoundModel } from "@harpua/langgraph";
+import { CHAT_BOUND_MODEL } from "./chat-model.token";
 
 /* --------------------------------------------------------------------- *
  * Graph-level integration, via @harpua/langgraph-testing.
@@ -72,6 +74,11 @@ describe("Chat graph (integration)", () => {
         ApprovalNode,
         SystemPrompt,
         { provide: CHAT_MODEL, useClass: model },
+        provideGraphBoundModel({
+          provide: CHAT_BOUND_MODEL,
+          graph: ChatGraph,
+          model: CHAT_MODEL,
+        }),
       ],
     });
   }

@@ -56,6 +56,42 @@ use a raw instance for self-contained tools with no dependencies. An entry that
 is neither a decorated provider class nor a raw tool instance fails fast at
 bootstrap.
 
+## Give the model the graph's tools
+
+The `tools` array builds a `TOOLS` node that **executes** tool calls — but a
+real chat model only emits one if it was told the tools exist. Bind them with
+`provideGraphBoundModel`, pointing at the graph and at your own model provider:
+
+```ts
+import { provideGraphBoundModel } from "@harpua/langgraph";
+
+export const MODEL = Symbol.for("app:MODEL");
+export const BOUND_MODEL = Symbol.for("app:BOUND_MODEL");
+
+// in the module's providers:
+{ provide: MODEL, useValue: new ChatOpenRouter({ model: "…" }) },
+provideGraphBoundModel({ provide: BOUND_MODEL, graph: AgentGraph, model: MODEL }),
+```
+
+The node injects the bound token and calls it like a model — `model` is any
+token you own, so this stays model-library-agnostic:
+
+```ts
+import { Inject } from "@nestjs/common";
+import { type GraphBoundModel } from "@harpua/langgraph";
+
+constructor(@Inject(BOUND_MODEL) private readonly model: GraphBoundModel) {}
+// run(): await this.model.invoke(state.messages)
+```
+
+No tools on the graph → the model is returned unchanged. Want the raw array to
+bind yourself? `provideGraphTools({ graph })` publishes it under
+`getGraphToolsToken(graph)`.
+
+**Works with `@harpua/models`:** pass its env-driven `CHAT_MODEL` as `model` —
+`MockChatModel.bindTools` is a no-op returning itself, so mock-mode is unchanged
+while a real model gains the tools.
+
 ## Tests
 
 - **Unit**: instantiate the provider directly (or via `Test.createTestingModule`) and assert the method's return, plus that its injected service was hit.

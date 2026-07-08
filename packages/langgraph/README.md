@@ -294,6 +294,103 @@ Raw instances are mounted into the same `ToolNode` as-is (and traced the same
 way). Reach for a provider class when a tool needs DI; use a raw instance for
 self-contained tools. An entry that is neither fails fast at bootstrap.
 
+### Give the model the graph's tools
+
+The `TOOLS` node **executes** tool calls — but a real chat model only emits a
+tool call if it was told the tools exist. Vanilla LangChain does this with
+`model.bindTools([...])`; here the framework already knows every tool the graph
+declares, so `provideGraphBoundModel` builds that exact array and binds it for
+you. Point it at the graph and at **your own** model provider:
+
+```ts
+import { Module } from "@nestjs/common";
+import { LangGraphModule, provideGraphBoundModel } from "@harpua/langgraph";
+
+import { AgentGraph, CallModelNode } from "./agent.graph";
+import { OrderTools } from "./order.tools";
+
+// A token for your model, and a token for its tool-bound form.
+export const MODEL = Symbol.for("app:MODEL");
+export const BOUND_MODEL = Symbol.for("app:BOUND_MODEL");
+
+@Module({
+  imports: [LangGraphModule.forFeature([AgentGraph])],
+  providers: [
+    OrderTools,
+    // Your model — any provider resolving to a BaseChatModel.
+    { provide: MODEL, useValue: new ChatOpenRouter({ model: "…" }) },
+    // Bind AgentGraph's tools to it; nodes inject BOUND_MODEL.
+    provideGraphBoundModel({ provide: BOUND_MODEL, graph: AgentGraph, model: MODEL }),
+    CallModelNode,
+  ],
+})
+export class AgentModule {}
+```
+
+The node injects the bound token and calls it exactly like a model — the
+binding is transparent:
+
+```ts
+import { Inject, Injectable } from "@nestjs/common";
+import { NodeHandler, type GraphBoundModel } from "@harpua/langgraph";
+
+import { BOUND_MODEL } from "./agent.module";
+
+@Injectable()
+export class CallModelNode implements NodeHandler<AgentState> {
+  constructor(@Inject(BOUND_MODEL) private readonly model: GraphBoundModel) {}
+
+  async run(state: AgentState) {
+    return { messages: [await this.model.invoke(state.messages)] };
+  }
+}
+```
+
+`model` is **any** token you own — a `useValue`, a `useClass`, a `useFactory`,
+a class token, a symbol, or a string — so this package never depends on any
+particular model library. When the graph declares no tools, the model is
+returned unchanged. The factory runs during instantiation and only reads the
+graph's metadata and DI-resolves the tool providers, so it never races graph
+compilation.
+
+Want to bind manually (e.g. wrap the model yourself, or hand the tools to
+something else)? Inject the raw array instead:
+
+```ts
+import { provideGraphTools, getGraphToolsToken } from "@harpua/langgraph";
+import type { StructuredToolInterface } from "@langchain/core/tools";
+
+// provider: publishes the array under getGraphToolsToken(AgentGraph)
+provideGraphTools({ graph: AgentGraph });
+
+// consumer:
+constructor(
+  @Inject(getGraphToolsToken(AgentGraph)) tools: StructuredToolInterface[],
+) {}
+```
+
+`provideGraphBoundModel` is just this primitive composed with `bindTools`.
+
+#### Works great with `@harpua/models`
+
+The `model` token can be any `BaseChatModel` provider — including
+[`@harpua/models`](https://www.npmjs.com/package/@harpua/models)' env-driven
+`CHAT_MODEL`, which stays mock-by-default and flips to a real provider with one
+env var:
+
+```ts
+import { CHAT_MODEL, ChatModelModule } from "@harpua/models";
+
+imports: [ChatModelModule.forRoot()],
+providers: [
+  provideGraphBoundModel({ provide: BOUND_MODEL, graph: AgentGraph, model: CHAT_MODEL }),
+],
+```
+
+Its `MockChatModel.bindTools` is a no-op that returns itself, so mock-mode flows
+are unchanged; a real model receives the tools and can emit the calls the
+`TOOLS` node runs.
+
 ### Subgraphs
 
 A `@LangGraph` class can appear as an edge target inside another graph — it's

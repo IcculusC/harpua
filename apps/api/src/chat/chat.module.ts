@@ -1,10 +1,11 @@
 import { Module } from "@nestjs/common";
-import { LangGraphModule } from "@harpua/langgraph";
-import { ChatModelModule } from "@harpua/models";
+import { LangGraphModule, provideGraphBoundModel } from "@harpua/langgraph";
+import { CHAT_MODEL, ChatModelModule } from "@harpua/models";
 
 import { ChatController } from "./chat.controller";
 import { ChatService } from "./chat.service";
 import { ApprovalNode, CallModelNode, ChatGraph } from "./chat.graph";
+import { CHAT_BOUND_MODEL } from "./chat-model.token";
 import { MockChatModel } from "./mock-chat-model";
 import { OrderTools } from "./order.tools";
 import { OrdersService } from "./orders.service";
@@ -42,6 +43,14 @@ import { SystemPrompt } from './system-prompt';
   providers: [
     OrdersService,
     OrderTools,
+    // Bind ChatGraph's tools to the chat model so a real model can emit the
+    // lookup_order tool call (the ToolNode only executes them). Mock-by-default
+    // is unchanged: MockChatModel.bindTools is a no-op returning itself.
+    provideGraphBoundModel({
+      provide: CHAT_BOUND_MODEL,
+      graph: ChatGraph,
+      model: CHAT_MODEL,
+    }),
     CallModelNode,
     ApprovalNode,
     ChatService,

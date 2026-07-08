@@ -23,6 +23,20 @@ export { LangGraphModule } from "./langgraph.module";
 export { GraphRegistry } from "./graph-registry";
 export { GraphFacade } from "./graph-facade";
 
+// Tool binding: expose a graph's tools to a chat model so it can emit tool
+// calls (the ToolNode only executes them).
+export {
+  buildGraphTools,
+  getGraphToolsToken,
+  provideGraphTools,
+  provideGraphBoundModel,
+} from "./graph-tools";
+export type {
+  GraphBoundModel,
+  ProvideGraphToolsOptions,
+  ProvideGraphBoundModelOptions,
+} from "./graph-tools";
+
 // Streaming helpers.
 export { getStreamedInterrupts, INTERRUPT_KEY } from "./stream-utils";
 

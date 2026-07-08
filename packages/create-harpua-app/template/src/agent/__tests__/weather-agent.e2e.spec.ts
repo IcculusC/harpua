@@ -17,6 +17,8 @@ import {
 } from "../weather-agent.graph";
 import { WeatherTools } from "../weather.tools";
 import { CHAT_MODEL } from "@harpua/models";
+import { provideGraphBoundModel } from "@harpua/langgraph";
+import { AGENT_BOUND_MODEL } from "../agent-model.token";
 import { WEATHER_FETCH, type FetchFn } from "../fetch.token";
 
 /* --------------------------------------------------------------------- *
@@ -69,6 +71,11 @@ describe("Weather agent (integration)", () => {
         WeatherTools,
         CallModelNode,
         { provide: CHAT_MODEL, useClass: model },
+        provideGraphBoundModel({
+          provide: AGENT_BOUND_MODEL,
+          graph: WeatherAgentGraph,
+          model: CHAT_MODEL,
+        }),
         { provide: WEATHER_FETCH, useValue: fakeFetch },
       ],
     });
