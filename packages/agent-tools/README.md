@@ -45,6 +45,46 @@ const think = thinkTool({
 `options` is validated with zod (`{ description?: string }`, unknown keys
 rejected). The tool's input schema is `z.object({ thought: z.string() })`.
 
+### `fileExplorationTools(options)`
+
+A family of **read-only, sandboxed, context-safe** tools for navigating a
+codebase — `search_files`, `read_lines`, and `file_stats`. Every path is confined
+to `options.root` (`..` traversal and symlink escapes are refused), every result
+is bounded (match / byte / page / entry caps with explicit truncation markers so
+no single call floods the model's context), and nothing ever writes. The tool
+descriptions teach the workflow: size things up with `file_stats`, locate lines
+with `search_files`, then page just those with `read_lines`.
+
+```ts
+import { fileExplorationTools } from "@harpua/agent-tools";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+
+// One bundle, shared sandbox + caps. Defaults shown are optional.
+const tools = fileExplorationTools({
+  root: process.cwd(),
+  pageLines: 200, // read_lines page size
+  maxMatches: 50, // search_files match cap
+  maxOutputBytes: 16_384, // byte cap on streamed output
+  maxFileBytes: 2_000_000, // read_lines size ceiling
+});
+
+const toolNode = new ToolNode(tools);
+```
+
+- **`search_files`** `{ pattern, glob? }` — regex search via [ripgrep](https://github.com/BurntSushi/ripgrep)
+  (`rg` must be installed; the tool returns an install hint if it isn't). Respects
+  ignore files, distinguishes "No matches." from a real error, and caps output.
+- **`read_lines`** `{ path, start? }` — one line-numbered page of a text file with
+  a `file — lines A–B of TOTAL` header and the next `start=` when more remain.
+  Refuses binary and oversize files.
+- **`file_stats`** `{ path? }` — line count / byte size / binary flag for a file,
+  or a bounded per-file listing for a directory (omit `path` for the root).
+
+`options` is validated with zod (`root` required; every cap is a positive
+integer with a default; unknown keys rejected). The individual factories
+(`searchFilesTool`, `readLinesTool`, `fileStatsTool`) are exported too — the
+bundle is the primary API since the three share one sandbox configuration.
+
 ## Using with `@harpua/langgraph`
 
 [`@harpua/langgraph`](../langgraph) accepts these tools directly in a graph's
@@ -65,4 +105,6 @@ export class AgentGraph {
 ```
 
 The raw tool is mounted into the same `ToolNode` and traced with a
-`langgraph.tool think` span like any DI-bound tool.
+`langgraph.tool think` span like any DI-bound tool. The file-exploration bundle
+composes the same way — spread `...fileExplorationTools({ root })` into a graph's
+`tools` array and each tool is mounted and traced like any other raw tool.
