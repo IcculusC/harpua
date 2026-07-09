@@ -182,4 +182,26 @@ describe("syncIndex", () => {
     const result = await syncIndex({ root: missing, ...ARGS });
     expect(result.index.files).toEqual({});
   });
+
+  it("survives colons in model ids (e.g. OllamaEmbeddings with model: 'nomic-embed-text:latest')", async () => {
+    writeFile(root, "a.md", "## A\n\nalpha");
+    const embedder = new FakeModelEmbeddings("nomic-embed-text:latest");
+    await syncIndex({ root, embeddings: embedder, maxChunkChars: 1200 });
+    const before = fs.readFileSync(indexPath());
+
+    // Second sync with unchanged files and same embedder must be a no-op.
+    const writeSpy = jest.spyOn(fs, "writeFileSync");
+    const renameSpy = jest.spyOn(fs, "renameSync");
+    const calls = spyOnEmbedDocuments(embedder);
+    await syncIndex({ root, embeddings: embedder, maxChunkChars: 1200 });
+
+    expect(writeSpy).not.toHaveBeenCalled();
+    expect(renameSpy).not.toHaveBeenCalled();
+    expect(calls.length).toBe(0); // no re-embedding
+    writeSpy.mockRestore();
+    renameSpy.mockRestore();
+
+    const after = fs.readFileSync(indexPath());
+    expect(after).toEqual(before);
+  });
 });

@@ -72,12 +72,23 @@ interface ParsedFingerprint {
 
 function parseFingerprint(fingerprint: string): ParsedFingerprint | null {
   const parts = fingerprint.split(":");
-  if (parts.length !== 4) return null;
-  const [name, model, dim, maxChars] = parts;
+  if (parts.length < 3) return null;
+
+  // Parse from the right end to survive colons in model ids.
+  const maxCharsStr = parts.pop();
+  const dimensionStr = parts.pop();
+  const nameAndModel = parts.join(":");
+
+  const maxChars = Number(maxCharsStr);
+  const dimension = Number(dimensionStr);
+
+  // Verify both numeric tail fields parsed correctly.
+  if (!Number.isInteger(maxChars) || !Number.isInteger(dimension)) return null;
+
   return {
-    nameAndModel: `${name}:${model}`,
-    dimension: Number(dim),
-    maxChunkChars: Number(maxChars),
+    nameAndModel,
+    dimension,
+    maxChunkChars: maxChars,
   };
 }
 
