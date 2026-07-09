@@ -1,5 +1,14 @@
 # @harpua/langgraph-testing
 
+## 0.2.1
+
+### Patch Changes
+
+- d6706a1: scripted fakes support usage_metadata and withStructuredOutput
+  `createGraphTestingModule` gains a `featureProviders` option that registers providers inside `forFeature`'s scope, so an agent whose middleware needs DI-configured options (e.g. `provideBudget`/`provideRetry`) can be booted and tested with the normal harness.
+- Updated dependencies [d6706a1]
+  - @harpua/langgraph@0.1.6
+
 ## 0.2.0
 
 ### Minor Changes
