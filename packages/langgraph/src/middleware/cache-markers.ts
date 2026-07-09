@@ -13,17 +13,22 @@ export function markCacheBoundary(m: BaseMessage): void {
  * an explicit `cache_control` block; every other provider caches automatically
  * off a stable prefix, so the marker is stripped. Best-effort: an unknown
  * llmType strips (safe no-op).
+ *
+ * Copy-on-write: inputs are never mutated. A marked message is returned as a
+ * shallow clone (same class/prototype) with a fresh `additional_kwargs`; an
+ * unmarked message is returned by reference unchanged. This keeps persisted
+ * graph-state messages pristine, so a provider-specific `cache_control` can
+ * never bake into a checkpoint and leak to a different provider on a later turn.
  */
 export function translateCacheMarkers(messages: BaseMessage[], llmType: string): BaseMessage[] {
   return messages.map((m) => {
     const kwargs = m.additional_kwargs as Record<string, unknown>;
     if (!kwargs?.[CACHE_BOUNDARY]) return m;
     const { [CACHE_BOUNDARY]: _flag, ...rest } = kwargs;
-    if (llmType === "anthropic") {
-      m.additional_kwargs = { ...rest, cache_control: { type: "ephemeral" } };
-    } else {
-      m.additional_kwargs = rest;
-    }
-    return m;
+    const nextKwargs =
+      llmType === "anthropic" ? { ...rest, cache_control: { type: "ephemeral" } } : rest;
+    return Object.assign(Object.create(Object.getPrototypeOf(m)), m, {
+      additional_kwargs: nextKwargs,
+    });
   });
 }
