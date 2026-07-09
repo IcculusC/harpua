@@ -50,6 +50,7 @@ export function makeCallModelNode(
               content: (out as any).content ?? "",
               tool_calls: (out as any).tool_calls,
               usage_metadata: (out as any).usage_metadata,
+              id: (out as any).id,
             });
       };
 
