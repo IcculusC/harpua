@@ -155,5 +155,9 @@ describe("makeCallModelNode", () => {
       total_tokens: 5,
     });
     expect(result.loop!.tokens).toBe(5);
+    // `reply.tool_calls` (1 entry) must bump `loop.toolCalls` -- otherwise
+    // BudgetMiddleware's `maxToolCalls` cap (which reads `ctx.loop.toolCalls`)
+    // never sees a nonzero count and can never fire.
+    expect(result.loop!.toolCalls).toBe(1);
   });
 });

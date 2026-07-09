@@ -79,6 +79,7 @@ export function makeCallModelNode(
         ...prev,
         iteration: prev.iteration + 1,
         modelCalls: prev.modelCalls + 1,
+        toolCalls: prev.toolCalls + (reply.tool_calls?.length ?? 0),
         tokens: prev.tokens + (reply.usage_metadata?.total_tokens ?? 0),
         startedAt: prev.startedAt || clock(),
       };

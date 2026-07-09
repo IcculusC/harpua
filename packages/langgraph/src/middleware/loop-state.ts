@@ -1,13 +1,14 @@
 import { StateSchema } from "@langchain/langgraph";
 import { z } from "zod";
 
-export interface LoopInfo {
-  iteration: number;
-  modelCalls: number;
-  toolCalls: number;
-  tokens: number;
-  startedAt: number;
-}
+export const LoopInfo = z.object({
+  iteration: z.number(),
+  modelCalls: z.number(),
+  toolCalls: z.number(),
+  tokens: z.number(),
+  startedAt: z.number(),
+});
+export type LoopInfo = z.infer<typeof LoopInfo>;
 
 export const AGENT_LOOP_DEFAULT: LoopInfo = {
   iteration: 0,
@@ -17,33 +18,30 @@ export const AGENT_LOOP_DEFAULT: LoopInfo = {
   startedAt: 0,
 };
 
-export interface AgentExit {
-  requested: boolean;
-  meta?: unknown;
-}
+export const AgentExit = z.object({
+  requested: z.boolean(),
+  meta: z.unknown().optional(),
+});
+export type AgentExit = z.infer<typeof AgentExit>;
 
 export const AGENT_EXIT_DEFAULT: AgentExit = { requested: false };
 
-const loopField = z
-  .object({
-    iteration: z.number(),
-    modelCalls: z.number(),
-    toolCalls: z.number(),
-    tokens: z.number(),
-    startedAt: z.number(),
-  })
-  .default(AGENT_LOOP_DEFAULT);
+const loopField = LoopInfo.default(AGENT_LOOP_DEFAULT);
 
-const exitField = z
-  .object({
-    requested: z.boolean(),
-    meta: z.unknown().optional(),
-  })
-  .default(AGENT_EXIT_DEFAULT);
+const exitField = AgentExit.default(AGENT_EXIT_DEFAULT);
 
 /**
  * Merge the agent's reserved channels (`loop` + `exit`) into an agent's
  * StateSchema (LastValue).
+ *
+ * These two channels are persisted (LastValue) and are NOT reset per
+ * `invoke` — they accumulate across every invocation on the same
+ * checkpointed thread. Practically this means: a `BudgetMiddleware` cap is a
+ * per-thread-lifetime budget, not a per-invoke one (counters keep climbing
+ * turn over turn, invoke over invoke), and once an agent has exited
+ * (`exit.requested`), that same thread stays exited on a later re-invoke —
+ * start a new thread id for a fresh run. A per-invoke reset of these
+ * channels is a possible future option, not implemented here.
  */
 export function withAgentLoop(state: unknown): StateSchema<any> {
   if (!(state instanceof StateSchema)) {

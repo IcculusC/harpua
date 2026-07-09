@@ -100,6 +100,61 @@ const BudgetResponseFormat = z.object({ status: z.string(), reason: z.string() }
 })
 class BudgetAgent {}
 
+const TOOL_CALL_CHAT_MODEL = Symbol.for(
+  "agent-middleware-integration:TOOL_CALL_CHAT_MODEL",
+);
+
+/** Same always-tool shape as `AlwaysToolBudgetModel` -- exercises the
+ *  `maxToolCalls` cap specifically (the other Budget tests above pin
+ *  `maxToolCalls: 999`, so they never actually prove this cap fires). */
+class AlwaysToolCallCapModel extends BaseChatModel {
+  generateCalls = 0;
+
+  constructor() {
+    super({ maxRetries: 0 });
+  }
+
+  _llmType(): string {
+    return "toolcall-cap-always-tool";
+  }
+
+  bindTools(_tools: BindToolsInput[]): this {
+    return this;
+  }
+
+  async _generate(): Promise<ChatResult> {
+    this.generateCalls += 1;
+    const message = new AIMessage({
+      content: "",
+      tool_calls: [
+        {
+          name: "lookup_order",
+          args: { id: String(this.generateCalls) },
+          id: `call_${this.generateCalls}`,
+          type: "tool_call",
+        },
+      ],
+    });
+    return { generations: [{ message, text: "" }] };
+  }
+
+  withStructuredOutput(_schema: unknown): any {
+    return {
+      invoke: async () => ({ status: "escalate", reason: "budget" }),
+    };
+  }
+}
+
+@LangGraphAgent({
+  name: "toolCallCapAgent",
+  state: AgentMessagesState,
+  model: TOOL_CALL_CHAT_MODEL,
+  tools: [OrderTools],
+  middleware: [BudgetMiddleware],
+  responseFormat: BudgetResponseFormat,
+})
+class ToolCallCapAgent {}
+
 /* ------------------------------------------------------------------ *
  * Test 2: Retry re-invokes the model
  * ------------------------------------------------------------------ */
@@ -235,6 +290,46 @@ describe("Budget + Retry driving a booted @LangGraphAgent (integration)", () => 
     // hard recursionLimit instead of stopping at the soft cap.
     expect(model.generateCalls).toBe(2);
     expect(res.loop.iteration).toBeLessThanOrEqual(2);
+    expect(res.outcome).toEqual({ status: "escalate", reason: "budget" });
+  });
+
+  it("Budget's maxToolCalls cap stops the loop once CallModelNode's toolCalls bookkeeping reaches it", async () => {
+    const model = new AlwaysToolCallCapModel();
+    const moduleRef = await Test.createTestingModule({
+      imports: [
+        LangGraphModule.forRoot(),
+        LangGraphModule.forFeature([ToolCallCapAgent], {
+          providers: [
+            ...provideBudget({
+              maxCycles: 999,
+              maxToolCalls: 2,
+              maxTokens: 999999,
+              maxWallMs: 999999,
+            }),
+          ],
+        }),
+      ],
+      providers: [
+        OrderService,
+        OrderTools,
+        { provide: TOOL_CALL_CHAT_MODEL, useValue: model },
+      ],
+    }).compile();
+    app = moduleRef.createNestApplication();
+    await app.init();
+
+    const agent = app.get<LangGraphRunnable>(
+      getGraphFacadeToken({ name: "toolCallCapAgent" }),
+    );
+    const res: any = await agent.invoke({
+      messages: [new HumanMessage("keep looking up my order")],
+    });
+
+    // maxCycles/maxTokens/maxWallMs are all set far out of reach here, so the
+    // ONLY budget that can stop this always-tool-calling model is
+    // `maxToolCalls: 2` -- which only fires if CallModelNode actually
+    // increments `loop.toolCalls` from the model's `tool_calls` each turn.
+    expect(res.loop.toolCalls).toBeLessThanOrEqual(2);
     expect(res.outcome).toEqual({ status: "escalate", reason: "budget" });
   });
 
