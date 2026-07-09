@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   BudgetMiddleware,
   BudgetOptions,
@@ -109,6 +108,94 @@ describe("BudgetMiddleware", () => {
       loop: { iteration: 1, modelCalls: 0, toolCalls: 1, tokens: 10, startedAt: 0 },
       config: {},
       now: () => 500,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("falls through when iteration is one below the cap", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 2, modelCalls: 0, toolCalls: 0, tokens: 0, startedAt: 0 },
+      config: {},
+      now: () => 1,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("falls through when toolCalls is one below the cap", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 4, tokens: 0, startedAt: 0 },
+      config: {},
+      now: () => 1,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("falls through when tokens is one below the cap", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 99, startedAt: 0 },
+      config: {},
+      now: () => 1,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("falls through when wall-time is one below the cap", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, startedAt: 0 },
+      config: {},
+      now: () => 999,
       interrupt: () => undefined,
       exit: (meta) => ({ exit: { requested: true, meta } }),
     };
