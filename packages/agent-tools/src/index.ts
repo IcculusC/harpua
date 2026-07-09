@@ -40,3 +40,17 @@ export type {
   ResolvedFetchUrlToolOptions,
   ResolvedFetchPdfToolOptions,
 } from "./web-research/options";
+
+// Knowledge family: search_knowledge — chunk/embed/index/cosine retrieval
+// over a directory of markdown (the corpus fetch_url/fetch_pdf build).
+// Keyless by default via MockEmbeddings; pass any LangChain embeddings
+// instance for real semantics.
+export { searchKnowledgeTool } from "./knowledge/search-knowledge";
+export { MockEmbeddings, MOCK_EMBEDDING_DIMENSION } from "./knowledge/mock-embeddings";
+export { chunkMarkdown } from "./knowledge/chunk-markdown";
+export type { MarkdownChunk } from "./knowledge/chunk-markdown";
+export type {
+  SearchKnowledgeToolOptions,
+  ResolvedSearchKnowledgeToolOptions,
+  KnowledgeRootResolver,
+} from "./knowledge/options";

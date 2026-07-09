@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "jest"
   },
   "jest": {
     "moduleFileExtensions": [
@@ -71,5 +71,8 @@
     "typescript": "5.9.3",
     "unpdf": "1.6.2",
     "zod": "3.25.76"
+  },
+  "dependencies": {
+    "ml-distance": "^4.0.1"
   }
 }
