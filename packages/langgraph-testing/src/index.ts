@@ -14,6 +14,7 @@ export type {
   ScriptedChatModel,
   RuleResult,
 } from "./scripted-model";
+export type { UsageMetadata } from "@langchain/core/messages";
 
 // Stream collectors.
 export { collectStream, collectUntilInterrupt } from "./stream-collectors";

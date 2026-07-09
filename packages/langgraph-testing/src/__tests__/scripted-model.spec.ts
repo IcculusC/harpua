@@ -1,4 +1,4 @@
-import { HumanMessage, isAIMessage } from "@langchain/core/messages";
+import { HumanMessage, isAIMessage, type UsageMetadata } from "@langchain/core/messages";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
 import { scriptedModel, ruleModel, textOf } from "../scripted-model";
@@ -89,6 +89,14 @@ describe("scriptedModel (sequence)", () => {
     expect(textOf(await model.invoke([]))).toBe("one");
     model.reset();
     expect(textOf(await model.invoke([]))).toBe("one");
+  });
+
+  it("stamps usage_metadata on a scripted reply when provided", async () => {
+    const usage: UsageMetadata = { input_tokens: 12, output_tokens: 5, total_tokens: 17 };
+    const Model = scriptedModel().say("hi", { usage }).build();
+    const model = new Model();
+    const res = await model._generate([new HumanMessage("yo")]);
+    expect(res.generations[0].message.usage_metadata).toEqual(usage);
   });
 });
 

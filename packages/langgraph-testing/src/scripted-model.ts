@@ -4,6 +4,7 @@ import {
   ToolMessage,
   isHumanMessage,
   type BaseMessage,
+  type UsageMetadata,
 } from "@langchain/core/messages";
 import {
   BaseChatModel,
@@ -48,6 +49,7 @@ function toolCallMessage(
   seq: number,
   content = "",
   additionalKwargs: Record<string, unknown> = {},
+  usage?: UsageMetadata,
 ): AIMessage {
   const parsed = z.array(ToolCallSpec).min(1).parse(calls);
   return new AIMessage({
@@ -59,6 +61,7 @@ function toolCallMessage(
       id: call.id ?? `call_${seq}_${index + 1}`,
       type: "tool_call",
     })),
+    usage_metadata: usage,
   });
 }
 
@@ -114,14 +117,18 @@ type Turn = (seq: number) => AIMessage;
 export class ScriptedModelBuilder {
   private readonly turns: Turn[] = [];
 
-  /** Emit a plain assistant message (optionally carrying `additional_kwargs`). */
+  /** Emit a plain assistant message (optionally carrying `additional_kwargs` and `usage_metadata`). */
   say(
     text: string,
-    options: { additionalKwargs?: Record<string, unknown> } = {},
+    options: { additionalKwargs?: Record<string, unknown>; usage?: UsageMetadata } = {},
   ): this {
     const additionalKwargs = options.additionalKwargs ?? {};
     this.turns.push(
-      () => new AIMessage({ content: text, additional_kwargs: additionalKwargs }),
+      () => new AIMessage({
+        content: text,
+        additional_kwargs: additionalKwargs,
+        usage_metadata: options.usage,
+      }),
     );
     return this;
   }
@@ -190,7 +197,7 @@ export function scriptedModel(): ScriptedModelBuilder {
 /**
  * What a rule returns. A bare string becomes a plain assistant message; an
  * `AIMessage` is passed through; the object form declares text and/or tool
- * calls plus optional `additional_kwargs`.
+ * calls plus optional `additional_kwargs` and `usage_metadata`.
  */
 export type RuleResult =
   | string
@@ -199,6 +206,7 @@ export type RuleResult =
       text?: string;
       toolCalls?: ToolCallSpec[];
       additionalKwargs?: Record<string, unknown>;
+      usage?: UsageMetadata;
     };
 
 function toAIMessage(result: RuleResult, seq: number): AIMessage {
@@ -211,11 +219,13 @@ function toAIMessage(result: RuleResult, seq: number): AIMessage {
       seq,
       result.text ?? "",
       additionalKwargs,
+      result.usage,
     );
   }
   return new AIMessage({
     content: result.text ?? "",
     additional_kwargs: additionalKwargs,
+    usage_metadata: result.usage,
   });
 }
 
