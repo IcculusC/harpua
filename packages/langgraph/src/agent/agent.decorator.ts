@@ -1,4 +1,6 @@
 import type { InjectionToken } from "@nestjs/common";
+import { StateSchema } from "@langchain/langgraph";
+import { z } from "zod";
 import { AGENT_METADATA } from "../constants";
 import { LangGraph } from "../decorators";
 import { withAgentLoop } from "../middleware/loop-state";
@@ -51,9 +53,18 @@ export function LangGraphAgent(options: LangGraphAgentOptions): ClassDecorator {
     const meta: AgentMetadata = { options, build };
     Reflect.defineMetadata(AGENT_METADATA, meta, target);
 
+    // The StructuredResponseNode writes `outcome`; declare it as a LastValue
+    // channel so the parsed result has somewhere to land. Only when
+    // `responseFormat` is set — agents without it keep a lean state.
+    const looped = withAgentLoop(options.state);
+    const state =
+      options.responseFormat !== undefined
+        ? new StateSchema({ ...looped.fields, outcome: z.unknown().optional() })
+        : looped;
+
     LangGraph({
       name: options.name,
-      state: withAgentLoop(options.state),
+      state,
       tools: options.tools,
       recursionLimit: options.recursionLimit,
     })(target);

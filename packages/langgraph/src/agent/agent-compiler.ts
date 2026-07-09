@@ -70,8 +70,19 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
   const usesTools = (options.tools?.length ?? 0) > 0;
 
   // Partition middleware. A class may fall into several buckets (it is only a
-  // node-hook for a hook it actually implements).
-  const classes = (options.middleware ?? []).map((e) => normalizeMiddleware(e).use);
+  // node-hook for a hook it actually implements). Node-scoping ({ use, on }) is
+  // rejected loudly — silently applying `use` globally would invert the user's
+  // intent, which is worse than a no-op.
+  const classes = (options.middleware ?? []).map((e) => {
+    const entry = normalizeMiddleware(e);
+    if (entry.on) {
+      throw new Error(
+        `@LangGraphAgent '${options.name}': node-scoped middleware ` +
+          `({ use, on }) is not supported in v1 — list the middleware class directly.`,
+      );
+    }
+    return entry.use;
+  });
   const implementsHook = (c: Type<any>, hook: string): boolean =>
     typeof c.prototype?.[hook] === "function";
 
@@ -183,7 +194,9 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
     });
   }
 
-  // Exit path -> END (plain: these nodes run past the loop).
+  // Exit path -> END. Plain edges: these nodes run PAST the loop (terminal
+  // position), so an afterAgent hook calling `ctx.exit()` here is a routing
+  // no-op — there is nowhere left to short-circuit to.
   exitPath.forEach((node, i) => {
     edges.push({ from: node, to: exitPath[i + 1] ?? END });
   });

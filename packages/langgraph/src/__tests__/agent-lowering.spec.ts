@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import { AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 
 import { START, END, TOOLS, isRouteMarker } from "../index";
@@ -11,7 +11,13 @@ import { OrderTools } from "./fixtures";
 import type { GraphEdge, RouteMarker } from "../interfaces";
 
 const CHAT_MODEL = Symbol.for("test:CHAT_MODEL");
-const SYSTEM_PROMPT_TOKEN = Symbol.for("test:SYSTEM_PROMPT");
+
+@LangGraphMiddleware()
+class BootStub {
+  beforeAgent() {
+    return {};
+  }
+}
 
 @LangGraphMiddleware()
 class BudgetStub {
@@ -22,7 +28,7 @@ class BudgetStub {
 
 @LangGraphMiddleware()
 class TrimStub {
-  // Implements two node hooks + a wrap hook -> must be partitioned into all three.
+  // Implements a node hook + a wrap hook -> must be partitioned into both.
   afterModel() {
     return {};
   }
@@ -38,7 +44,7 @@ const BaseState = new StateSchema({ messages: MessagesValue });
   state: BaseState,
   model: CHAT_MODEL,
   tools: [OrderTools],
-  middleware: [BudgetStub, TrimStub],
+  middleware: [BootStub, BudgetStub, TrimStub],
 })
 class BuddyAgent {}
 
@@ -66,17 +72,29 @@ function edgesOf(AgentClass: new () => any): GraphEdge<any>[] {
   return (new AgentClass() as { edges: GraphEdge<any>[] }).edges;
 }
 
+const channelsOf = (AgentClass: unknown): string[] =>
+  Object.keys((getGraphMetadata(AgentClass)!.state as StateSchema<any>).getChannels());
+
+const toolMessage = new AIMessage({
+  content: "",
+  tool_calls: [{ name: "lookup_order", args: { id: "1" }, id: "c1", type: "tool_call" }],
+});
+const plainMessage = new AIMessage("done");
+
 describe("@LangGraphAgent lowering", () => {
   it("applies @LangGraph with a state carrying reserved loop + exit channels", () => {
     const meta = getGraphMetadata(BuddyAgent);
     expect(meta).toBeDefined();
     expect(meta!.name).toBe("buddy");
     expect(meta!.tools).toEqual([OrderTools]);
-
-    const channels = (meta!.state as StateSchema<any>).getChannels();
-    expect(Object.keys(channels)).toEqual(
+    expect(channelsOf(BuddyAgent)).toEqual(
       expect.arrayContaining(["messages", "loop", "exit"]),
     );
+  });
+
+  it("declares an `outcome` channel only when responseFormat is set", () => {
+    expect(channelsOf(StructuredAgent)).toContain("outcome");
+    expect(channelsOf(BuddyAgent)).not.toContain("outcome");
   });
 
   it("exposes the agent options via getAgentMetadata", () => {
@@ -84,52 +102,60 @@ describe("@LangGraphAgent lowering", () => {
     expect(opts).toBeDefined();
     expect(opts!.name).toBe("buddy");
     expect(opts!.model).toBe(CHAT_MODEL);
-    expect(opts!.middleware).toEqual([BudgetStub, TrimStub]);
+    expect(opts!.middleware).toEqual([BootStub, BudgetStub, TrimStub]);
   });
 
   it("generates a CallModelNode plus one hook node per implemented hook", () => {
-    const lowered = lowerAgent(BuddyAgent);
-    const names = lowered.generatedNodes.map((n) => n.name);
-
+    const names = lowerAgent(BuddyAgent).generatedNodes.map((n) => n.name);
     expect(names.some((n) => /CallModel/.test(n))).toBe(true);
-    // BudgetStub.beforeModel -> a beforeModel hook node.
-    expect(names.some((n) => /beforeModel/.test(n))).toBe(true);
-    // TrimStub.afterModel -> an afterModel hook node.
-    expect(names.some((n) => /afterModel/.test(n))).toBe(true);
+    expect(names.some((n) => /beforeAgent/.test(n))).toBe(true); // BootStub
+    expect(names.some((n) => /beforeModel/.test(n))).toBe(true); // BudgetStub
+    expect(names.some((n) => /afterModel/.test(n))).toBe(true); // TrimStub
   });
 
   it("partitions wrap middleware separately from node-hook middleware", () => {
     const lowered = lowerAgent(BuddyAgent);
-    // TrimStub implements wrapModelCall.
-    expect(lowered.wrapModelMiddleware).toContain(TrimStub);
-    // No wrapToolCall implementors.
+    expect(lowered.wrapModelMiddleware).toContain(TrimStub); // wrapModelCall
     expect(lowered.wrapToolMiddleware).toEqual([]);
-    // Its internal bound-model token is a unique symbol.
     expect(typeof lowered.modelToken).toBe("symbol");
+  });
+
+  it("rejects node-scoped middleware ({ use, on }) loudly at build time", () => {
+    expect(() =>
+      LangGraphAgent({
+        name: "scoped",
+        state: new StateSchema({ messages: MessagesValue }),
+        model: CHAT_MODEL,
+        middleware: [{ use: BudgetStub, on: OrderTools }],
+      })(class Scoped {}),
+    ).toThrow(/node-scoped middleware/);
   });
 
   it("assembles START, a model router over [TOOLS, exit], and a TOOLS loop-back", () => {
     const edges = edgesOf(BuddyAgent);
-
     expect(edges.some((e) => e.from === START)).toBe(true);
     expect(edges.some((e) => e.from === TOOLS)).toBe(true);
 
-    // The model router is the route edge whose pathMap includes TOOLS.
     const routerEdge = edges.find(
       (e) =>
-        isRouteMarker(e.to) &&
-        (e.to as RouteMarker<any>).pathMap?.includes(TOOLS),
+        isRouteMarker(e.to) && (e.to as RouteMarker<any>).pathMap?.includes(TOOLS),
     );
     expect(routerEdge).toBeDefined();
-    const marker = routerEdge!.to as RouteMarker<any>;
-    // Without responseFormat, the exit target is END.
-    expect(marker.pathMap).toEqual(expect.arrayContaining([TOOLS, END]));
+    const router = routerEdge!.to as RouteMarker<any>;
+    expect(router.pathMap).toEqual(expect.arrayContaining([TOOLS, END]));
+
+    // Exercise the router: exit wins; else tool_calls -> TOOLS; else exit(END).
+    expect(router.fn({ exit: { requested: true }, messages: [] } as any)).toBe(END);
+    expect(
+      router.fn({ exit: { requested: false }, messages: [toolMessage] } as any),
+    ).toBe(TOOLS);
+    expect(
+      router.fn({ exit: { requested: false }, messages: [plainMessage] } as any),
+    ).toBe(END);
   });
 
   it("routes hook nodes conditionally so a hook can short-circuit to the exit", () => {
     const edges = edgesOf(BuddyAgent);
-    // Every conditional route edge that is NOT the model router targets exactly
-    // [exitTarget, nextTarget] (2 entries), i.e. a conditionalNext.
     const conditional = edges.filter(
       (e) =>
         isRouteMarker(e.to) &&
@@ -137,39 +163,55 @@ describe("@LangGraphAgent lowering", () => {
     );
     expect(conditional.length).toBeGreaterThan(0);
     for (const e of conditional) {
-      expect((e.to as RouteMarker<any>).pathMap).toHaveLength(2);
+      const marker = e.to as RouteMarker<any>;
+      expect(marker.pathMap).toHaveLength(2); // [exitTarget, next]
+      // Exercise the fn: exit flag -> exitTarget (pathMap[0]); else -> next (pathMap[1]).
+      expect(marker.fn({ exit: { requested: true } } as any)).toBe(marker.pathMap![0]);
+      expect(marker.fn({ exit: { requested: false } } as any)).toBe(marker.pathMap![1]);
     }
+  });
+
+  it("loops back through the beforeModel chain, never re-running beforeAgent", () => {
+    const edges = edgesOf(BuddyAgent);
+    const loopBack = edges.find((e) => e.from === TOOLS)!;
+    const targetName = (loopBack.to as { name: string }).name;
+    expect(targetName).not.toMatch(/beforeAgent/);
+    expect(targetName).toMatch(/beforeModel|CallModel/);
   });
 
   it("with responseFormat, generates a StructuredResponseNode and routes the loop exit to it", () => {
     const lowered = lowerAgent(StructuredAgent);
-    const names = lowered.generatedNodes.map((n) => n.name);
-    expect(names.some((n) => /StructuredResponse/.test(n))).toBe(true);
-
     const structuredNode = lowered.generatedNodes.find((n) =>
       /StructuredResponse/.test(n.name),
     )!;
+    expect(structuredNode).toBeDefined();
 
     const edges = edgesOf(StructuredAgent);
-    const routerEdge = edges.find(
+    const router = edges.find(
       (e) =>
-        isRouteMarker(e.to) &&
-        (e.to as RouteMarker<any>).pathMap?.includes(TOOLS),
-    )!;
-    const marker = routerEdge.to as RouteMarker<any>;
-    // Exit target is the StructuredResponseNode, NOT END.
-    expect(marker.pathMap).toContain(structuredNode);
-    expect(marker.pathMap).not.toContain(END);
+        isRouteMarker(e.to) && (e.to as RouteMarker<any>).pathMap?.includes(TOOLS),
+    )!.to as RouteMarker<any>;
+
+    expect(router.pathMap).toContain(structuredNode);
+    expect(router.pathMap).not.toContain(END);
+
+    // Exit target is the structured node; exit flag beats a pending tool call.
+    expect(
+      router.fn({ exit: { requested: false }, messages: [plainMessage] } as any),
+    ).toBe(structuredNode);
+    expect(
+      router.fn({ exit: { requested: true }, messages: [toolMessage] } as any),
+    ).toBe(structuredNode);
+    expect(
+      router.fn({ exit: { requested: false }, messages: [toolMessage] } as any),
+    ).toBe(TOOLS);
 
     // The structured node flows onward to END.
-    expect(
-      edges.some((e) => e.from === structuredNode && e.to === END),
-    ).toBe(true);
+    expect(edges.some((e) => e.from === structuredNode && e.to === END)).toBe(true);
   });
 
   it("lowers systemPrompt to a generated wrap-model middleware", () => {
-    const lowered = lowerAgent(PromptedAgent);
-    const names = lowered.wrapModelMiddleware.map((n) => n.name);
+    const names = lowerAgent(PromptedAgent).wrapModelMiddleware.map((n) => n.name);
     expect(names.some((n) => /SystemPrompt/.test(n))).toBe(true);
   });
 });
