@@ -24,7 +24,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest"
+    "test": "jest"
   },
   "jest": {
     "moduleFileExtensions": [
