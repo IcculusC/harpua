@@ -1,0 +1,5 @@
+---
+"@harpua/langgraph": patch
+---
+
+Add the agent-loop + middleware system. `@LangGraphAgent` is a declarative preset for the model↔tools loop that lowers transparently to primitives (fully ejectable and addressable). `@LangGraphMiddleware` provides DI-provider middleware with node hooks (`beforeAgent`/`beforeModel`/`afterModel`/`afterAgent`, inserted as graph nodes) and callable-wrap hooks (`wrapModelCall`/`wrapToolCall`, composed around the bound model and each tool). `responseFormat` coerces the final answer to a typed `outcome`; reserved persisted `loop`/`exit` state channels back the middleware. Ships two reference middlewares: `BudgetMiddleware` (graceful cycle/tool-call/token/wall-time guard) and `RetryMiddleware` (model + tool retry with shared backoff). Also: `LangGraphModule.forFeature` gains an optional second `{ providers }` argument (to register middleware option providers alongside a feature's agents), and `provideGraphBoundModel` now resolves its model token non-strictly so it works across module scopes.
