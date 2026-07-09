@@ -1,8 +1,4 @@
-import {
-  Command,
-  interrupt,
-  type LangGraphRunnableConfig,
-} from "@langchain/langgraph";
+import { interrupt, type LangGraphRunnableConfig } from "@langchain/langgraph";
 import type { MiddlewareContext } from "./middleware.types";
 import { AGENT_LOOP_DEFAULT } from "./loop-state";
 
@@ -11,8 +7,9 @@ import { AGENT_LOOP_DEFAULT } from "./loop-state";
  * `afterModel`/`afterAgent`) receives: a read-only view of `state`, the
  * current `loop` bookkeeping, an injected clock (`now()`), a passthrough to
  * LangGraph's `interrupt()`, and `exit()` — the sanctioned way for a hook to
- * short-circuit the agent loop by routing straight to the loop's canonical
- * exit node (the `StructuredResponseNode` id when configured, else `END`).
+ * short-circuit the agent loop: it writes the reserved `exit` channel, which
+ * the loop's conditional edges route on to the canonical exit node (the
+ * `StructuredResponseNode` id when configured, else `END`).
  */
 export function buildMiddlewareContext<S>(args: {
   state: S;
@@ -27,9 +24,6 @@ export function buildMiddlewareContext<S>(args: {
     now: () => args.clock(),
     interrupt: (payload: unknown) => interrupt(payload),
     exit: (meta?: Record<string, unknown>) =>
-      new Command({
-        goto: args.exitTarget,
-        update: meta ? { outcome: meta } : undefined,
-      }),
+      ({ exit: { requested: true, meta } }) as unknown as Partial<S>,
   };
 }

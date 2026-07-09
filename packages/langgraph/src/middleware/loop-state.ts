@@ -17,6 +17,13 @@ export const AGENT_LOOP_DEFAULT: LoopInfo = {
   startedAt: 0,
 };
 
+export interface AgentExit {
+  requested: boolean;
+  meta?: unknown;
+}
+
+export const AGENT_EXIT_DEFAULT: AgentExit = { requested: false };
+
 const loopField = z
   .object({
     iteration: z.number(),
@@ -27,7 +34,17 @@ const loopField = z
   })
   .default(AGENT_LOOP_DEFAULT);
 
-/** Merge the reserved `loop` channel into an agent's StateSchema (LastValue). */
+const exitField = z
+  .object({
+    requested: z.boolean(),
+    meta: z.unknown().optional(),
+  })
+  .default(AGENT_EXIT_DEFAULT);
+
+/**
+ * Merge the agent's reserved channels (`loop` + `exit`) into an agent's
+ * StateSchema (LastValue).
+ */
 export function withAgentLoop(state: unknown): StateSchema<any> {
   if (!(state instanceof StateSchema)) {
     throw new Error(
@@ -35,5 +52,5 @@ export function withAgentLoop(state: unknown): StateSchema<any> {
         "(Annotation.Root is not yet supported by withAgentLoop).",
     );
   }
-  return new StateSchema({ ...state.fields, loop: loopField });
+  return new StateSchema({ ...state.fields, loop: loopField, exit: exitField });
 }

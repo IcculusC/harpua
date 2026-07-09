@@ -1,4 +1,4 @@
-import type { Command, LangGraphRunnableConfig } from "@langchain/langgraph";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 import type { AIMessage, BaseMessage, ToolMessage } from "@langchain/core/messages";
 import type { GraphBoundModel } from "../graph-tools";
 import type { LoopInfo } from "./loop-state";
@@ -6,8 +6,7 @@ import type { LoopInfo } from "./loop-state";
 /**
  * The read/write surface a node-level middleware hook (`beforeAgent`,
  * `beforeModel`, `afterModel`, `afterAgent`) receives. `state` is read-only —
- * hooks return a `Partial<S>` (or `Command`, where allowed) to apply updates
- * rather than mutating in place.
+ * hooks return a `Partial<S>` to apply updates rather than mutating in place.
  */
 export interface MiddlewareContext<S> {
   state: Readonly<S>;
@@ -15,7 +14,7 @@ export interface MiddlewareContext<S> {
   config: LangGraphRunnableConfig;
   now(): number;
   interrupt(payload: unknown): unknown;
-  exit(meta?: Record<string, unknown>): Command;
+  exit(meta?: Record<string, unknown>): Partial<S>;
 }
 
 /**

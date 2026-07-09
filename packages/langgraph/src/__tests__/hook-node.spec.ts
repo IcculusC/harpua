@@ -1,4 +1,3 @@
-import { Command } from "@langchain/langgraph";
 import { buildMiddlewareContext } from "../middleware/context";
 import { makeHookNode } from "../agent/hook-node";
 import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
@@ -15,7 +14,7 @@ describe("buildMiddlewareContext", () => {
     expect(ctx.now()).toBe(12345);
   });
 
-  it("exit(meta) returns a Command targeting exitTarget with the meta as outcome", () => {
+  it("exit(meta) returns a state patch requesting exit with the meta attached", () => {
     const ctx = buildMiddlewareContext({
       state: { messages: [] },
       config: {} as any,
@@ -25,14 +24,12 @@ describe("buildMiddlewareContext", () => {
 
     const result = ctx.exit({ reason: "budget" });
 
-    expect(result).toBeInstanceOf(Command);
-    // Command's constructor normalizes a bare string `goto` into a
-    // single-element array (see constants.cjs `_deserializeCommandSendObjectGraph`).
-    expect(result.goto).toEqual(["structured_response"]);
-    expect(result.update).toEqual({ outcome: { reason: "budget" } });
+    expect(result).toEqual({
+      exit: { requested: true, meta: { reason: "budget" } },
+    });
   });
 
-  it("exit() with no meta omits update", () => {
+  it("exit() with no meta still requests exit, with meta undefined", () => {
     const ctx = buildMiddlewareContext({
       state: { messages: [] },
       config: {} as any,
@@ -42,9 +39,7 @@ describe("buildMiddlewareContext", () => {
 
     const result = ctx.exit();
 
-    expect(result).toBeInstanceOf(Command);
-    expect(result.goto).toEqual(["END"]);
-    expect(result.update).toBeUndefined();
+    expect(result).toEqual({ exit: { requested: true, meta: undefined } });
   });
 
   it("loop falls back to AGENT_LOOP_DEFAULT when state has no loop", () => {
@@ -68,7 +63,7 @@ describe("makeHookNode", () => {
     }
   }
 
-  it("routes: beforeModel hook returning ctx.exit(...) returns that Command directly", async () => {
+  it("routes: beforeModel hook returning ctx.exit(...) returns the exit state patch directly", async () => {
     const middleware = new RecordingBeforeModelMw();
     const stubModuleRef = {
       get(token: unknown) {
@@ -91,10 +86,8 @@ describe("makeHookNode", () => {
       {} as any,
     );
 
-    expect(result).toBeInstanceOf(Command);
-    expect((result as Command).goto).toEqual(["structured_response"]);
-    expect((result as Command).update).toEqual({
-      outcome: { reason: "budget" },
+    expect(result).toEqual({
+      exit: { requested: true, meta: { reason: "budget" } },
     });
   });
 

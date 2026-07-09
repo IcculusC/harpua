@@ -1,4 +1,3 @@
-import type { Command } from "@langchain/langgraph";
 import type { AIMessage, ToolMessage } from "@langchain/core/messages";
 import type {
   MiddlewareContext,
@@ -30,7 +29,7 @@ export interface LangGraphMiddleware<S = any> {
   ): Promise<Partial<S> | void> | Partial<S> | void;
   beforeModel?(
     ctx: MiddlewareContext<S>,
-  ): Promise<Partial<S> | Command | void> | Partial<S> | Command | void;
+  ): Promise<Partial<S> | void> | Partial<S> | void;
   afterModel?(
     ctx: MiddlewareContext<S>,
   ): Promise<Partial<S> | void> | Partial<S> | void;

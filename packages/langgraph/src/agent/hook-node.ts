@@ -1,6 +1,6 @@
 import { Injectable, type InjectionToken, type Type } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
-import { Command, type LangGraphRunnableConfig } from "@langchain/langgraph";
+import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 import type { NodeHandler } from "../interfaces";
 import type { NodeHookName } from "../middleware/middleware.interface";
 import { buildMiddlewareContext } from "../middleware/context";
@@ -23,11 +23,12 @@ export interface HookNodeConfig {
  * middleware's node-level hook (`beforeAgent`/`beforeModel`/`afterModel`/
  * `afterAgent`) into the graph: resolves the middleware and clock via
  * `ModuleRef`, builds the hook's {@link MiddlewareContext}, and runs the hook.
- * A `Command` result (routing/short-circuit, e.g. `ctx.exit()`) is returned
- * as-is — loop state must NOT be merged into it. Otherwise the hook's
- * `Partial<S>` (or `{}` for void) is returned, with `beforeAgent` additionally
- * stamping `loop.startedAt` from the clock the first time it runs (never
- * overwriting a non-zero value already there).
+ * The hook's `Partial<S>` (or `{}` for void) is returned as the node's state
+ * patch — this includes a short-circuit via `ctx.exit()`, which just writes
+ * the reserved `exit` channel rather than returning a `Command`; conditional
+ * edges route on that channel. `beforeAgent` additionally stamps
+ * `loop.startedAt` from the clock the first time it runs (never overwriting a
+ * non-zero value already there).
  */
 export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
   @Injectable()
@@ -51,10 +52,6 @@ export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
       });
 
       const result = await mw[cfg.hook](ctx);
-
-      if (result instanceof Command) {
-        return result;
-      }
 
       const patch = result ?? {};
 
