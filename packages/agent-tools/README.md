@@ -126,6 +126,50 @@ publicly-deployed apps should still gate `fetch_url`
 (e.g. `requireApproval()` from `@harpua/langgraph`) or front it with an
 allowlist.
 
+### `fetchPdfTool(options)` — opt-in PDF fetching
+
+`fetch_pdf` is the same fetch → save → explore loop as `fetch_url`, but for
+PDFs: it fetches an http(s) URL, verifies the response is `application/pdf`,
+extracts the text, and writes it to `saveDir` as markdown with the same
+`url` / `title` / `fetched` frontmatter — so a fetched PDF becomes searchable
+by `fileExplorationTools` exactly like a fetched page. It inherits every
+guard from `fetch_url` (http(s)-only, private/loopback refusal including
+redirects, and the declared + actual response-size caps) and likewise never
+throws — bad schemes, non-PDF content types, oversize bodies, extraction
+failures, and filesystem errors all come back as friendly strings.
+
+It is **opt-in**: `fetch_pdf` is exported on its own and is **not** part of
+the `webResearchTools()` bundle — add it explicitly. Text extraction uses
+[`unpdf`](https://github.com/unjs/unpdf), an **optional peer dependency** you
+install only if you want PDF support:
+
+```bash
+pnpm add unpdf
+```
+
+```ts
+import fs from "node:fs";
+import {
+  webResearchTools,
+  fetchPdfTool,
+  fileExplorationTools,
+} from "@harpua/agent-tools";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+
+const sources = "./sources";
+fs.mkdirSync(sources, { recursive: true });
+const toolNode = new ToolNode([
+  ...webResearchTools({ baseUrl: "http://localhost:8080", saveDir: sources }),
+  fetchPdfTool({ saveDir: sources }), // opt-in; needs `unpdf` installed
+  ...fileExplorationTools({ root: sources }),
+]);
+```
+
+`options` mirrors `fetchUrlTool`'s (`saveDir` required; `maxResponseBytes`,
+`timeoutMs`, `allowPrivate`, `fetchFn`, `now` optional). If `unpdf` isn't
+installed the tool returns an install hint instead of throwing, so the rest of
+your graph keeps working without it.
+
 ## Using with `@harpua/langgraph`
 
 [`@harpua/langgraph`](../langgraph) accepts these tools directly in a graph's

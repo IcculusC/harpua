@@ -1,6 +1,8 @@
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 
+import { loadUnpdf } from "./load-unpdf";
+
 /** Sane default number of results included in a web_search reply. */
 export const DEFAULT_MAX_RESULTS = 5;
 /** Hard ceiling on web_search results regardless of configuration. */
@@ -20,6 +22,11 @@ export interface FetchResponseLike {
   url?: string;
   headers: { get(name: string): string | null };
   text(): Promise<string>;
+  /**
+   * Raw response bytes — what `fetch_pdf` feeds to unpdf. Optional so a text-only
+   * fetch stub need not provide it; a native `fetch` `Response` always has it.
+   */
+  arrayBuffer?(): Promise<ArrayBuffer>;
 }
 
 /** Minimal fetch the web tools need; `globalThis.fetch` fits. Injectable for tests. */
@@ -30,6 +37,21 @@ export type FetchFn = (
 
 /** Resolves the save directory at call time (receives the tool's run config). */
 export type SaveDirResolver = (config?: RunnableConfig) => string;
+
+/**
+ * The slice of the `unpdf` module `fetch_pdf` relies on. Kept minimal (and
+ * decoupled from `unpdf`'s own types) so the optional peer never leaks into
+ * this package's public `.d.ts`. The real module is structurally compatible.
+ */
+export interface UnpdfModuleLike {
+  extractText(
+    data: Uint8Array,
+    options: { mergePages: true },
+  ): Promise<{ totalPages: number; text: string }>;
+}
+
+/** Lazily loads `unpdf`. Injectable so tests can simulate the missing package. */
+export type LoadUnpdf = () => Promise<UnpdfModuleLike>;
 
 const fetchFnSchema = z.custom<FetchFn>(
   (v) => typeof v === "function",
@@ -42,6 +64,10 @@ const clockSchema = z.custom<() => Date>(
 const saveDirResolverSchema = z.custom<SaveDirResolver>(
   (v) => typeof v === "function",
   "saveDir must be a string or a function",
+);
+const loadUnpdfSchema = z.custom<LoadUnpdf>(
+  (v) => typeof v === "function",
+  "loadUnpdf must be a function",
 );
 
 const defaultFetchFn = (): FetchFn => globalThis.fetch as unknown as FetchFn;
@@ -122,6 +148,46 @@ export function resolveFetchUrlOptions(
   options: FetchUrlToolOptions,
 ): ResolvedFetchUrlToolOptions {
   return fetchUrlToolOptionsSchema.parse(options);
+}
+
+/**
+ * Options for {@link fetchPdfTool}. Mirrors {@link fetchUrlToolOptionsSchema}
+ * (same `saveDir`/caps/guards) plus an injectable `loadUnpdf` seam so tests can
+ * simulate the optional peer being absent. Unknown keys are rejected.
+ */
+export const fetchPdfToolOptionsSchema = z
+  .object({
+    /** Directory saved PDFs (as markdown) are written to (string or resolver). */
+    saveDir: z.union([z.string().min(1), saveDirResolverSchema]),
+    /** Refuse responses larger than this many bytes. */
+    maxResponseBytes: z
+      .number()
+      .int()
+      .positive()
+      .default(DEFAULT_MAX_RESPONSE_BYTES),
+    /** Abort the fetch after this many milliseconds. */
+    timeoutMs: z.number().int().positive().default(DEFAULT_FETCH_TIMEOUT_MS),
+    /** Allow fetching loopback/private/link-local addresses (off by default). */
+    allowPrivate: z.boolean().default(false),
+    /** Injectable fetch (deterministic tests); defaults to globalThis.fetch. */
+    fetchFn: fetchFnSchema.default(defaultFetchFn),
+    /** Injectable clock for the frontmatter `fetched` date. */
+    now: clockSchema.default(() => () => new Date()),
+    /** Injectable lazy `unpdf` loader; defaults to a real dynamic import. */
+    loadUnpdf: loadUnpdfSchema.default(() => loadUnpdf),
+  })
+  .strict();
+
+/** Caller-facing options: `saveDir` required, every cap optional (defaults apply). */
+export type FetchPdfToolOptions = z.input<typeof fetchPdfToolOptionsSchema>;
+/** Fully-resolved options with all defaults applied. */
+export type ResolvedFetchPdfToolOptions = z.output<typeof fetchPdfToolOptionsSchema>;
+
+/** Parse + default fetch_pdf options, throwing a zod error on invalid shape. */
+export function resolveFetchPdfOptions(
+  options: FetchPdfToolOptions,
+): ResolvedFetchPdfToolOptions {
+  return fetchPdfToolOptionsSchema.parse(options);
 }
 
 /**

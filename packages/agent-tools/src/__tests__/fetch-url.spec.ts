@@ -77,7 +77,7 @@ describe("fetch_url", () => {
       { url: "https://ti.com/lm317.pdf" },
     );
     expect(out).toMatch(/pdf/i);
-    expect(out).toMatch(/aren't supported|not supported/i);
+    expect(out).toMatch(/fetch_pdf/);
     expect(fs.readdirSync(dir)).toHaveLength(0);
   });
 
