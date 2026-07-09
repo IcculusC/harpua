@@ -14,10 +14,7 @@ export type CompactionSummary = z.infer<typeof CompactionSummarySchema>;
 /** Static marker: a middleware class that requires the `summary` state channel. */
 export const COMPACTION_STATE = Symbol.for("@harpua/langgraph:COMPACTION_STATE");
 
-const summaryField = z
-  .custom<CompactionSummary | null>()
-  .nullable()
-  .default(null);
+const summaryField = CompactionSummarySchema.nullable().default(null);
 
 /** Merge the persisted `summary` channel (LastValue) into an agent's StateSchema. */
 export function withCompactionState(state: StateSchema<any>): StateSchema<any> {
