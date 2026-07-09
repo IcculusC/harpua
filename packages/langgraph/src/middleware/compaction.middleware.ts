@@ -1,13 +1,15 @@
 import { Inject, type Provider } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import { RemoveMessage, isHumanMessage, type BaseMessage } from "@langchain/core/messages";
+import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { LangGraphMiddleware } from "./middleware.decorator";
 import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
 import type { MiddlewareContext } from "./middleware.types";
 import { COMPACTION_OPTS, CompactionOptions } from "./compaction.options";
-import { COMPACTION_STATE } from "./compaction-state";
+import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state";
 import { computeFold } from "./compaction-cut";
 import { buildCompactionSignal, resolveTrigger } from "./compaction-signal";
+import { summarizeSpan } from "./summarize";
 
 const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 
@@ -31,8 +33,18 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
     if (!plan) return;
 
     const removals = plan.removeIds.map((id) => new RemoveMessage({ id }));
-    // Task 6 replaces this with a strategy switch; drop returns removals only.
-    return { messages: removals };
+    if (this.opts.strategy === "drop") {
+      return { messages: removals };
+    }
+    // summarize: resolve the model token; on any failure fall back to drop.
+    try {
+      const model = this.moduleRef.get<BaseChatModel>(this.opts.strategy.model, { strict: false });
+      const prior = (ctx.state?.summary ?? null) as CompactionSummary | null;
+      const summary = await summarizeSpan(model, this.opts.strategy.schema, prior, plan.foldedSpan);
+      return { messages: removals, summary };
+    } catch {
+      return { messages: removals };
+    }
   }
 }
 
