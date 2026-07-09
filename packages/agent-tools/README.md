@@ -204,10 +204,13 @@ const toolNode = new ToolNode([
 ```
 
 Switching embedders (or from the mock to a real one) is detected via a
-fingerprint and triggers a clean re-index — vector spaces never mix. The
-index is a cache: delete `.knowledge/` any time; markdown stays the source
-of truth. First runtime dependency alert: this family adds `ml-distance`
-(pure JS) for cosine similarity.
+fingerprint — constructor name, `model` when the embedder exposes one, vector
+dimension, and chunk size — and triggers a clean re-index — vector spaces
+never mix. If you swap between two embedders the fingerprint can't tell
+apart (same class, no distinguishing `model`), just delete `.knowledge/`:
+it's only a cache; markdown stays the source of truth. First runtime
+dependency alert: this family adds `ml-distance` (pure JS) for cosine
+similarity.
 
 ## Using with `@harpua/langgraph`
 
