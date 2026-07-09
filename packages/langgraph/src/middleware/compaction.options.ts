@@ -24,7 +24,7 @@ const StrategySchema = z.union([
     .object({
       kind: z.literal("summarize"),
       model: z.custom<InjectionToken>((v) => v != null),
-      schema: z.custom<ZodType>().optional(),
+      schema: z.custom<ZodType>((v) => v instanceof z.ZodType).default(CompactionSummarySchema),
     })
     .strict(),
 ]);

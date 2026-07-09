@@ -1,4 +1,5 @@
 import { CompactionOptions, COMPACTION_OPTS } from "../middleware/compaction.options";
+import { CompactionSummarySchema } from "../middleware/compaction-state";
 
 describe("CompactionOptions", () => {
   it("defaults strategy to 'drop'", () => {
@@ -14,6 +15,14 @@ describe("CompactionOptions", () => {
     const M = Symbol.for("x");
     const o = CompactionOptions.parse({ triggerAt: { messages: 40 }, keepRecent: 20, strategy: { kind: "summarize", model: M } });
     expect((o.strategy as any).kind).toBe("summarize");
+  });
+  it("defaults an omitted summarize schema to CompactionSummarySchema", () => {
+    const o = CompactionOptions.parse({ triggerAt: { messages: 40 }, keepRecent: 20, strategy: { kind: "summarize", model: Symbol.for("m") } });
+    expect((o.strategy as any).schema).toBeDefined();
+    expect((o.strategy as any).schema).toBe(CompactionSummarySchema);
+  });
+  it("rejects an invalid summarize schema", () => {
+    expect(() => CompactionOptions.parse({ triggerAt: { messages: 40 }, keepRecent: 20, strategy: { kind: "summarize", model: Symbol.for("m"), schema: "not a schema" } })).toThrow();
   });
   it("rejects keepRecent <= 0", () => {
     expect(() => CompactionOptions.parse({ triggerAt: { messages: 40 }, keepRecent: 0 })).toThrow();
