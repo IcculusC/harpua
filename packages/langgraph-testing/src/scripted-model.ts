@@ -10,7 +10,9 @@ import {
   BaseChatModel,
   type BindToolsInput,
 } from "@langchain/core/language_models/chat_models";
+import type { BaseLanguageModelInput } from "@langchain/core/language_models/base";
 import type { ChatResult } from "@langchain/core/outputs";
+import { RunnableLambda, type Runnable } from "@langchain/core/runnables";
 import { z } from "zod";
 
 /**
@@ -77,6 +79,11 @@ function toolCallMessage(
  * that message, so the agentic loop, tools, and interrupts all run for real.
  */
 abstract class FakeChatModelBase extends BaseChatModel {
+  /** Structured values enqueued by the builder's `.structured(...)`. */
+  protected structuredQueue: unknown[] = [];
+  /** Position in `structuredQueue`. Subclass `reset()` must zero this too. */
+  protected structuredCursor = 0;
+
   constructor() {
     // No credentials/config — every param on BaseChatModelParams is optional.
     super({});
@@ -94,6 +101,30 @@ abstract class FakeChatModelBase extends BaseChatModel {
    */
   bindTools(_tools: BindToolsInput[]): this {
     return this;
+  }
+
+  /**
+   * Overrides `BaseChatModel.withStructuredOutput`'s real (6-overload)
+   * signature with its simplest form: returns a `Runnable` that yields the
+   * next value enqueued via the builder's `.structured(...)`, so
+   * `responseFormat`-style consumers get a typed object back without a real
+   * model call.
+   */
+  withStructuredOutput<RunOutput extends Record<string, any> = Record<string, any>>(
+    _schema: unknown,
+    _config?: unknown,
+  ): Runnable<BaseLanguageModelInput, RunOutput> {
+    return RunnableLambda.from(async (): Promise<RunOutput> => {
+      const value = this.structuredQueue[this.structuredCursor];
+      if (value === undefined) {
+        throw new Error(
+          "withStructuredOutput: no scripted structured value; enqueue one with " +
+            ".structured(value) on the builder.",
+        );
+      }
+      this.structuredCursor += 1;
+      return value as RunOutput;
+    });
   }
 
   /** Rewind any per-instance sequence state (no-op unless overridden). */
@@ -116,6 +147,7 @@ type Turn = (seq: number) => AIMessage;
  */
 export class ScriptedModelBuilder {
   private readonly turns: Turn[] = [];
+  private readonly structuredValues: unknown[] = [];
 
   /** Emit a plain assistant message (optionally carrying `additional_kwargs` and `usage_metadata`). */
   say(
@@ -150,13 +182,25 @@ export class ScriptedModelBuilder {
     return this;
   }
 
+  /** Enqueue the next value `withStructuredOutput(...).invoke(...)` returns. */
+  structured(value: unknown): this {
+    this.structuredValues.push(value);
+    return this;
+  }
+
   /** Compile the script into an injectable `BaseChatModel` class. */
   build(): Type<FakeChatModel> {
     const turns = [...this.turns];
+    const structuredValues = [...this.structuredValues];
 
     @Injectable()
     class ScriptedModel extends FakeChatModelBase {
       private cursor = 0;
+
+      constructor() {
+        super();
+        this.structuredQueue = structuredValues;
+      }
 
       _llmType(): string {
         return "harpua-scripted-fake";
@@ -178,6 +222,7 @@ export class ScriptedModelBuilder {
 
       reset(): void {
         this.cursor = 0;
+        this.structuredCursor = 0;
       }
     }
 
@@ -307,6 +352,7 @@ export class RuleModelBuilder {
 
       reset(): void {
         this.seq = 0;
+        this.structuredCursor = 0;
       }
     }
 

@@ -1,5 +1,6 @@
 import { HumanMessage, isAIMessage, type UsageMetadata } from "@langchain/core/messages";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { z } from "zod";
 
 import { scriptedModel, ruleModel, textOf } from "../scripted-model";
 import {
@@ -97,6 +98,16 @@ describe("scriptedModel (sequence)", () => {
     const model = new Model();
     const res = await model._generate([new HumanMessage("yo")]);
     expect(res.generations[0].message.usage_metadata).toEqual(usage);
+  });
+
+  it("returns a scripted structured value via withStructuredOutput", async () => {
+    const Model = scriptedModel().structured({ status: "resolved", reason: "done" }).build();
+    const model = new Model();
+    const structured = model.withStructuredOutput(
+      z.object({ status: z.string(), reason: z.string() }),
+    );
+    const out = await structured.invoke([new HumanMessage("summarize")]);
+    expect(out).toEqual({ status: "resolved", reason: "done" });
   });
 });
 
