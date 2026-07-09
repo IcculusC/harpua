@@ -57,6 +57,34 @@ cancelOrder(input: { orderId: string }): string {
 }
 ```
 
+## Guarding a tool that acts on a model-supplied resource
+
+When a tool's input is a **resource identifier the model chose** — a URL to
+fetch, a filesystem path, a shell argument — the tool must **enforce** a safe
+default in its handler, not merely warn about the risk in its `description`. The
+model can be steered (by prompt injection in content it just read, or a confused
+plan) into aiming the tool somewhere dangerous, and a description the model is
+free to ignore is not a security control. Documenting the risk is not mitigating
+it; enforce the guard in code.
+
+- **Fetching a URL:** by default refuse loopback / private / link-local /
+  cloud-metadata hosts — `127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`,
+  `192.168.0.0/16`, `169.254.0.0/16` (the cloud metadata range), `::1`,
+  `fc00::/7`, and names like `localhost` — restrict the scheme to `http`/`https`,
+  and **re-check the host after redirects** (a public URL can 302 to
+  `169.254.169.254`). Offer an explicit opt-out (e.g. `allowPrivate: true`) for
+  the deliberate localhost/LAN case. Cap the response size and set a timeout.
+- **Reading or writing a path:** confine every resolved path to a configured
+  root — reject `..`, absolute paths outside it, and symlink escapes.
+- **Running a command:** pass an argv array to `execFile`; never build a shell
+  string from model input, and never use `exec`.
+
+The distinction that catches people: a URL/path/command the *model* supplied is
+attacker-influenced input, even when the user is trusted. If you're building on
+[`@harpua/agent-tools`](https://www.npmjs.com/package/@harpua/agent-tools), its
+`fetch_url` / `fetch_pdf` (URL egress) and file-exploration tools (path sandbox)
+already enforce these — prefer them over re-rolling the guard.
+
 ## Mounting a raw LangChain tool
 
 A `tools` entry may also be a raw LangChain tool INSTANCE — anything from
