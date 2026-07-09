@@ -7,15 +7,20 @@ import { CONTEXT_WINDOW_OPTS } from "../middleware/context-window.options";
 import { COMPACTION_STATE } from "../middleware/compaction-state";
 
 describe("ManagedContextMiddleware", () => {
-  it("delegates each hook to the injected workers", async () => {
+  it("delegates each hook to the injected workers, forwarding args + returns", async () => {
     const compaction = { beforeModel: jest.fn(async () => ({ tag: "fold" })) } as any;
-    const window = { wrapModelCall: jest.fn(async (_r: any, n: any) => n(_r)) } as any;
+    const SENTINEL = new AIMessage("sentinel");
+    const window = { wrapModelCall: jest.fn(async () => SENTINEL) } as any;
     const mw = new ManagedContextMiddleware(compaction, window);
-    await mw.beforeModel({} as any);
-    expect(compaction.beforeModel).toHaveBeenCalled();
-    const next = jest.fn(async () => new AIMessage("x"));
-    await mw.wrapModelCall({ messages: [] } as any, next);
-    expect(window.wrapModelCall).toHaveBeenCalled();
+
+    const ctxObj = {} as any;
+    expect(await mw.beforeModel(ctxObj)).toEqual({ tag: "fold" });
+    expect(compaction.beforeModel).toHaveBeenCalledWith(ctxObj);
+
+    const req = { messages: [] } as any;
+    const next = jest.fn();
+    expect(await mw.wrapModelCall(req, next)).toBe(SENTINEL);
+    expect(window.wrapModelCall).toHaveBeenCalledWith(req, next);
   });
 
   it("carries the compaction-state marker", () => {
