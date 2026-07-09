@@ -11,6 +11,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ripgrep backs @harpua/agent-tools' file-exploration + web-research
+      # tools; without it those specs self-skip and their real behavior goes
+      # untested in CI.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       # Enable Corepack so the pnpm version pinned by the repo's
       # `packageManager` field is used.
       - name: Enable Corepack
