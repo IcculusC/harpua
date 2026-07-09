@@ -84,6 +84,7 @@ describe("fetch_pdf", () => {
   // against the built `dist` output (see load-unpdf.ts's own comment).
   it("extracts a PDF's text and saves it as markdown", async () => {
     const bytes = makePdf("Hello LM317 datasheet");
+    const extracted = "Dropout voltage 1.5 V typical.";
     const pdfFetch: FetchFn = async () => pdfResponse(bytes);
     const tool = fetchPdfTool({
       saveDir: dir,
@@ -92,13 +93,17 @@ describe("fetch_pdf", () => {
       loadUnpdf: async () => ({
         extractText: async () => ({
           totalPages: 1,
-          text: "Dropout voltage 1.5 V typical.",
+          text: extracted,
         }),
       }),
     });
 
     const out = await runTool(tool, { url: "https://ti.com/lm317.pdf" });
     expect(out).toMatch(/search_files|read_lines/);
+    // Extracted PDF text has no newlines, so the summary must report chars/pages,
+    // not a nonsensical "1 lines" derived from splitting on "\n".
+    expect(out).toContain(`(${extracted.length.toLocaleString()} chars, 1 page)`);
+    expect(out).not.toMatch(/\blines\)/);
 
     const files = fs.readdirSync(dir);
     expect(files).toHaveLength(1);
@@ -107,6 +112,26 @@ describe("fetch_pdf", () => {
     expect(content).toContain("fetched: 2026-07-08");
     expect(content).toContain("Dropout voltage");
     expect(content).toContain("1.5 V typical");
+  });
+
+  it("pluralizes the page count in the summary for multi-page PDFs", async () => {
+    const bytes = makePdf("multi-page doc");
+    const extracted = "Page one content. Page two content. Page three content.";
+    const pdfFetch: FetchFn = async () => pdfResponse(bytes);
+    const tool = fetchPdfTool({
+      saveDir: dir,
+      fetchFn: pdfFetch,
+      now: FIXED_NOW,
+      loadUnpdf: async () => ({
+        extractText: async () => ({
+          totalPages: 3,
+          text: extracted,
+        }),
+      }),
+    });
+
+    const out = await runTool(tool, { url: "https://ti.com/lm317.pdf" });
+    expect(out).toContain(`(${extracted.length.toLocaleString()} chars, 3 pages)`);
   });
 
   it("returns an install hint when the optional unpdf peer is missing", async () => {

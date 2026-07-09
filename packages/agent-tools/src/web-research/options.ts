@@ -13,6 +13,13 @@ export const DEFAULT_SEARCH_TIMEOUT_MS = 10_000;
 export const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 /** Sane default response-size ceiling for fetch_url (bytes). */
 export const DEFAULT_MAX_RESPONSE_BYTES = 2_000_000;
+/**
+ * Sane default response-size ceiling for fetch_pdf (bytes). Real datasheets
+ * and similar PDFs regularly exceed fetch_url's 2MB HTML/text-oriented cap,
+ * so fetch_pdf gets its own, larger default — independent of, and not
+ * changing, fetch_url's.
+ */
+export const DEFAULT_FETCH_PDF_MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 /** The response surface the web tools read. A WHATWG `Response` fits. */
 export interface FetchResponseLike {
@@ -159,12 +166,16 @@ export const fetchPdfToolOptionsSchema = z
   .object({
     /** Directory saved PDFs (as markdown) are written to (string or resolver). */
     saveDir: z.union([z.string().min(1), saveDirResolverSchema]),
-    /** Refuse responses larger than this many bytes. */
+    /**
+     * Refuse responses larger than this many bytes. Defaults higher than
+     * fetch_url's cap — real-world PDFs (datasheets, specs) regularly exceed
+     * fetch_url's 2MB HTML-oriented default.
+     */
     maxResponseBytes: z
       .number()
       .int()
       .positive()
-      .default(DEFAULT_MAX_RESPONSE_BYTES),
+      .default(DEFAULT_FETCH_PDF_MAX_RESPONSE_BYTES),
     /** Abort the fetch after this many milliseconds. */
     timeoutMs: z.number().int().positive().default(DEFAULT_FETCH_TIMEOUT_MS),
     /** Allow fetching loopback/private/link-local addresses (off by default). */

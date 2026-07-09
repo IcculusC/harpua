@@ -3,7 +3,18 @@
 Framework-agnostic prebuilt [LangChain](https://github.com/langchain-ai/langchainjs)
 tools for agents. Each tool is a plain `tool()` instance, so it drops into any
 LangChain / LangGraph TypeScript app — a `ToolNode`, `createReactAgent`,
-`bindTools`, or your own executor. Peer dependencies are `@langchain/core` and `zod`; the only runtime dependency is `ml-distance` (pure JS, cosine similarity for the knowledge family); still no NestJS, no LangGraph runtime.
+`bindTools`, or your own executor. Peer dependencies are `@langchain/core` and `zod`; runtime dependencies are `ml-distance` (pure JS, cosine similarity for the knowledge family) and `node-html-markdown` (HTML → markdown conversion for `fetch_url`); still no NestJS, no LangGraph runtime.
+
+## Table of Contents
+
+- [Install](#install)
+- [Tools](#tools)
+  - [`thinkTool(options?)`](#thinktooloptions)
+  - [`fileExplorationTools(options)`](#fileexplorationtoolsoptions)
+  - [Web research — `web_search` + `fetch_url`](#web-research--web_search--fetch_url)
+  - [`fetchPdfTool(options)` — opt-in PDF fetching](#fetchpdftooloptions--opt-in-pdf-fetching)
+  - [Knowledge — `search_knowledge`](#knowledge--search_knowledge)
+- [Using with `@harpua/langgraph`](#using-with-harpualanggraph)
 
 ## Install
 
@@ -92,9 +103,10 @@ save pages locally as searchable markdown:
 - **`web_search`** — queries `{baseUrl}/search?format=json` and returns a
   numbered list of results (title, URL, snippet). The instance must have the
   JSON format enabled in `settings.yml` (`search: formats: [html, json]`).
-- **`fetch_url`** — fetches an http(s) page, converts HTML to markdown with a
-  built-in dependency-free extractor (plain text is saved as-is; PDFs and
-  other binary types are politely refused), and writes it to `saveDir` with
+- **`fetch_url`** — fetches an http(s) page, converts HTML to markdown with
+  [`node-html-markdown`](https://github.com/crosstype/node-html-markdown)
+  (plain text is saved as-is; PDFs and other binary types are politely
+  refused), and writes it to `saveDir` with
   `url` / `title` / `fetched` frontmatter. Re-fetching a URL refreshes its
   file. `saveDir` can be a function of the run config for per-thread dirs.
 
@@ -133,9 +145,14 @@ extracts the text, and writes it to `saveDir` as markdown with the same
 `url` / `title` / `fetched` frontmatter — so a fetched PDF becomes searchable
 by `fileExplorationTools` exactly like a fetched page. It inherits every
 guard from `fetch_url` (http(s)-only, private/loopback refusal including
-redirects, and the declared + actual response-size caps) and likewise never
-throws — bad schemes, non-PDF content types, oversize bodies, extraction
-failures, and filesystem errors all come back as friendly strings.
+redirects) and likewise never throws — bad schemes, non-PDF content types,
+oversize bodies, extraction failures, and filesystem errors all come back as
+friendly strings. Sizing is its own, though: `fetch_pdf` checks the declared
++ actual response size against its own **16 MB** cap, independent of
+`fetch_url`'s 2 MB (HTML/text-oriented) cap — real-world PDFs regularly
+exceed the latter. On success it reports the extracted text's size as
+chars/pages (a PDF's extracted text is often one long run with no newlines,
+so a line count wouldn't be meaningful).
 
 It is **opt-in**: `fetch_pdf` is exported on its own and is **not** part of
 the `webResearchTools()` bundle — add it explicitly. Text extraction uses
@@ -208,9 +225,9 @@ fingerprint — constructor name, `model` when the embedder exposes one, vector
 dimension, and chunk size — and triggers a clean re-index — vector spaces
 never mix. If you swap between two embedders the fingerprint can't tell
 apart (same class, no distinguishing `model`), just delete `.knowledge/`:
-it's only a cache; markdown stays the source of truth. First runtime
-dependency alert: this family adds `ml-distance` (pure JS) for cosine
-similarity.
+it's only a cache; markdown stays the source of truth. Runtime dependency
+note: this family adds `ml-distance` (pure JS) for cosine similarity — see
+the intro for the package's full runtime dependency list.
 
 ## Using with `@harpua/langgraph`
 

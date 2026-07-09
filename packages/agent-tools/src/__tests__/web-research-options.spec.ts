@@ -1,10 +1,12 @@
 import {
   resolveWebSearchOptions,
   resolveFetchUrlOptions,
+  resolveFetchPdfOptions,
   DEFAULT_MAX_RESULTS,
   DEFAULT_SEARCH_TIMEOUT_MS,
   DEFAULT_FETCH_TIMEOUT_MS,
   DEFAULT_MAX_RESPONSE_BYTES,
+  DEFAULT_FETCH_PDF_MAX_RESPONSE_BYTES,
 } from "../web-research/options";
 import { errorMessage } from "../web-research/errors";
 
@@ -43,6 +45,18 @@ describe("web-research options", () => {
     expect(() =>
       resolveFetchUrlOptions({ saveDir: "/tmp/x", fetchFn: "nope" } as never),
     ).toThrow();
+  });
+
+  it("gives fetch_pdf its own larger default response-size cap than fetch_url", () => {
+    const pdfOpts = resolveFetchPdfOptions({ saveDir: "/tmp/x" });
+    expect(pdfOpts.maxResponseBytes).toBe(DEFAULT_FETCH_PDF_MAX_RESPONSE_BYTES);
+    expect(DEFAULT_FETCH_PDF_MAX_RESPONSE_BYTES).toBeGreaterThan(
+      DEFAULT_MAX_RESPONSE_BYTES,
+    );
+
+    // fetch_url's default is unaffected by fetch_pdf's larger cap.
+    const urlOpts = resolveFetchUrlOptions({ saveDir: "/tmp/x" });
+    expect(urlOpts.maxResponseBytes).toBe(DEFAULT_MAX_RESPONSE_BYTES);
   });
 });
 
