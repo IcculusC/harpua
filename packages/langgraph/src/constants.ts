@@ -24,6 +24,17 @@ export const GRAPH_METADATA = Symbol.for(
   "@harpua/langgraph:GRAPH_METADATA",
 );
 
+/** reflect-metadata key marking a class as a middleware. */
+export const MIDDLEWARE_METADATA = Symbol.for(
+  "@harpua/langgraph:MIDDLEWARE_METADATA",
+);
+
+/**
+ * reflect-metadata key holding an agent's compiler metadata (options + the
+ * lowered {@link AgentBuild}) on a `@LangGraphAgent`-decorated class.
+ */
+export const AGENT_METADATA = Symbol.for("@harpua/langgraph:AGENT_METADATA");
+
 /** reflect-metadata key holding the array of tool method descriptors. */
 export const TOOL_METHODS_METADATA = Symbol.for(
   "@harpua/langgraph:TOOL_METHODS",

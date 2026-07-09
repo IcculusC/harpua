@@ -7,11 +7,14 @@ description: Use when adding a tool, node, edge, graph, or subgraph to a NestJS 
 
 Classify what you're adding, read the one matching reference, then follow it. Don't skim the codebase to rediscover conventions the references already state.
 
+> **Quick intent check before the table:** building a **model↔tools agent loop** — the model calls tools and you loop until it's done (a chat / ReAct / tool-using agent; anything that needs to "stop after N turns", avoid `GraphRecursionError`, retry the model, or trim/compact history)? The toolkit ships the `@LangGraphAgent` preset + a middleware system for exactly this; **`references/agents-and-middleware.md`** shows how. Reaching for it saves assembling the loop — and the turn caps, retries, and trimming — by hand.
+
 | Adding… | Read |
 |---|---|
 | A `@LangGraphTool` method, or a new tool provider class | `references/tool.md` |
 | A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `references/node.md` |
 | A whole graph, a subgraph, a Nest module, or a checkpointer | `references/graph.md` |
+| An **agent loop** (model↔tools) with `@LangGraphAgent`: capping turns/tokens or avoiding `GraphRecursionError`, retrying model/tool calls, trimming/compacting history, stopping the loop early, or writing a custom `@LangGraphMiddleware` | `references/agents-and-middleware.md` |
 | Wiring a chat model (env-driven, named models, OpenRouter/Ollama/openai-compatible, mock default) with `@harpua/models` | `references/models.md` |
 | Testing a graph, a node, or an agentic loop (unit, e2e, scripted model, interrupt, streaming, persistence, type-level) | `references/testing.md` |
 | Debugging / inspecting state (bootstrap or runtime errors, time travel, checkpoint store) | `references/debugging.md` |

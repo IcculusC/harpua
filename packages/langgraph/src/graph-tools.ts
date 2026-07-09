@@ -16,6 +16,9 @@ import { z } from "zod";
 import { getGraphMetadata, getToolMethods } from "./decorators";
 import type { ApprovalMessageFn, DeclineMessageFn } from "./interfaces";
 import { instrumentRawTool, instrumentTool } from "./observability";
+import { getAgentMetadata } from "./agent/agent.decorator";
+import { lowerAgent } from "./agent/agent-compiler";
+import { composeToolWrap } from "./middleware/tool-wrap";
 
 /** Logs a warning when a user-supplied approval/decline message builder throws. */
 const approvalLogger = new Logger("LangGraphApprovalGate");
@@ -423,6 +426,27 @@ export function buildGraphTools(
       `Graph '${graphName}' lists tool providers but none expose @LangGraphTool methods.`,
     );
   }
+
+  // `@LangGraphAgent` tools additionally run through each `wrapToolCall`
+  // middleware (v1 best-effort: no per-tool state snapshot yet, so `stateOf`
+  // always yields `{}` — Retry-style middleware doesn't read tool state).
+  // This wraps BOTH the bound-model copy and the ToolNode copy (the same
+  // array feeds both); harmless, since `bindTools` only reads name/schema
+  // through the Proxy and never calls `invoke`.
+  const agentOptions = getAgentMetadata(graphDef);
+  if (agentOptions) {
+    const wrapToolMiddleware = lowerAgent(graphDef).wrapToolMiddleware;
+    if (wrapToolMiddleware.length > 0) {
+      const resolvedWrapToolMiddleware = wrapToolMiddleware.map((c) =>
+        moduleRef.get(c, { strict: false }),
+      );
+      const stateOf = (_config: unknown): Readonly<Record<string, never>> => ({});
+      return tools.map((t) =>
+        composeToolWrap(t, resolvedWrapToolMiddleware, stateOf),
+      );
+    }
+  }
+
   return tools;
 }
 
@@ -491,6 +515,16 @@ export interface ProvideGraphBoundModelOptions {
  * `onApplicationBootstrap` compile), but only reads the graph metadata and
  * resolves already-registered singletons via `ModuleRef` — it never touches the
  * compiled graph, so it cannot race compilation.
+ *
+ * `model` is resolved via `ModuleRef.get(model, { strict: false })` — a
+ * flat, whole-container lookup — rather than a strict factory `inject`, so
+ * this provider works wherever it is registered relative to `model`'s own
+ * provider (e.g. auto-registered by `LangGraphModule.forFeature` for a
+ * `@LangGraphAgent`, a different module than wherever the app provides its
+ * chat model). This mirrors every other node/tool resolution in this
+ * package (`CallModelNode`, `HookNode`, `GraphRegistry.resolveNode`,
+ * `buildGraphTools`'s own provider-class lookup) — graph wiring is
+ * intentionally module-boundary-agnostic.
  */
 export function provideGraphBoundModel(
   options: ProvideGraphBoundModelOptions,
@@ -498,16 +532,14 @@ export function provideGraphBoundModel(
   const { provide, graph, model } = options;
   return {
     provide,
-    useFactory: (
-      moduleRef: ModuleRef,
-      chatModel: BaseChatModel,
-    ): GraphBoundModel => {
+    useFactory: (moduleRef: ModuleRef): GraphBoundModel => {
+      const chatModel = moduleRef.get<BaseChatModel>(model, { strict: false });
       const tools = buildGraphTools(graph, moduleRef);
       if (tools.length > 0 && typeof chatModel.bindTools === "function") {
         return chatModel.bindTools(tools);
       }
       return chatModel;
     },
-    inject: [ModuleRef, model],
+    inject: [ModuleRef],
   };
 }

@@ -14,6 +14,15 @@ export interface GraphTestingModuleConfig {
   graphs: Type<any>[];
   /** Node, tool, model and support providers the graphs resolve through DI. */
   providers?: Provider[];
+  /**
+   * Providers registered inside `forFeature`'s own module scope, alongside the
+   * graphs. Use this for a `@LangGraphAgent`'s middleware option providers
+   * (e.g. `...provideBudget({ ... })`, `...provideRetry({ ... })`): those tokens
+   * must live in the feature-module scope the agent's generated middleware nodes
+   * resolve from — a top-level {@link GraphTestingModuleConfig.providers} entry
+   * is a different scope they can't see, so `@Inject(...OPTS)` would fail at boot.
+   */
+  featureProviders?: Provider[];
   /** Extra modules to import (e.g. a config module the providers need). */
   imports?: any[];
   /**
@@ -68,7 +77,9 @@ export async function createGraphTestingModule(
     imports: [
       ...(config.imports ?? []),
       LangGraphModule.forRoot({ checkpointer }),
-      LangGraphModule.forFeature(config.graphs),
+      LangGraphModule.forFeature(config.graphs, {
+        providers: config.featureProviders ?? [],
+      }),
     ],
     providers: config.providers ?? [],
   }).compile();

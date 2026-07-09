@@ -7,6 +7,31 @@ and the graph it's wired into is checked at **compile time** — a node that
 touches state the graph doesn't provide is a TypeScript error, not a runtime
 surprise.
 
+## Table of Contents
+
+- [Install](#install)
+- [The LangGraph quickstart, the Nest way](#the-langgraph-quickstart-the-nest-way)
+- [Core concepts](#core-concepts)
+  - [`NodeHandler` and state slices](#nodehandler-and-state-slices)
+  - [`defineEdges`, `route`, `as`, and the sentinels](#defineedges-route-as-and-the-sentinels)
+  - [Tools and the `TOOLS` node](#tools-and-the-tools-node)
+  - [Give the model the graph's tools](#give-the-model-the-graphs-tools)
+  - [Subgraphs](#subgraphs)
+  - [Interrupts and `resume`](#interrupts-and-resume)
+  - [Streaming](#streaming)
+  - [Checkpointers](#checkpointers)
+  - [OpenTelemetry tracing](#opentelemetry-tracing)
+  - [Bootstrap fail-fast validation](#bootstrap-fail-fast-validation)
+- [Agents and middleware](#agents-and-middleware)
+  - [`@LangGraphAgent`](#langgraphagent)
+  - [`@LangGraphMiddleware`](#langgraphmiddleware)
+  - [Budget + Retry](#budget-retry)
+  - [`responseFormat`](#responseformat)
+  - [Semantics: loop and exit persist per thread, not per invoke](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
+- [Facade API](#facade-api)
+- [Notes](#notes)
+- [Agent skills](#agent-skills)
+
 ## Install
 
 ```bash
@@ -708,6 +733,237 @@ throw immediately at startup instead of surfacing mid-request:
 - A listed tool provider exposes no `@LangGraphTool` methods.
 - A circular subgraph reference is detected while compiling.
 - An edge or route/interrupt target isn't a recognized reference (sentinel, node class, alias, or subgraph class).
+
+## Agents and middleware
+
+The graphs above are hand-wired: you write the `CallModel` node, the routing
+function, and the `TOOLS` edge yourself. `@LangGraphAgent` is a preset
+decorator for the common case — a model that loops with its tools until it's
+done — that lowers to exactly those same primitives, plus an onion of
+middleware hooks around the model and tool calls.
+
+### `@LangGraphAgent`
+
+A minimal agent needs a `name`, a `state`, a `model` token, and its `tools`:
+
+```ts
+import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import { LangGraphAgent } from "@harpua/langgraph";
+import { CHAT_MODEL } from "./chat-model.provider";
+import { WeatherTools } from "./weather.tools";
+
+const AgentState = new StateSchema({ messages: MessagesValue });
+
+@LangGraphAgent({
+  name: "weatherAgent",
+  state: AgentState,
+  model: CHAT_MODEL,
+  tools: [WeatherTools],
+})
+export class WeatherAgent {}
+```
+
+Register and inject it exactly like a hand-written `@LangGraph` class —
+`LangGraphModule.forFeature([WeatherAgent])`, `@InjectLangGraphRunnable(WeatherAgent)`
+— because that's what it compiles to. `@LangGraphAgent` generates the
+`CallModel`/`TOOLS` node topology, assigns the `edges` array the
+`GraphRegistry` reads, and applies the underlying `@LangGraph` decorator for
+you; nothing about it is a black box; you can always eject to a hand-written
+graph later and the wiring looks the same. The one thing it adds to your
+`state` that a hand-written graph wouldn't have: two reserved, merged
+channels, `loop` and `exit` (see [Semantics](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
+below), so `res.loop` and `res.exit` are present on every invoke result
+alongside the fields you declared.
+
+### `@LangGraphMiddleware`
+
+A middleware is a `@LangGraphMiddleware()`-decorated, DI-injectable class
+implementing `LangGraphMiddlewareContract`. It can implement either or both
+kinds of hook:
+
+- **Node hooks** — `beforeAgent` / `beforeModel` / `afterModel` / `afterAgent`
+  — are inserted as real graph nodes around the loop's model call. Each
+  receives a `ctx: MiddlewareContext<S>` and returns `Partial<S> | void`: a
+  patch merges into state the same way any node's return value does; `void`
+  is a no-op; `ctx.exit(meta)` returns a state patch that flags the thread as
+  exited and routes the loop to its canonical end (through the
+  `StructuredResponseNode` when `responseFormat` is set).
+- **Wrap hooks** — `wrapModelCall` / `wrapToolCall` — are composed *around*
+  the bound model call / each tool call, `(request, next) => Promise<...>`,
+  like a Nest interceptor. `wrapModelCall` receives a `ModelRequest` whose
+  `messages` and `model` are mutable properties (rewrite either before
+  calling `next(req)`); `wrapToolCall` receives a `ToolRequest` (`name`,
+  `args`, `id`, `state`).
+
+`MiddlewareContext<S>` gives node hooks: `state` (`Readonly<S>`), `loop`
+(the `LoopInfo` counters below), `config` (the run's `LangGraphRunnableConfig`),
+`now()` (an injectable clock — never call `Date.now()` directly in a hook),
+`interrupt(payload)`, and `exit(meta?)`.
+
+Here's a small custom middleware — a `wrapModelCall` that trims the message
+history sent to the model:
+
+```ts
+import { Injectable } from "@nestjs/common";
+import { LangGraphMiddleware } from "@harpua/langgraph";
+import type {
+  LangGraphMiddlewareContract,
+  ModelRequest,
+  ModelNext,
+} from "@harpua/langgraph";
+import type { AIMessage } from "@langchain/core/messages";
+
+const KEEP_LAST = 20;
+
+@LangGraphMiddleware()
+export class TrimMessages implements LangGraphMiddlewareContract {
+  wrapModelCall(req: ModelRequest<any>, next: ModelNext): Promise<AIMessage> {
+    if (req.messages.length > KEEP_LAST) {
+      req.messages = req.messages.slice(-KEEP_LAST);
+    }
+    return next(req);
+  }
+}
+```
+
+This has to be a **wrap hook, not a node hook**. `messages` is a
+`MessagesValue` channel — an append-only reducer — so a node hook returning
+`{ messages: trimmed }` would *append* `trimmed` on top of the existing
+history instead of replacing it, growing the very history you're trying to
+shrink. `wrapModelCall`'s `req.messages` is the literal array about to be
+sent to `model.invoke`, not a state patch, so reassigning it actually
+replaces what the model sees on this turn.
+
+Wire middleware into the agent as an array — order is the onion, first
+entry outermost:
+
+```ts
+@LangGraphAgent({
+  name: "weatherAgent",
+  state: AgentState,
+  model: CHAT_MODEL,
+  tools: [WeatherTools],
+  middleware: [TrimMessages],
+})
+export class WeatherAgent {}
+```
+
+### Budget + Retry
+
+Two ready-made middlewares ship with the package:
+
+- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs })`** — a
+  graceful loop guard; its `beforeModel` hook calls `ctx.exit({ reason: "budget" })`
+  the moment any one of the four caps is reached. It's the soft counterpart
+  to LangGraph's hard `recursionLimit` throw.
+- **`provideRetry({ maxRetries, retryable, backoff })`** — wraps *both*
+  `wrapModelCall` and `wrapToolCall` with the same retry loop: it re-invokes
+  `next` while `retryable(err)` returns true, awaiting `backoff(attempt)`
+  between attempts, up to `maxRetries`.
+
+List the middleware classes in the agent's `middleware: [...]` array, and
+register their option providers in the **same `forFeature` call**:
+
+```ts
+import { Module } from "@nestjs/common";
+import {
+  LangGraphModule,
+  provideBudget,
+  provideRetry,
+  BudgetMiddleware,
+  RetryMiddleware,
+} from "@harpua/langgraph";
+import { WeatherAgent } from "./weather-agent";
+import { WeatherTools } from "./weather.tools";
+
+@Module({
+  imports: [
+    LangGraphModule.forRoot(),
+    LangGraphModule.forFeature([WeatherAgent], {
+      providers: [
+        ...provideBudget({
+          maxCycles: 10,
+          maxToolCalls: 20,
+          maxTokens: 50_000,
+          maxWallMs: 60_000,
+        }),
+        ...provideRetry({
+          maxRetries: 2,
+          retryable: () => true,
+          backoff: async () => {},
+        }),
+      ],
+    }),
+  ],
+  providers: [WeatherTools],
+})
+export class WeatherModule {}
+```
+
+```ts
+@LangGraphAgent({
+  name: "weatherAgent",
+  state: AgentState,
+  model: CHAT_MODEL,
+  tools: [WeatherTools],
+  middleware: [BudgetMiddleware, RetryMiddleware], // Budget outermost, Retry innermost
+})
+export class WeatherAgent {}
+```
+
+`provideBudget`/`provideRetry` each return a `Provider[]` — an options
+provider (parsed with the middleware's zod schema) plus the middleware class
+itself. Both must live in `forFeature`'s own `{ providers }`, not the app
+root: the agent's compiled graph resolves `BudgetMiddleware`/`RetryMiddleware`
+from that **same feature module's** DI scope, and a sibling registration at
+the root `providers:` level is a different, non-importing module the graph
+can't see into.
+
+### `responseFormat`
+
+Give the agent a zod schema and its final answer is coerced into a typed
+`outcome` state channel:
+
+```ts
+import { z } from "zod";
+
+const Outcome = z.object({ status: z.string(), reason: z.string() });
+
+@LangGraphAgent({
+  name: "weatherAgent",
+  state: AgentState,
+  model: CHAT_MODEL,
+  tools: [WeatherTools],
+  responseFormat: Outcome,
+})
+export class WeatherAgent {}
+```
+
+```ts
+const res = await agent.invoke({ messages: [new HumanMessage("...")] });
+res.outcome; // { status: string; reason: string }
+```
+
+Setting `responseFormat` adds an `outcome` channel to the merged state and
+compiles in a `StructuredResponseNode` that calls the model's
+`withStructuredOutput(schema)` on the way out — including when a middleware's
+`ctx.exit()` short-circuits the loop early (e.g. `BudgetMiddleware` hitting a
+cap still produces a schema-shaped `outcome`, not a bare early return).
+
+### Semantics: loop and exit persist per thread, not per invoke
+
+The `loop` counters (`iteration`, `modelCalls`, `toolCalls`, `tokens`,
+`startedAt`) and the `exit` flag are ordinary `LastValue` state channels, so
+like the rest of state they're checkpointed — and **not reset per `invoke`**.
+They accumulate across every invocation on the same `thread_id`. Two
+consequences worth knowing before you tune budgets:
+
+- Budget caps are **per-thread-lifetime**, not per-invoke: `loop.iteration`
+  and friends keep climbing turn over turn *and* invoke over invoke on the
+  same thread.
+- Once a thread has exited (`exit.requested === true`, set by a middleware's
+  `ctx.exit()`), a later re-invoke on that **same** thread stays exited —
+  start a new `thread_id` for a fresh run.
 
 ## Facade API
 

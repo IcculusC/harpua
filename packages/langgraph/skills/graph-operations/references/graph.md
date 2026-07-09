@@ -1,5 +1,7 @@
 # Adding a graph, subgraph, module, or checkpointer
 
+> **Building a model↔tools agent loop?** If the model calls tools and you loop until done — a chat / ReAct / tool-using agent, or anything that needs to "stop after N turns", avoid `GraphRecursionError`, "retry the model", or "trim/compact history" — the **`@LangGraphAgent`** preset generates that whole loop (the model-calling node, `route(hasToolCalls)`, the `TOOLS` edges) plus turn caps, retries, and trimming for you: see **`references/agents-and-middleware.md`**. This recipe (hand-writing a `@LangGraph`) is the one you want for a *fixed / deterministic* topology that isn't a model↔tools agent loop.
+
 A graph is a class decorated with `@LangGraph({ name, state, tools?, recursionLimit? })` exposing an `edges` array. Graphs are built and compiled once at `onApplicationBootstrap` from the DI container.
 
 ## Steps: a new graph

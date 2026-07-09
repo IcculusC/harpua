@@ -91,3 +91,48 @@ export {
   GraphRecursionError,
 } from "@langchain/langgraph";
 export type { LangGraphRunnableConfig } from "@langchain/langgraph";
+
+// Agent-loop preset: a declarative model<->tools loop that lowers
+// transparently to primitives (fully ejectable and addressable).
+export { LangGraphAgent, getAgentMetadata } from "./agent/agent.decorator";
+export type { LangGraphAgentOptions } from "./agent/agent.decorator";
+
+// Middleware: DI-provider classes implementing node hooks
+// (beforeAgent/beforeModel/afterModel/afterAgent) and/or callable-wrap hooks
+// (wrapModelCall/wrapToolCall).
+//
+// NOTE on the `LangGraphMiddleware` name: the decorator (a value, in
+// middleware.decorator.ts) and the hook contract (a type, in
+// middleware.interface.ts) share the name in source, and the ergonomic goal
+// was a single barrel export carrying both — `@LangGraphMiddleware() class X
+// implements LangGraphMiddleware {}`. Under this package's `isolatedModules`
+// (tsconfig via @harpua/typescript-config/base.json), re-declaring an
+// `export type { LangGraphMiddleware }` alongside the `export function
+// LangGraphMiddleware` in the same module raises TS2323 ("Cannot redeclare
+// exported variable"), and re-exporting that type-only binding from the
+// barrel raises TS1448. Falling back per the task brief: the decorator is
+// exported as `LangGraphMiddleware`; the hook contract is exported under the
+// distinctly-named `LangGraphMiddlewareContract` alias (the same alias name
+// already used internally by BudgetMiddleware/RetryMiddleware). Consumers
+// write `class X implements LangGraphMiddlewareContract`.
+export { LangGraphMiddleware, normalizeMiddleware } from "./middleware/middleware.decorator";
+export type { MiddlewareEntry, NodeRef } from "./middleware/middleware.decorator";
+export type { NodeHookName } from "./middleware/middleware.interface";
+export type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware/middleware.interface";
+export type {
+  MiddlewareContext,
+  ModelRequest,
+  ToolRequest,
+  ModelNext,
+  ToolNext,
+} from "./middleware/middleware.types";
+
+// Reserved persisted loop state the agent loop and its middleware share.
+export { withAgentLoop, AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./middleware/loop-state";
+export type { LoopInfo, AgentExit } from "./middleware/loop-state";
+
+// Reference middlewares. `BudgetOptions`/`RetryOptions` are each both a zod
+// schema (value) and its inferred type (merged declaration in the source
+// module) — the plain export specifier carries both.
+export { BudgetMiddleware, BudgetOptions, BUDGET_OPTS, provideBudget } from "./middleware/budget.middleware";
+export { RetryMiddleware, RetryOptions, RETRY_OPTS, provideRetry } from "./middleware/retry.middleware";

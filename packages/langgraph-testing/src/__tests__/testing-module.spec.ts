@@ -3,6 +3,10 @@ import {
   type GraphTestingHarness,
 } from "../testing-module";
 import { expectInterrupt } from "../interrupt-helpers";
+import { ruleModel } from "../scripted-model";
+import { StateSchema, MessagesValue } from "@langchain/langgraph";
+import { HumanMessage } from "@langchain/core/messages";
+import { LangGraphAgent, BudgetMiddleware, provideBudget } from "@harpua/langgraph";
 import {
   AskHumanNode,
   CounterStateT,
@@ -11,6 +15,8 @@ import {
   LinearGraph,
   NodeA,
   NodeB,
+  OrderService,
+  OrderTools,
 } from "./fixtures";
 
 describe("createGraphTestingModule", () => {
@@ -90,5 +96,43 @@ describe("createGraphTestingModule", () => {
     expect(expectInterrupt<string>(paused)).toBe("Name?");
     const done = await hil.resume(threadId, "Grace");
     expect(done.answer).toBe("Grace");
+  });
+
+  it("wires a @LangGraphAgent's middleware options via featureProviders", async () => {
+    const CHAT = Symbol.for("cgtm:budget-model");
+    // Always requests a tool → loops forever unless a Budget stops it.
+    const AlwaysTool = ruleModel()
+      .fallback({ toolCalls: [{ name: "lookup_order", args: { id: "1" } }] })
+      .build();
+
+    @LangGraphAgent({
+      name: "budgetedAgent",
+      state: new StateSchema({ messages: MessagesValue }),
+      model: CHAT,
+      tools: [OrderTools],
+      middleware: [BudgetMiddleware],
+    })
+    class BudgetedAgent {}
+
+    harness = await createGraphTestingModule({
+      graphs: [BudgetedAgent],
+      providers: [OrderTools, OrderService, { provide: CHAT, useClass: AlwaysTool }],
+      // BUDGET_OPTS must land in forFeature's scope — the agent's generated
+      // middleware nodes resolve it there, not from the top-level providers.
+      featureProviders: provideBudget({
+        maxCycles: 2,
+        maxToolCalls: 999,
+        maxTokens: 999_999,
+        maxWallMs: 999_999,
+      }),
+    });
+
+    const agent = harness.get(BudgetedAgent);
+    const result: any = await agent.invoke({
+      messages: [new HumanMessage("go")],
+    });
+    // Boots only because featureProviders wired BUDGET_OPTS into forFeature's
+    // scope; Budget then caps the otherwise-infinite tool loop at maxCycles.
+    expect(result.loop.iteration).toBeLessThanOrEqual(2);
   });
 });

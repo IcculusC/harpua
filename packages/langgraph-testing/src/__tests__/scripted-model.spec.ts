@@ -1,5 +1,6 @@
-import { HumanMessage, isAIMessage } from "@langchain/core/messages";
+import { HumanMessage, isAIMessage, type UsageMetadata } from "@langchain/core/messages";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+import { z } from "zod";
 
 import { scriptedModel, ruleModel, textOf } from "../scripted-model";
 import {
@@ -90,6 +91,24 @@ describe("scriptedModel (sequence)", () => {
     model.reset();
     expect(textOf(await model.invoke([]))).toBe("one");
   });
+
+  it("stamps usage_metadata on a scripted reply when provided", async () => {
+    const usage: UsageMetadata = { input_tokens: 12, output_tokens: 5, total_tokens: 17 };
+    const Model = scriptedModel().say("hi", { usage }).build();
+    const model = new Model();
+    const res = await model._generate([new HumanMessage("yo")]);
+    expect(res.generations[0].message.usage_metadata).toEqual(usage);
+  });
+
+  it("returns a scripted structured value via withStructuredOutput", async () => {
+    const Model = scriptedModel().structured({ status: "resolved", reason: "done" }).build();
+    const model = new Model();
+    const structured = model.withStructuredOutput(
+      z.object({ status: z.string(), reason: z.string() }),
+    );
+    const out = await structured.invoke([new HumanMessage("summarize")]);
+    expect(out).toEqual({ status: "resolved", reason: "done" });
+  });
 });
 
 describe("ruleModel (match on latest turn)", () => {
@@ -157,5 +176,25 @@ describe("ruleModel (match on latest turn)", () => {
     expect(message.additional_kwargs.pending_action).toEqual({
       action: "cancel_order",
     });
+  });
+
+  it("forwards usage_metadata on a plain-text rule reply", async () => {
+    const usage: UsageMetadata = { input_tokens: 3, output_tokens: 4, total_tokens: 7 };
+    const Model = ruleModel()
+      .onHuman(/./, { text: "hi", usage })
+      .build();
+    const model = new Model();
+    const message = await model.invoke([new HumanMessage("anything")]);
+    expect(message.usage_metadata).toEqual(usage);
+  });
+
+  it("forwards usage_metadata on a tool-call rule reply", async () => {
+    const usage: UsageMetadata = { input_tokens: 3, output_tokens: 4, total_tokens: 7 };
+    const Model = ruleModel()
+      .onHuman(/./, { toolCalls: [{ name: "x", args: {} }], usage })
+      .build();
+    const model = new Model();
+    const message = await model.invoke([new HumanMessage("anything")]);
+    expect(message.usage_metadata).toEqual(usage);
   });
 });

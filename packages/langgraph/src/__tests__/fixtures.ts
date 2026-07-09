@@ -172,7 +172,7 @@ export class CallModel implements NodeHandler<MsgState> {
   }
 }
 
-function hasToolCalls(state: MsgState): typeof TOOLS | typeof END {
+export function hasToolCalls(state: MsgState): typeof TOOLS | typeof END {
   const last = state.messages[state.messages.length - 1];
   return last && isAIMessage(last) && (last.tool_calls?.length ?? 0) > 0
     ? TOOLS
