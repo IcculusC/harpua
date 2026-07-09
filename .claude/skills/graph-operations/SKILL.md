@@ -12,6 +12,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | A `@LangGraphTool` method, or a new tool provider class | `packages/langgraph/skills/graph-operations/references/tool.md`, then apply the harpua overlay below |
 | A `NodeHandler` and wiring its edge (incl. `interrupt()`) | `packages/langgraph/skills/graph-operations/references/node.md`, then apply the harpua overlay below |
 | A whole graph, a subgraph, a Nest module, or a checkpointer | `packages/langgraph/skills/graph-operations/references/graph.md`, then apply the harpua overlay below |
+| An **agent loop** (model↔tools) with `@LangGraphAgent`: capping turns/tokens or avoiding `GraphRecursionError`, retrying model/tool calls, trimming/compacting history, stopping the loop early, or writing a custom `@LangGraphMiddleware` | `packages/langgraph/skills/graph-operations/references/agents-and-middleware.md`, then apply the harpua overlay below |
 | A new `packages/*` library | `references/package.md` |
 | Wiring a chat model (env-driven, named models, OpenRouter/Ollama/openai-compatible, mock default) with `@harpua/models` | `packages/langgraph/skills/graph-operations/references/models.md` |
 | Testing a graph, a node, or an agentic loop (unit, e2e, scripted model, interrupt, streaming, persistence, type-level) | `packages/langgraph/skills/graph-operations/references/testing.md` |
