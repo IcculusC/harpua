@@ -246,7 +246,10 @@ describe("BudgetMiddleware", () => {
     expect(providers).toHaveLength(2);
     expect(providers[0]).toEqual({
       provide: BUDGET_OPTS,
-      useValue: opts,
+      // `provideBudget` parses `opts` through `BudgetOptions.parse`, which
+      // fills in the `reset` field's `.default("invoke")` -- so the parsed
+      // `useValue` legitimately has one more key than the raw `opts` input.
+      useValue: { ...opts, reset: "invoke" },
     });
     expect(providers[1]).toBe(BudgetMiddleware);
   });

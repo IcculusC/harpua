@@ -34,14 +34,18 @@ const exitField = AgentExit.default(AGENT_EXIT_DEFAULT);
  * Merge the agent's reserved channels (`loop` + `exit`) into an agent's
  * StateSchema (LastValue).
  *
- * These two channels are persisted (LastValue) and are NOT reset per
- * `invoke` — they accumulate across every invocation on the same
- * checkpointed thread. Practically this means: a `BudgetMiddleware` cap is a
- * per-thread-lifetime budget, not a per-invoke one (counters keep climbing
- * turn over turn, invoke over invoke), and once an agent has exited
- * (`exit.requested`), that same thread stays exited on a later re-invoke —
- * start a new thread id for a fresh run. A per-invoke reset of these
- * channels is a possible future option, not implemented here.
+ * These two channels are persisted (LastValue), so absent any middleware
+ * intervention they would accumulate across every invocation on the same
+ * checkpointed thread. As of `BudgetMiddleware`'s `reset: "invoke"` default
+ * (its `beforeAgent` hook), that accumulation no longer happens in practice:
+ * `loop`/`exit` are zeroed back to `AGENT_LOOP_DEFAULT`/`AGENT_EXIT_DEFAULT`
+ * at the START of every invoke, so a Budget cap is a per-invoke budget, and a
+ * prior exit doesn't stick across re-invokes of the same thread. The
+ * per-thread-lifetime behavior described above (counters climbing turn over
+ * turn, invoke over invoke, and a stuck `exit.requested`) only applies when
+ * Budget is configured with `reset: "thread"` — in that mode, use
+ * `clearAgentExit()` (see `./clear-exit`) with `graph.updateState` to
+ * explicitly resume a thread that has exited.
  */
 export function withAgentLoop(state: unknown): StateSchema<any> {
   if (!(state instanceof StateSchema)) {

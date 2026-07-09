@@ -3,12 +3,14 @@ import { z } from "zod";
 import { LangGraphMiddleware } from "../middleware/middleware.decorator";
 import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "../middleware/middleware.interface";
 import type { MiddlewareContext } from "../middleware/middleware.types";
+import { AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./loop-state";
 
 export const BudgetOptions = z.object({
   maxCycles: z.number().int().positive(),
   maxToolCalls: z.number().int().positive(),
   maxTokens: z.number().int().positive(),
   maxWallMs: z.number().int().positive(),
+  reset: z.enum(["invoke", "thread"]).default("invoke"),
 });
 export type BudgetOptions = z.infer<typeof BudgetOptions>;
 
@@ -20,6 +22,14 @@ export const BUDGET_OPTS = Symbol.for("@harpua/langgraph:BUDGET_OPTS");
 @LangGraphMiddleware()
 export class BudgetMiddleware implements LangGraphMiddlewareContract {
   constructor(@Inject(BUDGET_OPTS) private readonly opts: BudgetOptions) {}
+
+  /** Per-invoke reset: zero the loop counters + clear a stuck exit at START so
+   *  a long-lived thread never accumulates into a permanent exit. */
+  beforeAgent(_ctx: MiddlewareContext<any>): Partial<any> | void {
+    if (this.opts.reset === "invoke") {
+      return { loop: AGENT_LOOP_DEFAULT, exit: AGENT_EXIT_DEFAULT };
+    }
+  }
 
   async beforeModel(ctx: MiddlewareContext<any>): Promise<Partial<any> | void> {
     const { iteration, toolCalls, tokens, startedAt } = ctx.loop;
