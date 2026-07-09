@@ -17,6 +17,8 @@ import { getGraphMetadata } from "./decorators";
 import { GraphRegistry } from "./graph-registry";
 import { GraphFacade } from "./graph-facade";
 import { buildCheckpointer, CheckpointerLifecycle } from "./checkpointer";
+import { getAgentMetadata } from "./agent/agent.decorator";
+import { agentProviders } from "./agent/agent-compiler";
 import type {
   CheckpointerOptions,
   LangGraphModuleAsyncOptions,
@@ -103,6 +105,12 @@ export class LangGraphModule {
 
       // The graph definition class itself (so DI can resolve its edges).
       providers.push(def);
+
+      // A `@LangGraphAgent` preset also needs its generated nodes, its
+      // middleware classes, and its internal bound-model provider registered.
+      if (getAgentMetadata(def)) {
+        providers.push(...agentProviders(def));
+      }
 
       // Facade provider; also registers the graph with the registry so that
       // the registry compiles it at bootstrap even if the facade is never

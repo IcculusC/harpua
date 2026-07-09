@@ -1,4 +1,4 @@
-import type { InjectionToken, Type } from "@nestjs/common";
+import type { InjectionToken, Provider, Type } from "@nestjs/common";
 import { START, END } from "@langchain/langgraph";
 import { isAIMessage } from "@langchain/core/messages";
 
@@ -10,8 +10,10 @@ import { makeCallModelNode } from "./call-model-node";
 import { makeStructuredResponseNode } from "./structured-response-node";
 import { makeHookNode } from "./hook-node";
 import { makeSystemPromptMiddleware } from "./system-prompt-middleware";
+import { provideGraphBoundModel } from "../graph-tools";
 import type { EdgeTarget, GraphEdge } from "../interfaces";
 import type { LangGraphAgentOptions, AgentMetadata } from "./agent.decorator";
+import { getAgentMetadata } from "./agent.decorator";
 
 /** The lowered pieces Task 12 needs to register providers for an agent. */
 export interface LoweredAgent {
@@ -245,4 +247,38 @@ export function lowerAgent(def: Type<any>): LoweredAgent {
     wrapModelMiddleware: b.wrapModelMiddleware,
     wrapToolMiddleware: b.wrapToolMiddleware,
   };
+}
+
+/**
+ * The DI providers a `@LangGraphAgent` needs so {@link GraphRegistry} can
+ * resolve its generated nodes and the internally-bound model: every generated
+ * node class (`lowerAgent`'s `generatedNodes`), every middleware class the
+ * agent references — both node-hook middleware (resolved by generated hook
+ * nodes) and wrap middleware (resolved by `CallModelNode`/tool-wrap, plus the
+ * internal `systemPrompt` middleware, which only shows up in
+ * `wrapModelMiddleware`) — and a `provideGraphBoundModel` binding under the
+ * agent's internal per-agent model token. Spread into `forFeature`'s
+ * `providers` alongside the graph definition class itself.
+ */
+export function agentProviders(def: Type<any>): Provider[] {
+  const lowered = lowerAgent(def);
+  const meta = getAgentMetadata(def);
+  if (!meta) {
+    throw new Error(
+      `${(def as { name?: string })?.name ?? String(def)} is not a @LangGraphAgent-decorated class`,
+    );
+  }
+  const userMw = (meta.middleware ?? []).map((e) => normalizeMiddleware(e).use);
+  const allMw = Array.from(
+    new Set([...userMw, ...lowered.wrapModelMiddleware, ...lowered.wrapToolMiddleware]),
+  );
+  return [
+    ...lowered.generatedNodes,
+    ...allMw,
+    provideGraphBoundModel({
+      provide: lowered.modelToken,
+      graph: def,
+      model: meta.model,
+    }),
+  ];
 }
