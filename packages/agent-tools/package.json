@@ -73,6 +73,7 @@
     "zod": "3.25.76"
   },
   "dependencies": {
-    "ml-distance": "^4.0.1"
+    "ml-distance": "^4.0.1",
+    "node-html-markdown": "^2.0.0"
   }
 }
