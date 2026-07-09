@@ -1,10 +1,5 @@
-import { HumanMessage, AIMessage, ToolMessage, isHumanMessage } from "@langchain/core/messages";
+import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { computeFold } from "../middleware/compaction-cut";
-
-const pinFirstHuman = (() => {
-  let seen = false;
-  return (m: any) => { if (!seen && isHumanMessage(m)) { seen = true; return true; } return false; };
-})();
 
 function convo() {
   return [
