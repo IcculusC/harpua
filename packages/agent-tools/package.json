@@ -71,5 +71,8 @@
     "typescript": "5.9.3",
     "unpdf": "1.6.2",
     "zod": "3.25.76"
+  },
+  "dependencies": {
+    "ml-distance": "^4.0.1"
   }
 }
