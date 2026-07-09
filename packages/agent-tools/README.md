@@ -170,6 +170,46 @@ const toolNode = new ToolNode([
 installed the tool returns an install hint instead of throwing, so the rest of
 your graph keeps working without it.
 
+### Knowledge — `search_knowledge`
+
+Semantic-ish retrieval over a directory of markdown — the same `sources`
+directory `fetch_url` and `fetch_pdf` fill. Chunks are heading-aware with
+true line spans; vectors live in a hidden sidecar (`.knowledge/index.json`)
+that refreshes lazily on every search (only new/changed files re-embed).
+Results carry `file.md:start-end` references that feed `read_lines`.
+
+Keyless by default: the built-in `MockEmbeddings` is a deterministic
+lexical stand-in (word overlap, not meaning). For real semantic search,
+pass any LangChain embeddings instance:
+
+```ts
+import { searchKnowledgeTool, webResearchTools, fileExplorationTools } from "@harpua/agent-tools";
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { ToolNode } from "@langchain/langgraph/prebuilt";
+import fs from "node:fs";
+
+const sources = "./sources";
+fs.mkdirSync(sources, { recursive: true });
+
+const embeddings = new OpenAIEmbeddings({
+  model: "nomic-ai/nomic-embed-text-v1",
+  apiKey: process.env.OPENROUTER_API_KEY,
+  configuration: { baseURL: "https://openrouter.ai/api/v1" },
+});
+
+const toolNode = new ToolNode([
+  ...webResearchTools({ baseUrl: "http://localhost:8080", saveDir: sources }),
+  ...fileExplorationTools({ root: sources }),
+  searchKnowledgeTool({ root: sources, embeddings }),
+]);
+```
+
+Switching embedders (or from the mock to a real one) is detected via a
+fingerprint and triggers a clean re-index — vector spaces never mix. The
+index is a cache: delete `.knowledge/` any time; markdown stays the source
+of truth. First runtime dependency alert: this family adds `ml-distance`
+(pure JS) for cosine similarity.
+
 ## Using with `@harpua/langgraph`
 
 [`@harpua/langgraph`](../langgraph) accepts these tools directly in a graph's
