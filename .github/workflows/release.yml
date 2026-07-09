@@ -18,6 +18,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # ripgrep backs @harpua/agent-tools' file-exploration + web-research tools;
+      # the pre-publish `build lint test` gate below runs their specs, which
+      # shell out to `rg` (matches ci.yml). Without it the release gate fails.
+      - name: Install ripgrep
+        run: sudo apt-get update && sudo apt-get install -y ripgrep
+
       # Enable Corepack so the pnpm version pinned by `packageManager` is used (matches ci.yml).
       - name: Enable Corepack
         run: corepack enable
