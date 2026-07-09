@@ -49,10 +49,7 @@ describe("RetryMiddleware", () => {
   });
 
   it("rethrows non-retryable error immediately", async () => {
-    let callCount = 0;
-
     const next = jest.fn(async () => {
-      callCount++;
       throw new Error("Non-retryable error");
     });
 
@@ -78,11 +75,9 @@ describe("RetryMiddleware", () => {
   });
 
   it("rethrows after maxRetries exhausted", async () => {
-    let callCount = 0;
     let backoffCallCount = 0;
 
     const next = jest.fn(async () => {
-      callCount++;
       throw new Error("Persistent error");
     });
 
