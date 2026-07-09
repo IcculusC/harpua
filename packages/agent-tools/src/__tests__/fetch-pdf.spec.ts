@@ -78,9 +78,10 @@ describe("fetch_pdf", () => {
   // loader-side fallback can dodge the flag either. Rather than bend the
   // whole test runtime around one dependency, jest never loads the real
   // module: the PDF bytes still flow through the full fetch → guard →
-  // content-type check → save pipeline, and the real ESM import path is
-  // covered outside jest by the plain-node dist smoke check
-  // (`import("unpdf")` from the built output).
+  // content-type check → save pipeline, but the real ESM `import("unpdf")`
+  // path in load-unpdf.ts is intentionally not exercised under jest at all —
+  // there is no automated smoke check for it. It was manually verified
+  // against the built `dist` output (see load-unpdf.ts's own comment).
   it("extracts a PDF's text and saves it as markdown", async () => {
     const bytes = makePdf("Hello LM317 datasheet");
     const pdfFetch: FetchFn = async () => pdfResponse(bytes);

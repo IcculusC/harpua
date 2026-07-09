@@ -79,6 +79,15 @@ describe("search_knowledge", () => {
     expect(String((out as { content?: unknown })?.content ?? out)).toContain("lm317.md");
   });
 
+  it("excludes non-finite scores from ranking (never prints score NaN)", async () => {
+    seed();
+    // MockEmbeddings tokenizes on [a-z0-9]+, so a punctuation-only query embeds
+    // to the zero vector; cosine similarity against it is NaN for every chunk.
+    const out = await runTool(searchKnowledgeTool({ root }), { query: "!!! --- ???" });
+    expect(out).not.toMatch(/score NaN/i);
+    expect(out).not.toMatch(/NaN/);
+  });
+
   it("returns embedder failures as friendly strings", async () => {
     seed();
     const failing = {

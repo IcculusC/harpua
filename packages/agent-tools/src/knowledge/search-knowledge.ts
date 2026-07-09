@@ -66,13 +66,18 @@ export function searchKnowledgeTool(
         return `search_knowledge: indexing the sources failed (${errorMessage(err)}).`;
       }
 
-      const scored = Object.entries(sync.index.files).flatMap(([file, entry]) =>
-        entry.chunks.map((chunk) => ({
-          file,
-          chunk,
-          score: similarity.cosine(queryVector, chunk.vector),
-        })),
-      );
+      const scored = Object.entries(sync.index.files)
+        .flatMap(([file, entry]) =>
+          entry.chunks.map((chunk) => ({
+            file,
+            chunk,
+            score: similarity.cosine(queryVector, chunk.vector),
+          })),
+        )
+        // NaN shows up when either vector has zero magnitude (e.g. a
+        // punctuation-only query, or an empty chunk) — cosine is undefined
+        // there, so exclude it rather than let it sort/print as "score NaN".
+        .filter((s) => Number.isFinite(s.score));
 
       if (scored.length === 0) {
         return (
