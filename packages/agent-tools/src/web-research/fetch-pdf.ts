@@ -82,8 +82,11 @@ export function fetchPdfTool(
       }
 
       let text: string;
+      let totalPages: number;
       try {
-        ({ text } = await unpdf.extractText(read.bytes, { mergePages: true }));
+        ({ text, totalPages } = await unpdf.extractText(read.bytes, {
+          mergePages: true,
+        }));
       } catch (err) {
         return `fetch_pdf: could not extract text from the PDF (${errorMessage(err)}).`;
       }
@@ -99,10 +102,13 @@ export function fetchPdfTool(
         return `fetch_pdf: could not save the page (${errorMessage(err)}).`;
       }
 
-      const lineCount = text.split("\n").length;
+      // Extracted PDF text is often one long run with no newlines, so a line
+      // count (fetch_url's metric) would be nonsensical here — report the
+      // extracted size in chars/pages instead.
       const label = `${finalUrl.host}${finalUrl.pathname}`;
+      const pageWord = totalPages === 1 ? "page" : "pages";
       return (
-        `Saved "${label}" (${lineCount} lines) to ${saved}.\n` +
+        `Saved "${label}" (${text.length.toLocaleString()} chars, ${totalPages} ${pageWord}) to ${saved}.\n` +
         "Search it with search_files or read it with read_lines."
       );
     },
