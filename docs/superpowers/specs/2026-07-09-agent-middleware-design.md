@@ -76,7 +76,7 @@ Those three powers are forced by the four canonical middlewares — the contract
 | ModelSelect | swap `request.model`, `next` ×1 |
 | HIL | `interrupt()`, `next` ×0 or ×1 |
 
-**Reserved loop state.** The preset merges a `loop` channel into the agent's state: `{ iteration; modelCalls; toolCalls; tokens; startedAt }` — reducer-backed and **persisted** (survives interrupt/resume and checkpointing). The generated `CallModelNode` / `ToolNode` increment it each cycle; middleware read it via `ctx.loop`. It is an **ordinary channel** — on eject, the increment logic lives in the (now-visible) nodes, fully editable. "Preset-owned" only means the preset writes it *while you use the preset*.
+**Reserved loop state.** The preset merges a `loop` channel into the agent's state: `{ iteration; modelCalls; toolCalls; tokens; startedAt }` — reducer-backed and **persisted** (survives interrupt/resume and checkpointing). The generated `CallModelNode` / `ToolNode` increment it each cycle; middleware read it via `ctx.loop`. `tokens` is sourced from the model response's `usage_metadata.total_tokens` — which the real arms (OpenRouter / ChatOpenAI / Ollama) emit but `MockChatModel` / the scripted model do not, so `Budget.maxTokens` is untestable in mock mode until the mock emits usage (see Testing). It is an **ordinary channel** — on eject, the increment logic lives in the (now-visible) nodes, fully editable. "Preset-owned" only means the preset writes it *while you use the preset*.
 
 ## The `@LangGraphAgent` preset
 
@@ -98,8 +98,8 @@ export class SupportAgent {}
 |---|---|
 | `model` + `tools` | default `CallModelNode` (invoke bound model, append reply, bump `loop`) + `ToolNode` + the loop edges |
 | `middleware` node hooks | inserted nodes (`beforeAgent`/`beforeModel`/`afterModel`/`afterAgent`), ordered by array position |
-| `middleware` wrap hooks | composed wrappers on the bound model / each tool (`provideGraphBoundModel` + OTel-proxy seams) — not nodes |
-| `systemPrompt` | a `beforeModel` prepend (sugar) |
+| `middleware` wrap hooks | composed wrappers on the bound model / each tool (`provideGraphBoundModel` + OTel-proxy seams) — not nodes; nested in array order (first = outermost) |
+| `systemPrompt` | a `beforeModel` prepend (sugar), ordered first among `beforeModel` hooks |
 | `responseFormat` | appended `StructuredResponseNode` between loop-exit and `END` |
 | `state` | + reserved reducer-backed `loop` channel |
 
@@ -109,7 +109,9 @@ export class SupportAgent {}
 - **Nest** — the agent is one node in a larger `@LangGraph`; wire custom edges *around* it. Middleware declared on the agent apply inside it; the parent treats it as one box.
 - **Eject-and-inline** — drop to the explicit form and interleave custom nodes *inside* the loop.
 
-**Targeting / ordering** — bare `Provider` for the common case (loop hooks auto-target model/tools). `{ use: Provider, on: NodeRef }` points a middleware at a specific node (custom or generated). Node-hook insertion order = array order.
+**Targeting / ordering** — bare `Provider` for the common case (loop hooks auto-target model/tools). `{ use: Provider, on: NodeRef }` points a middleware at a specific node (custom or generated).
+
+**One ordering rule for both mechanisms: array order = onion, first = outermost.** Earlier in the `middleware` array runs first on the way *in* and last on the way *out*. For node hooks that means the earlier middleware's inserted node runs first. For wrap hooks it means the earlier middleware wraps the later one: `[A, B]` composes to `A.wrap(B.wrap(callable))`, so `A` sees the request first and the response last. This is why `[Retry, ModelSelect]` re-selects the model on every attempt (Retry outer) while `[ModelSelect, Retry]` retries against a fixed model — the array position *is* the control. `systemPrompt` lowers to a `beforeModel` prepend that is ordered **first**, ahead of any user `beforeModel` middleware, so the system message is in place before RAG / compaction / model-select run and user middleware can always see and rewrite around it.
 
 ### `responseFormat` → `StructuredResponseNode`
 
@@ -180,6 +182,8 @@ Leaning on `@harpua/langgraph-testing`:
 
 `responseFormat` uses `model.withStructuredOutput`, which the real arms (OpenRouter / ChatOpenAI / Ollama) support but the **`MockChatModel` and the testing scripted-model do not** — so `responseFormat` would break in mock mode *and* be untestable. v1 resolution: keep `withStructuredOutput` as the mechanism (it's the standard) and **extend `MockChatModel` + the scripted-model builder to implement it** (return a scripted / canned structured value). We need this for the integration tests regardless, and it doubles as making `responseFormat` work in mock mode. Document that `responseFormat` requires a structured-output-capable model; a pluggable coercer is a follow-up if anyone hits a model without it.
 
+The **same mock extension** also teaches `MockChatModel` / the scripted model to emit **`usage_metadata`** (a scripted token count per reply). Without it `loop.tokens` stays zero in mock mode and `Budget.maxTokens` can't be exercised — one mock-capability change, two payoffs (`withStructuredOutput` + usage), both on the v1 critical path.
+
 ## HIL — paper-witness, not migrated
 
 The shipped approval gate is conceptually a `wrapToolCall` middleware (intercept a tool, pause via `interrupt`, resume). It is **not** migrated in v1 — it's public API since 0.1.3, so migration is a breaking change or a shim. It earns its keep as the *witness* that the wrap contract must support a **0-call short-circuit** (decline → return a synthetic result without executing the tool) and **`interrupt()` from inside a wrap** (approval). Note it is a *callable-wrap*, not a node — that per-tool granularity (only gated tools pause; the rest run in the same turn) is exactly what a node-based gate would lose. Migration onto the middleware API is a follow-up, with a deprecation path.
@@ -209,8 +213,9 @@ CAG also surfaced a hard requirement already baked into the contract above: `wra
 - v1 scope = substrate + Budget + Retry (not the full wave, not HIL migration, not LC interop).
 - Loop bookkeeping lives in **persisted state**, preset-owned, fully ejectable.
 - Wrap contract = `(request, next)` with a **mutable request**, `next` callable **0..N**, and `interrupt()` reachable.
-- `systemPrompt` is preset **sugar** lowering to a `beforeModel` prepend.
-- `responseFormat` uses `withStructuredOutput`; the mock + scripted models are extended to support it.
+- `systemPrompt` is preset **sugar** lowering to a `beforeModel` prepend, ordered first.
+- **One ordering rule for node hooks and wrap hooks alike: array order = onion, first = outermost.**
+- `responseFormat` uses `withStructuredOutput`; the mock + scripted models are extended to support it **and** to emit `usage_metadata` so `loop.tokens` / `Budget.maxTokens` are testable in mock mode.
 - The agent preset is **generated-but-addressable** (default), not opaque; full eject is available.
 
 ## Deferred
