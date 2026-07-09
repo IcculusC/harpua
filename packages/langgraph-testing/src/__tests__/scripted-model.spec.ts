@@ -166,4 +166,24 @@ describe("ruleModel (match on latest turn)", () => {
       action: "cancel_order",
     });
   });
+
+  it("forwards usage_metadata on a plain-text rule reply", async () => {
+    const usage: UsageMetadata = { input_tokens: 3, output_tokens: 4, total_tokens: 7 };
+    const Model = ruleModel()
+      .onHuman(/./, { text: "hi", usage })
+      .build();
+    const model = new Model();
+    const message = await model.invoke([new HumanMessage("anything")]);
+    expect(message.usage_metadata).toEqual(usage);
+  });
+
+  it("forwards usage_metadata on a tool-call rule reply", async () => {
+    const usage: UsageMetadata = { input_tokens: 3, output_tokens: 4, total_tokens: 7 };
+    const Model = ruleModel()
+      .onHuman(/./, { toolCalls: [{ name: "x", args: {} }], usage })
+      .build();
+    const model = new Model();
+    const message = await model.invoke([new HumanMessage("anything")]);
+    expect(message.usage_metadata).toEqual(usage);
+  });
 });
