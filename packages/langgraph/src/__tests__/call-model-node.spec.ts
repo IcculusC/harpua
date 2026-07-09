@@ -16,9 +16,10 @@ class RecordingMw {
 }
 
 const MODEL_TOKEN = "MODEL_TOKEN";
+const CLOCK_TOKEN = "CLOCK_TOKEN";
 
 describe("makeCallModelNode", () => {
-  it("appends the model reply and bumps loop bookkeeping", async () => {
+  it("appends the model reply and bumps loop bookkeeping, anchoring startedAt from the injected clock on the first turn", async () => {
     const fakeModel = {
       invoke: async () =>
         new AIMessage({
@@ -31,6 +32,7 @@ describe("makeCallModelNode", () => {
       get(token: unknown) {
         if (token === MODEL_TOKEN) return fakeModel;
         if (token === RecordingMw) return recordingMw;
+        if (token === CLOCK_TOKEN) return () => 7000;
         throw new Error(`unexpected token: ${String(token)}`);
       },
     };
@@ -38,6 +40,7 @@ describe("makeCallModelNode", () => {
     const CallModelNode = makeCallModelNode({
       modelToken: MODEL_TOKEN,
       wrapMiddleware: [RecordingMw],
+      clockToken: CLOCK_TOKEN,
     });
     const node = new CallModelNode(stubModuleRef as any);
 
@@ -50,14 +53,58 @@ describe("makeCallModelNode", () => {
     expect(result.messages).toHaveLength(1);
     const reply = result.messages![0] as AIMessage;
     expect(reply.content).toBe("hi");
+    // startedAt was the un-anchored 0 sentinel -> stamped from the clock.
     expect(result.loop).toEqual({
       iteration: 1,
       modelCalls: 1,
       toolCalls: 0,
       tokens: 3,
-      startedAt: 0,
+      startedAt: 7000,
     });
     expect(recordingMw.ran).toBe(true);
+  });
+
+  it("preserves an already-anchored startedAt instead of overwriting it with the clock", async () => {
+    const fakeModel = {
+      invoke: async () =>
+        new AIMessage({
+          content: "hi",
+          usage_metadata: { input_tokens: 1, output_tokens: 2, total_tokens: 3 },
+        }),
+    };
+    const recordingMw = new RecordingMw();
+    const stubModuleRef = {
+      get(token: unknown) {
+        if (token === MODEL_TOKEN) return fakeModel;
+        if (token === RecordingMw) return recordingMw;
+        if (token === CLOCK_TOKEN) return () => 7000;
+        throw new Error(`unexpected token: ${String(token)}`);
+      },
+    };
+
+    const CallModelNode = makeCallModelNode({
+      modelToken: MODEL_TOKEN,
+      wrapMiddleware: [RecordingMw],
+      clockToken: CLOCK_TOKEN,
+    });
+    const node = new CallModelNode(stubModuleRef as any);
+
+    // A prior turn (or a beforeAgent hook) already anchored startedAt at 100.
+    const result = await node.run(
+      {
+        messages: [new HumanMessage("q")],
+        loop: { ...AGENT_LOOP_DEFAULT, iteration: 1, modelCalls: 1, startedAt: 100 },
+      },
+      {} as any,
+    );
+
+    expect(result.loop).toEqual({
+      iteration: 2,
+      modelCalls: 2,
+      toolCalls: 0,
+      tokens: 3,
+      startedAt: 100,
+    });
   });
 
   it("reconstructs an AIMessage from a non-AIMessage chunk, preserving tool_calls, usage_metadata, and id", async () => {

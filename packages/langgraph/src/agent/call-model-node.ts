@@ -14,6 +14,8 @@ export interface CallModelNodeConfig {
   modelToken: InjectionToken;
   /** `wrapModelCall` middleware classes, in onion order (first = outermost). */
   wrapMiddleware: Type<any>[];
+  /** DI token resolving the clock (`() => number`); defaults to `Date.now`. */
+  clockToken?: InjectionToken;
 }
 
 /**
@@ -21,7 +23,11 @@ export interface CallModelNodeConfig {
  * the bound model and `wrapModelCall` middleware via `ModuleRef`, composes the
  * wrap onion around the model invocation, appends the reply to `messages`, and
  * bumps the `loop` bookkeeping (absolute values — the `loop` channel is
- * LastValue, so partial state here fully replaces it).
+ * LastValue, so partial state here fully replaces it). The first model turn
+ * also anchors `loop.startedAt` from the clock (never overwriting a non-zero
+ * value a `beforeAgent` hook may already have stamped), so Budget's wall-time
+ * budget has a start reference even for an agent with no `beforeAgent`
+ * middleware — mirroring `makeHookNode`'s injectable-clock handling.
  */
 export function makeCallModelNode(
   cfg: CallModelNodeConfig,
@@ -37,6 +43,9 @@ export function makeCallModelNode(
       const model = this.moduleRef.get<GraphBoundModel>(cfg.modelToken, {
         strict: false,
       });
+      const clock = cfg.clockToken
+        ? this.moduleRef.get<() => number>(cfg.clockToken, { strict: false })
+        : () => Date.now();
       const mws = cfg.wrapMiddleware.map((c) =>
         this.moduleRef.get(c, { strict: false }),
       );
@@ -71,6 +80,7 @@ export function makeCallModelNode(
         iteration: prev.iteration + 1,
         modelCalls: prev.modelCalls + 1,
         tokens: prev.tokens + (reply.usage_metadata?.total_tokens ?? 0),
+        startedAt: prev.startedAt || clock(),
       };
 
       return { messages: [reply], loop };
