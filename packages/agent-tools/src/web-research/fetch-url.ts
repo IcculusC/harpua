@@ -8,8 +8,8 @@ import {
   type FetchUrlToolOptions,
 } from "./options";
 import { errorMessage } from "./errors";
+import { fetchGuarded, readTextCapped } from "./fetch-guarded";
 import { htmlToMarkdown } from "./html-to-markdown";
-import { isPrivateAddress } from "./private-address";
 import { savePage } from "./save-page";
 
 const DESCRIPTION =
@@ -48,60 +48,19 @@ export function fetchUrlTool(
 
   return tool(
     async ({ url: input }, config?: RunnableConfig) => {
-      let url: URL;
-      try {
-        url = new URL(input);
-      } catch {
-        return `fetch_url: "${input}" is not a valid URL.`;
-      }
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return `fetch_url: only http(s) URLs are supported (got "${url.protocol}").`;
-      }
-      if (!opts.allowPrivate && isPrivateAddress(url.hostname)) {
-        return (
-          `fetch_url: refusing to fetch the private/loopback address ` +
-          `"${url.hostname}" — set allowPrivate: true if this is intentional.`
-        );
-      }
+      const guarded = await fetchGuarded("fetch_url", input, {
+        allowPrivate: opts.allowPrivate,
+        timeoutMs: opts.timeoutMs,
+        maxResponseBytes: opts.maxResponseBytes,
+        fetchFn: opts.fetchFn,
+      });
+      if (!guarded.ok) return guarded.error;
+      const { finalUrl, contentType, response } = guarded;
 
-      let response;
-      try {
-        response = await opts.fetchFn(url.toString(), {
-          signal: AbortSignal.timeout(opts.timeoutMs),
-        });
-      } catch (err) {
-        return `fetch_url: request failed (${errorMessage(err)}).`;
-      }
-
-      if (!response.ok) {
-        return `fetch_url: ${url.toString()} returned HTTP ${response.status}.`;
-      }
-
-      // Redirects are followed by the underlying fetch; re-check where we
-      // actually landed so a public URL can't 302 past the private-address
-      // guard, and so provenance records the real source.
-      let finalUrl = url;
-      if (response.url) {
-        try {
-          finalUrl = new URL(response.url);
-        } catch {
-          finalUrl = url;
-        }
-      }
-      if (!opts.allowPrivate && finalUrl.hostname !== url.hostname &&
-          isPrivateAddress(finalUrl.hostname)) {
-        return (
-          `fetch_url: ${url.toString()} redirected to the private/loopback ` +
-          `address "${finalUrl.hostname}" — refused (set allowPrivate: true ` +
-          `if this is intentional).`
-        );
-      }
-
-      const contentType = (response.headers.get("content-type") ?? "").toLowerCase();
       if (contentType.includes("application/pdf")) {
         return (
-          `fetch_url: ${url.toString()} is a PDF — PDFs aren't supported yet; ` +
-          "only HTML and plain-text pages can be saved."
+          `fetch_url: ${finalUrl.toString()} is a PDF — fetch_url only saves ` +
+          "HTML and plain-text pages. Use the opt-in fetch_pdf tool for PDFs."
         );
       }
       const isHtml = contentType.includes("text/html");
@@ -113,36 +72,12 @@ export function fetchUrlTool(
         );
       }
 
-      // Prefer the declared size so an oversize body is refused before it is
-      // read. When the server omits content-length (e.g. chunked responses)
-      // the body-size check below is the fallback — note it buffers the whole
-      // body first, so it bounds what we SAVE, not peak memory. A hard memory
-      // bound would need a streaming reader on FetchResponseLike.
-      const declared = Number(response.headers.get("content-length") ?? "");
-      if (Number.isFinite(declared) && declared > opts.maxResponseBytes) {
-        return (
-          `fetch_url: response is ${declared} bytes, over the ` +
-          `${opts.maxResponseBytes}-byte limit.`
-        );
-      }
-
-      let body: string;
-      try {
-        body = await response.text();
-      } catch (err) {
-        return `fetch_url: could not read the response body (${errorMessage(err)}).`;
-      }
-      const bytes = Buffer.byteLength(body, "utf8");
-      if (bytes > opts.maxResponseBytes) {
-        return (
-          `fetch_url: response is ${bytes} bytes, over the ` +
-          `${opts.maxResponseBytes}-byte limit.`
-        );
-      }
+      const read = await readTextCapped("fetch_url", response, opts.maxResponseBytes);
+      if (!read.ok) return read.error;
 
       const { title, markdown } = isHtml
-        ? htmlToMarkdown(body)
-        : { title: undefined, markdown: body };
+        ? htmlToMarkdown(read.text)
+        : { title: undefined, markdown: read.text };
 
       const dir =
         typeof opts.saveDir === "function" ? opts.saveDir(config) : opts.saveDir;
