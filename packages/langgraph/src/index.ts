@@ -136,3 +136,22 @@ export type { LoopInfo, AgentExit } from "./middleware/loop-state";
 // module) — the plain export specifier carries both.
 export { BudgetMiddleware, BudgetOptions, BUDGET_OPTS, provideBudget } from "./middleware/budget.middleware";
 export { RetryMiddleware, RetryOptions, RETRY_OPTS, provideRetry } from "./middleware/retry.middleware";
+
+// Context management middleware family: durable compaction (fold) + the
+// cache-coherent render layout (view), plus a batteries-included bundle.
+export { CompactionMiddleware, provideCompaction } from "./middleware/compaction.middleware";
+export { ContextWindowMiddleware, provideContextWindow } from "./middleware/context-window.middleware";
+export { ManagedContextMiddleware, provideManagedContext } from "./middleware/managed-context.middleware";
+export { clearAgentExit } from "./middleware/clear-exit";
+export {
+  withCompactionState,
+  needsCompactionState,
+  CompactionSummarySchema,
+  COMPACTION_STATE,
+} from "./middleware/compaction-state";
+export { COMPACTION_OPTS, CompactionOptions } from "./middleware/compaction.options";
+export { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./middleware/context-window.options";
+export { MANAGED_CONTEXT_OPTS, ManagedContextOptions } from "./middleware/managed-context.options";
+export type { CompactionSummary } from "./middleware/compaction-state";
+export type { CompactionSignal } from "./middleware/compaction-signal";
+export type { TriggerSpec, CompactionStrategy } from "./middleware/compaction.options";

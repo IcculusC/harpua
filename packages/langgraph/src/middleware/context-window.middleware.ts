@@ -1,4 +1,5 @@
 import { Inject, type Provider } from "@nestjs/common";
+import type { z } from "zod";
 import { isHumanMessage, type AIMessage, type BaseMessage } from "@langchain/core/messages";
 import { LangGraphMiddleware } from "./middleware.decorator";
 import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
@@ -37,8 +38,10 @@ export class ContextWindowMiddleware implements LangGraphMiddlewareContract {
   }
 }
 
-/** Providers for a ContextWindow view middleware. */
-export function provideContextWindow(opts: ContextWindowOptions): Provider[] {
+/** Providers for a ContextWindow view middleware.
+ *  Takes the INPUT type (`cacheHints`/`evictToolOutputs` default) since
+ *  `.parse()` below fills defaults — callers pass partial literals. */
+export function provideContextWindow(opts: z.input<typeof ContextWindowOptions>): Provider[] {
   const parsed = ContextWindowOptions.parse(opts);
   return [{ provide: CONTEXT_WINDOW_OPTS, useValue: parsed }, ContextWindowMiddleware];
 }

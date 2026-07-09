@@ -1,4 +1,5 @@
 import { type Provider } from "@nestjs/common";
+import type { z } from "zod";
 import type { AIMessage } from "@langchain/core/messages";
 import { LangGraphMiddleware } from "./middleware.decorator";
 import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
@@ -28,8 +29,10 @@ export class ManagedContextMiddleware implements LangGraphMiddlewareContract {
   }
 }
 
-/** Providers for the batteries-included ManagedContext middleware. */
-export function provideManagedContext(opts: ManagedContextOptions): Provider[] {
+/** Providers for the batteries-included ManagedContext middleware.
+ *  Takes the INPUT type (defaulted fields optional) since `.parse()` below
+ *  fills defaults — callers pass partial literals. */
+export function provideManagedContext(opts: z.input<typeof ManagedContextOptions>): Provider[] {
   const parsed = ManagedContextOptions.parse(opts);
   const compactionOpts = CompactionOptions.parse(parsed);
   const windowOpts = ContextWindowOptions.parse(parsed);

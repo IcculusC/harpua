@@ -1,5 +1,6 @@
 import { Inject, type Provider } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
+import type { z } from "zod";
 import { RemoveMessage, isHumanMessage, type BaseMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { LangGraphMiddleware } from "./middleware.decorator";
@@ -48,8 +49,10 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
   }
 }
 
-/** Providers for a drop/summarize compaction middleware. */
-export function provideCompaction(opts: CompactionOptions): Provider[] {
+/** Providers for a drop/summarize compaction middleware.
+ *  Takes the INPUT type (`strategy` defaults to "drop") since `.parse()`
+ *  below fills defaults — callers pass partial literals. */
+export function provideCompaction(opts: z.input<typeof CompactionOptions>): Provider[] {
   const parsed = CompactionOptions.parse(opts);
   return [{ provide: COMPACTION_OPTS, useValue: parsed }, CompactionMiddleware];
 }
