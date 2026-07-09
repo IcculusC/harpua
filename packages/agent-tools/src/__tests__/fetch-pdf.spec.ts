@@ -93,16 +93,19 @@ describe("fetch_pdf", () => {
       loadUnpdf: async () => ({
         extractText: async () => ({
           totalPages: 1,
-          text: extracted,
+          text: [extracted],
         }),
       }),
     });
 
     const out = await runTool(tool, { url: "https://ti.com/lm317.pdf" });
     expect(out).toMatch(/search_files|read_lines/);
-    // Extracted PDF text has no newlines, so the summary must report chars/pages,
-    // not a nonsensical "1 lines" derived from splitting on "\n".
-    expect(out).toContain(`(${extracted.length.toLocaleString()} chars, 1 page)`);
+    // The summary reports the saved markdown's size (page headings included)
+    // in chars/pages — never a line count.
+    const savedMarkdown = `## Page 1\n\n${extracted}`;
+    expect(out).toContain(
+      `(${savedMarkdown.length.toLocaleString()} chars, 1 page)`,
+    );
     expect(out).not.toMatch(/\blines\)/);
 
     const files = fs.readdirSync(dir);
@@ -110,13 +113,16 @@ describe("fetch_pdf", () => {
     const content = fs.readFileSync(path.join(dir, files[0]), "utf8");
     expect(content).toContain("url: https://ti.com/lm317.pdf");
     expect(content).toContain("fetched: 2026-07-08");
+    // Pages become h2 sections so the knowledge chunker sees real structure
+    // (page-sized chunks, "Page N" heading trails) instead of one giant
+    // blank-line-free paragraph.
+    expect(content).toContain("## Page 1");
     expect(content).toContain("Dropout voltage");
     expect(content).toContain("1.5 V typical");
   });
 
-  it("pluralizes the page count in the summary for multi-page PDFs", async () => {
+  it("pluralizes the page count and writes one heading per page", async () => {
     const bytes = makePdf("multi-page doc");
-    const extracted = "Page one content. Page two content. Page three content.";
     const pdfFetch: FetchFn = async () => pdfResponse(bytes);
     const tool = fetchPdfTool({
       saveDir: dir,
@@ -125,13 +131,63 @@ describe("fetch_pdf", () => {
       loadUnpdf: async () => ({
         extractText: async () => ({
           totalPages: 3,
-          text: extracted,
+          text: ["Page one content.", "Page two content.", "Page three content."],
         }),
       }),
     });
 
     const out = await runTool(tool, { url: "https://ti.com/lm317.pdf" });
-    expect(out).toContain(`(${extracted.length.toLocaleString()} chars, 3 pages)`);
+    expect(out).toMatch(/\(\d+ chars, 3 pages\)/);
+    const content = fs.readFileSync(
+      path.join(dir, fs.readdirSync(dir)[0]),
+      "utf8",
+    );
+    expect(content).toContain("## Page 1\n\nPage one content.");
+    expect(content).toContain("## Page 2\n\nPage two content.");
+    expect(content).toContain("## Page 3\n\nPage three content.");
+  });
+
+  it("skips blank pages but keeps true page numbers in the headings", async () => {
+    const bytes = makePdf("sparse doc");
+    const pdfFetch: FetchFn = async () => pdfResponse(bytes);
+    const tool = fetchPdfTool({
+      saveDir: dir,
+      fetchFn: pdfFetch,
+      now: FIXED_NOW,
+      loadUnpdf: async () => ({
+        extractText: async () => ({
+          totalPages: 3,
+          text: ["Intro text.", "   ", "Electrical specs."],
+        }),
+      }),
+    });
+
+    await runTool(tool, { url: "https://ti.com/sparse.pdf" });
+    const content = fs.readFileSync(
+      path.join(dir, fs.readdirSync(dir)[0]),
+      "utf8",
+    );
+    expect(content).toContain("## Page 1");
+    expect(content).not.toContain("## Page 2");
+    expect(content).toContain("## Page 3");
+  });
+
+  it("returns a friendly message (and saves nothing) when no text extracts", async () => {
+    const bytes = makePdf("scanned images only");
+    const pdfFetch: FetchFn = async () => pdfResponse(bytes);
+    const tool = fetchPdfTool({
+      saveDir: dir,
+      fetchFn: pdfFetch,
+      now: FIXED_NOW,
+      loadUnpdf: async () => ({
+        extractText: async () => ({ totalPages: 2, text: ["", "   "] }),
+      }),
+    });
+
+    const out = await runTool(tool, { url: "https://ti.com/scan.pdf" });
+    expect(out).toContain("no extractable text");
+    expect(out).toContain("2 pages");
+    expect(fs.readdirSync(dir)).toHaveLength(0);
   });
 
   it("returns an install hint when the optional unpdf peer is missing", async () => {
