@@ -3,8 +3,7 @@
 Framework-agnostic prebuilt [LangChain](https://github.com/langchain-ai/langchainjs)
 tools for agents. Each tool is a plain `tool()` instance, so it drops into any
 LangChain / LangGraph TypeScript app — a `ToolNode`, `createReactAgent`,
-`bindTools`, or your own executor. The package depends only on
-`@langchain/core` and `zod` (both peers): no NestJS, no LangGraph runtime.
+`bindTools`, or your own executor. Peer dependencies are `@langchain/core` and `zod`; the only runtime dependency is `ml-distance` (pure JS, cosine similarity for the knowledge family); still no NestJS, no LangGraph runtime.
 
 ## Install
 
