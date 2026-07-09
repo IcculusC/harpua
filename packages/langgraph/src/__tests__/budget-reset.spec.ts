@@ -1,4 +1,4 @@
-import { BudgetMiddleware, BudgetOptions, provideBudget } from "../middleware/budget.middleware";
+import { BudgetMiddleware, BudgetOptions } from "../middleware/budget.middleware";
 import { clearAgentExit } from "../middleware/clear-exit";
 import { AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "../middleware/loop-state";
 

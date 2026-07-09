@@ -12,7 +12,11 @@ export const BudgetOptions = z.object({
   maxWallMs: z.number().int().positive(),
   reset: z.enum(["invoke", "thread"]).default("invoke"),
 });
-export type BudgetOptions = z.infer<typeof BudgetOptions>;
+// INPUT type (not `z.infer`/output): `reset` has a `.default(...)`, so the
+// output type would make it required — but callers pass options WITHOUT
+// `reset` (the default fills it at `.parse()` time). Using `z.input` keeps
+// `reset` optional in the static type so those literals compile.
+export type BudgetOptions = z.input<typeof BudgetOptions>;
 
 export const BUDGET_OPTS = Symbol.for("@harpua/langgraph:BUDGET_OPTS");
 
@@ -26,7 +30,11 @@ export class BudgetMiddleware implements LangGraphMiddlewareContract {
   /** Per-invoke reset: zero the loop counters + clear a stuck exit at START so
    *  a long-lived thread never accumulates into a permanent exit. */
   beforeAgent(_ctx: MiddlewareContext<any>): Partial<any> | void {
-    if (this.opts.reset === "invoke") {
+    // `reset` is optional on the input type and `BudgetMiddleware` doesn't
+    // itself `.parse()` (only `provideBudget` does), so a raw-constructed
+    // instance could carry `reset: undefined` — treat that as the "invoke"
+    // default rather than silently no-opping.
+    if ((this.opts.reset ?? "invoke") === "invoke") {
       return { loop: AGENT_LOOP_DEFAULT, exit: AGENT_EXIT_DEFAULT };
     }
   }
