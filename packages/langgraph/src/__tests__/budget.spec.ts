@@ -81,11 +81,15 @@ describe("BudgetMiddleware", () => {
       maxWallMs: 1000,
     });
 
+    // `startedAt: 0` is the un-anchored sentinel (see beforeModel's doc
+    // comment) -- a real "loop started" stamp is always a positive clock
+    // reading, so this uses one to exercise the genuine wall-time-exceeded
+    // path rather than the "not yet anchored" skip.
     const ctx: MiddlewareContext<any> = {
       state: {},
-      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, startedAt: 0 },
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, startedAt: 500 },
       config: {},
-      now: () => 1000,
+      now: () => 1500,
       interrupt: () => undefined,
       exit: (meta) => ({ exit: { requested: true, meta } }),
     };
@@ -93,6 +97,30 @@ describe("BudgetMiddleware", () => {
     const result = await mw.beforeModel(ctx);
 
     expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget" } } });
+  });
+
+  it("does not trip the wall-time budget while startedAt is still the un-anchored 0 sentinel", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, startedAt: 0 },
+      config: {},
+      // A real epoch-millis clock reading dwarfs any sane maxWallMs; if `0`
+      // were treated as a real start time this would false-positive trip.
+      now: () => 1_700_000_000_000,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
   });
 
   it("returns undefined (falls through) when under all budget caps", async () => {

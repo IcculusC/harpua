@@ -87,9 +87,25 @@ export class LangGraphModule {
   /**
    * Registers graph definition classes as providers and creates one injectable
    * facade provider per graph (retrievable via `@InjectLangGraphRunnable`).
+   *
+   * `options.providers` are merged into THIS SAME `DynamicModule` instance —
+   * not the caller's own module — which matters for any `@LangGraphAgent`
+   * `middleware` that takes constructor-injected config (e.g. `provideBudget`/
+   * `provideRetry`'s `BUDGET_OPTS`/`RETRY_OPTS`). `agentProviders` auto-registers
+   * a `middleware: [...]` class into this DynamicModule's own provider list so
+   * the generated hook/wrap nodes can resolve it; standard Nest module
+   * encapsulation means that auto-registered copy CANNOT see providers declared
+   * in the caller's module (imports only expose a module's *exports* to its
+   * *importers*, never the reverse) even though a flat sibling registration in
+   * the caller's own `providers` array looks like it should be in scope. Pass
+   * the middleware's options providers here so they land in the same module the
+   * middleware class itself is instantiated in.
    */
-  static forFeature(graphDefs: Type<any>[]): DynamicModule {
-    const providers: Provider[] = [];
+  static forFeature(
+    graphDefs: Type<any>[],
+    options: { providers?: Provider[] } = {},
+  ): DynamicModule {
+    const providers: Provider[] = [...(options.providers ?? [])];
     const exports: any[] = [];
 
     for (const def of graphDefs) {

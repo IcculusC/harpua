@@ -23,11 +23,19 @@ export class BudgetMiddleware implements LangGraphMiddlewareContract {
 
   async beforeModel(ctx: MiddlewareContext<any>): Promise<Partial<any> | void> {
     const { iteration, toolCalls, tokens, startedAt } = ctx.loop;
+    // `startedAt` is only stamped by a `beforeAgent` hook (see `makeHookNode`);
+    // an agent whose `middleware` list has no `beforeAgent` implementer never
+    // gets one, so `startedAt` stays at the `AGENT_LOOP_DEFAULT` sentinel `0`.
+    // Diffing `ctx.now()` (real wall-clock millis) against that sentinel would
+    // read as an already-astronomically-exceeded wall time and trip on the
+    // very first call, regardless of `maxWallMs` — so treat "not yet anchored"
+    // as "not over the wall-time budget yet" rather than infinitely over it.
+    const wallExceeded = startedAt > 0 && ctx.now() - startedAt >= this.opts.maxWallMs;
     if (
       iteration >= this.opts.maxCycles ||
       toolCalls >= this.opts.maxToolCalls ||
       tokens >= this.opts.maxTokens ||
-      ctx.now() - startedAt >= this.opts.maxWallMs
+      wallExceeded
     ) {
       return ctx.exit({ reason: "budget" });
     }
