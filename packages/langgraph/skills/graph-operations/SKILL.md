@@ -7,7 +7,7 @@ description: Use when adding a tool, node, edge, graph, or subgraph to a NestJS 
 
 Classify what you're adding, read the one matching reference, then follow it. Don't skim the codebase to rediscover conventions the references already state.
 
-> **First, one intent check that overrides the table:** are you building a **model↔tools agent loop** — the model calls tools and you loop until it's done (a chat / ReAct / tool-using agent; anything that needs to "stop after N turns", avoid `GraphRecursionError`, retry the model, or trim/compact history)? Then read **`references/agents-and-middleware.md`** and use the `@LangGraphAgent` preset — do NOT hand-roll it as a `@LangGraph` graph plus a model-calling node. This is the single most common thing agents wrongly build from scratch.
+> **Quick intent check before the table:** building a **model↔tools agent loop** — the model calls tools and you loop until it's done (a chat / ReAct / tool-using agent; anything that needs to "stop after N turns", avoid `GraphRecursionError`, retry the model, or trim/compact history)? The toolkit ships the `@LangGraphAgent` preset + a middleware system for exactly this; **`references/agents-and-middleware.md`** shows how. Reaching for it saves assembling the loop — and the turn caps, retries, and trimming — by hand.
 
 | Adding… | Read |
 |---|---|

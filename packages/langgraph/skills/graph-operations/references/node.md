@@ -1,6 +1,6 @@
 # Adding a node and its edge
 
-> **Writing a `CallModel`-style node that invokes the chat model inside a tools loop?** Stop — the **`@LangGraphAgent`** preset generates that model-calling node, the `TOOLS` node, and the loop (plus turn/token guards and retries) for you. See **`references/agents-and-middleware.md`**. This recipe is for *other* nodes — deterministic steps, custom logic — not the agent's model-calling loop node.
+> **Writing a `CallModel`-style node that invokes the chat model inside a tools loop?** The **`@LangGraphAgent`** preset generates that model-calling node, the `TOOLS` node, and the loop (plus turn/token guards and retries) for you — see **`references/agents-and-middleware.md`**. This recipe is for *other* nodes — deterministic steps, custom logic — not the agent's model-calling loop node.
 
 A node is an `@Injectable` implementing `NodeHandler<TState>`. It declares **only the slice of state it touches**; the graph's composite state must be a structural superset, checked at compile time. `run(state, config?)` returns a `Partial<TState>` (or a promise of one) — the channels it wrote.
 

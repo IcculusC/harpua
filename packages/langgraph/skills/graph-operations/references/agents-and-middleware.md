@@ -1,6 +1,6 @@
 # Agents and middleware
 
-For a **model↔tools agent loop**, do NOT hand-write the loop (a `CallModel` node + `route(hasToolCalls)` + `TOOLS` edges) and do NOT hand-roll turn counters, try/catch retries, or message trimming inside a node. The toolkit ships a first-class preset and a middleware system for exactly this.
+For a **model↔tools agent loop**, the toolkit ships a first-class preset and a middleware system, so you don't have to assemble the loop — or the turn counters, try/catch retries, and message trimming — by hand.
 
 - **`@LangGraphAgent`** — a declarative model↔tools loop that lowers to the same primitives you'd hand-write (generated `CallModel` node, `TOOLS` node, conditional-edge loop) and is fully **ejectable**.
 - **`@LangGraphMiddleware`** — cross-cutting behavior (turn/token/wall caps, retries, history trimming, early-exit, logging) added as DI-provider middleware, not baked into a node.
@@ -55,7 +55,7 @@ export class KeywordStopMiddleware implements LangGraphMiddlewareContract {
   afterModel(ctx: MiddlewareContext<any>): Partial<any> | void {
     const last = ctx.state.messages.at(-1);
     if (isAIMessage(last) && String(last.content).includes(this.opts.stopWord)) {
-      return ctx.exit({ reason: "keyword" }); // ← the ONLY correct way to stop the loop early
+      return ctx.exit({ reason: "keyword" }); // ← how you stop the loop early
     }
   }
 }
@@ -73,12 +73,12 @@ export function provideKeywordStop(opts: KeywordStopOptions): Provider[] {
 
 `MiddlewareContext` gives `state` (readonly), `loop` (`{ iteration, modelCalls, toolCalls, tokens, startedAt }`), `config`, `now()` (injected clock), `interrupt(payload)`, and `exit(meta)`.
 
-## Gotchas — these are the traps
-- **Stop the loop with `ctx.exit(meta)` from a NODE hook.** It flips a reserved `exit` state flag that the loop's conditional edges route on. Do NOT `throw`, and do NOT return a LangGraph `Command({goto})` — a `Command` goto is *additive* with the node's static edge, so it will not short-circuit the loop.
-- **Trim / compact history in a `wrapModelCall`, NEVER a node.** The `messages` channel is append-only (`MessagesValue` reducer), so a node returning `{ messages: trimmed }` APPENDS, not replaces. In a wrap hook, change only the per-call request — `return next({ ...req, messages: trimmed })` — so the model sees fewer messages this turn while the persisted transcript stays intact. (`systemPrompt` sugar lowers to exactly such a wrap for the same reason.)
-- **Middleware option providers go in `forFeature([Agent], { providers: [...] })`, NOT the app module's top-level `providers`.** The middleware classes are DI-registered inside the agent's feature-module scope; a sibling registration at the app root is invisible to the agent's generated hook nodes, and `@Inject(...OPTS)` will fail to resolve at boot.
-- **The interface is `LangGraphMiddlewareContract`; the decorator is `LangGraphMiddleware`.** A TS `isolatedModules` constraint blocks exporting the same name as both a value and a type.
-- **`{ use, on }` node-scoped middleware is not supported in v1** — list the middleware class directly; the compiler throws on the `{ use, on }` form.
+## Good to know (the things that trip people up)
+- **Stopping the loop:** `ctx.exit(meta)` from a node hook flips a reserved `exit` state flag that the loop's conditional edges route on. Prefer it over `throw`ing or returning a LangGraph `Command({goto})` — a `Command` goto is *additive* with the node's static edge, so it won't short-circuit the loop.
+- **Trimming / compacting history:** do it in a `wrapModelCall`, not a node. The `messages` channel is append-only (`MessagesValue` reducer), so a node returning `{ messages: trimmed }` would *append*, not replace. In a wrap hook you change only the per-call request — `return next({ ...req, messages: trimmed })` — so the model sees fewer messages this turn while the persisted transcript stays intact. (`systemPrompt` sugar lowers to exactly such a wrap for the same reason.)
+- **Middleware option providers** belong in `forFeature([Agent], { providers: [...] })`, not the app module's top-level `providers`. The middleware classes are DI-registered inside the agent's feature-module scope; a registration at the app root is a different scope the agent's generated nodes can't see, so `@Inject(...OPTS)` won't resolve at boot.
+- **Two names:** the decorator is `LangGraphMiddleware`; the hook interface is `LangGraphMiddlewareContract` (a TS `isolatedModules` constraint blocks the same name for both).
+- **`{ use, on }` node-scoping** isn't in v1 — list the middleware class directly; the compiler rejects the `{ use, on }` form.
 
 ## `responseFormat` → typed `outcome`
 Set `responseFormat: <zod schema>` and a `StructuredResponseNode` coerces the final answer into `state.outcome` (a typed channel an outer graph can `route()` on). A `Budget`-forced stop routes through the same node, so even a graceful give-up yields a typed outcome.
