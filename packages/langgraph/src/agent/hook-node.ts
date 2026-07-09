@@ -12,8 +12,6 @@ export interface HookNodeConfig {
   hook: NodeHookName;
   /** The middleware class providing `hook`, resolved via `ModuleRef`. */
   middlewareClass: Type<any>;
-  /** Node id the hook's `ctx.exit()` routes to (the loop's canonical exit). */
-  exitTarget: string;
   /** DI token resolving the clock (`() => number`); defaults to `Date.now`. */
   clockToken?: InjectionToken;
 }
@@ -25,10 +23,10 @@ export interface HookNodeConfig {
  * `ModuleRef`, builds the hook's {@link MiddlewareContext}, and runs the hook.
  * The hook's `Partial<S>` (or `{}` for void) is returned as the node's state
  * patch — this includes a short-circuit via `ctx.exit()`, which just writes
- * the reserved `exit` channel rather than returning a `Command`; conditional
- * edges route on that channel. `beforeAgent` additionally stamps
- * `loop.startedAt` from the clock the first time it runs (never overwriting a
- * non-zero value already there).
+ * the reserved `exit` channel; an edge-level concern (a conditional edge
+ * reading `state.exit.requested`) does the actual routing to the loop's exit.
+ * `beforeAgent` additionally stamps `loop.startedAt` from the clock the first
+ * time it runs (never overwriting a non-zero value already there).
  */
 export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
   @Injectable()
@@ -48,7 +46,6 @@ export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
         state,
         config: config as LangGraphRunnableConfig,
         clock,
-        exitTarget: cfg.exitTarget,
       });
 
       const result = await mw[cfg.hook](ctx);

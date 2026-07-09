@@ -7,15 +7,15 @@ import { AGENT_LOOP_DEFAULT } from "./loop-state";
  * `afterModel`/`afterAgent`) receives: a read-only view of `state`, the
  * current `loop` bookkeeping, an injected clock (`now()`), a passthrough to
  * LangGraph's `interrupt()`, and `exit()` — the sanctioned way for a hook to
- * short-circuit the agent loop: it writes the reserved `exit` channel, which
- * the loop's conditional edges route on to the canonical exit node (the
- * `StructuredResponseNode` id when configured, else `END`).
+ * short-circuit the agent loop: it sets the reserved `exit` channel to
+ * `{ requested: true, meta }`. Actually routing to the loop's canonical exit
+ * is an edge-level concern (a conditional edge reads `state.exit.requested`),
+ * not the context's job.
  */
 export function buildMiddlewareContext<S>(args: {
   state: S;
   config: LangGraphRunnableConfig;
   clock: () => number;
-  exitTarget: string;
 }): MiddlewareContext<S> {
   return {
     state: args.state,

@@ -8,7 +8,6 @@ describe("buildMiddlewareContext", () => {
       state: { messages: [] },
       config: {} as any,
       clock: () => 12345,
-      exitTarget: "structured_response",
     });
 
     expect(ctx.now()).toBe(12345);
@@ -19,7 +18,6 @@ describe("buildMiddlewareContext", () => {
       state: { messages: [] },
       config: {} as any,
       clock: () => 0,
-      exitTarget: "structured_response",
     });
 
     const result = ctx.exit({ reason: "budget" });
@@ -34,7 +32,6 @@ describe("buildMiddlewareContext", () => {
       state: { messages: [] },
       config: {} as any,
       clock: () => 0,
-      exitTarget: "END",
     });
 
     const result = ctx.exit();
@@ -47,7 +44,6 @@ describe("buildMiddlewareContext", () => {
       state: { messages: [] },
       config: {} as any,
       clock: () => 0,
-      exitTarget: "END",
     });
 
     expect(ctx.loop).toEqual(AGENT_LOOP_DEFAULT);
@@ -76,7 +72,6 @@ describe("makeHookNode", () => {
     const HookNode = makeHookNode({
       hook: "beforeModel",
       middlewareClass: RecordingBeforeModelMw,
-      exitTarget: "structured_response",
       clockToken: CLOCK_TOKEN,
     });
     const node = new HookNode(stubModuleRef as any);
@@ -110,7 +105,6 @@ describe("makeHookNode", () => {
     const HookNode = makeHookNode({
       hook: "beforeAgent",
       middlewareClass: NoopBeforeAgentMw,
-      exitTarget: "END",
       clockToken: CLOCK_TOKEN,
     });
     const node = new HookNode(stubModuleRef as any);
@@ -133,7 +127,6 @@ describe("makeHookNode", () => {
     const HookNode = makeHookNode({
       hook: "beforeAgent",
       middlewareClass: NoopBeforeAgentMw,
-      exitTarget: "END",
       clockToken: CLOCK_TOKEN,
     });
     const node = new HookNode(stubModuleRef as any);
@@ -158,7 +151,6 @@ describe("makeHookNode", () => {
     const HookNode = makeHookNode({
       hook: "beforeAgent",
       middlewareClass: NoopBeforeAgentMw,
-      exitTarget: "END",
     });
     const node = new HookNode(stubModuleRef as any);
 
@@ -188,7 +180,6 @@ describe("makeHookNode", () => {
     const HookNode = makeHookNode({
       hook: "afterModel",
       middlewareClass: RecordingAfterModelMw,
-      exitTarget: "END",
     });
     const node = new HookNode(stubModuleRef as any);
 
