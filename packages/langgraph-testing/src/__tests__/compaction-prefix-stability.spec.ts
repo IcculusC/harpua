@@ -42,7 +42,7 @@ describe("compaction prefix stability", () => {
     harness = await createGraphTestingModule({
       graphs: [CpsAgent],
       providers: [{ provide: CHAT, useClass: Recorder }],
-      // MangedContextMiddleware's option tokens must live in forFeature's scope.
+      // ManagedContextMiddleware's option tokens must live in forFeature's scope.
       featureProviders: provideManagedContext({ triggerAt: { messages: 999 }, keepRecent: 4 }), // never folds here
     });
     const agent = harness.get(CpsAgent);
@@ -50,6 +50,11 @@ describe("compaction prefix stability", () => {
     // Two appends on one thread; no fold (trigger set absurdly high).
     await agent.invoke({ messages: [new HumanMessage("one")] }, { configurable: { thread_id: "cps" } });
     await agent.invoke({ messages: [new HumanMessage("two")] }, { configurable: { thread_id: "cps" } });
+
+    // Guard against a degenerate single-capture tautology: if the second model
+    // call never happened (harness change, response caching, short-circuit bug),
+    // captured[0] === captured[last] and the comparison below becomes x === x.
+    expect(captured.length).toBe(2);
 
     // The first call's rendered messages must be a prefix of the second call's.
     const first = prefixSignature(captured[0]);
