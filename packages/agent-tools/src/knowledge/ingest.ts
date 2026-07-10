@@ -46,8 +46,12 @@ export async function ingest(
   const { embeddings, store, maxChunkChars } = ingestOptionsSchema.parse(opts);
   const cap = maxChunkChars ?? DEFAULT_MAX_CHUNK_CHARS;
   const records: VectorRecord[] = [];
+  const explicitIds = new Set<string>();
 
   for (const doc of docs) {
+    // Mark every explicit-id doc for cleanup, even if it produces no chunks —
+    // re-ingesting a doc as empty should clear its prior records.
+    if (doc.id !== undefined) explicitIds.add(doc.id);
     const chunks = chunkMarkdown(doc.text, { maxChunkChars: cap });
     if (chunks.length === 0) continue;
     const baseId = doc.id ?? contentHash(doc.text);
@@ -55,6 +59,7 @@ export async function ingest(
     chunks.forEach((chunk, i) => {
       records.push({
         id: `${baseId}:${i}`,
+        documentKey: baseId,
         vector: vectors[i]!,
         text: chunk.text,
         metadata: {
@@ -67,6 +72,11 @@ export async function ingest(
     });
   }
 
+  // Hygiene: clear prior records for the explicit-id docs we're (re)writing, so
+  // a shrunk doc leaves no orphaned tail. After embedding (an embed failure
+  // throws before any store mutation); id-less docs are immutable-append and
+  // never cleared. The document key for an explicit doc is its id.
+  for (const id of explicitIds) await store.deleteByDocumentKey(id);
   if (records.length > 0) await store.upsert(records);
   return { upserted: records.length };
 }

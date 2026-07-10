@@ -1,5 +1,8 @@
 export interface VectorRecord {
+  /** Unique per chunk — the upsert identity (last write wins). */
   id: string;
+  /** Groups all chunks of one ingested document; the delete handle. */
+  documentKey: string;
   vector: number[];
   text: string;
   metadata?: Record<string, unknown>;
@@ -27,4 +30,10 @@ export interface BaseQueryOptions {
 export interface VectorStore<Q = Record<never, never>> {
   upsert(records: VectorRecord[]): Promise<void>;
   query(vector: number[], opts?: BaseQueryOptions & Partial<Q>): Promise<VectorMatch[]>;
+  /**
+   * Remove every record with the given `documentKey`. `ingest` clears a
+   * document's prior chunks before re-writing, so a shrunk document leaves no
+   * orphaned tail. Exact-match (an indexable equality), not a prefix scan.
+   */
+  deleteByDocumentKey(documentKey: string): Promise<void>;
 }

@@ -83,3 +83,41 @@ describe("ingest", () => {
     ).rejects.toThrow();
   });
 });
+
+describe("ingest shrink-correctness", () => {
+  it("clears the orphaned tail when an explicit-id doc is re-ingested smaller", async () => {
+    const store = new InMemoryVectorStore({ topK: 100 });
+    const long = "# H\n\n" + Array.from({ length: 30 }, (_, i) => `Para ${i} body text here.`).join("\n\n");
+    await ingest([{ id: "power.md", text: long }], { embeddings, store, maxChunkChars: 40 });
+    const before = (await store.query(await embeddings.embedQuery("body"), { topK: 100 })).length;
+    expect(before).toBeGreaterThan(1);
+
+    const short = "# H\n\nPara 0 body text here.";
+    const res = await ingest([{ id: "power.md", text: short }], { embeddings, store, maxChunkChars: 40 });
+    const ids = (await store.query(await embeddings.embedQuery("body"), { topK: 100 })).map((m) => m.id);
+    expect(ids.every((id) => id.startsWith("power.md:"))).toBe(true);
+    expect(ids.length).toBe(res.upserted);
+    expect(ids.length).toBeLessThan(before);
+  });
+
+  it("does NOT clear prior records for id-less (content-hash) docs", async () => {
+    const store = new InMemoryVectorStore({ topK: 100 });
+    await ingest([{ text: "# H\n\nFirst immutable excerpt." }], { embeddings, store });
+    const afterFirst = (await store.query(await embeddings.embedQuery("excerpt"), { topK: 100 })).length;
+    await ingest([{ text: "# H\n\nSecond different excerpt entirely." }], { embeddings, store });
+    const afterSecond = (await store.query(await embeddings.embedQuery("excerpt"), { topK: 100 })).length;
+    expect(afterSecond).toBeGreaterThan(afterFirst); // first survives — immutable-append
+  });
+
+  it("clears an explicit-id doc's records when re-ingested empty", async () => {
+    const store = new InMemoryVectorStore({ topK: 100 });
+    await ingest([{ id: "notes.md", text: "# H\n\nSome content to index." }], { embeddings, store });
+    expect((await store.query(await embeddings.embedQuery("content"), { topK: 100 })).length).toBeGreaterThan(0);
+    const res = await ingest([{ id: "notes.md", text: "   \n  \n" }], { embeddings, store });
+    expect(res.upserted).toBe(0);
+    const survivors = (await store.query(await embeddings.embedQuery("content"), { topK: 100 })).filter((m) =>
+      m.id.startsWith("notes.md:"),
+    );
+    expect(survivors).toHaveLength(0);
+  });
+});

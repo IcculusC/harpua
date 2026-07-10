@@ -1,6 +1,7 @@
 import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
+import { vectorStoreSchema } from "../knowledge/options";
 
-const rec = (id: string, vector: number[], text = id) => ({ id, vector, text });
+const rec = (id: string, vector: number[], text = id) => ({ id, documentKey: id, vector, text });
 
 describe("InMemoryVectorStore", () => {
   it("upserts then returns scored, sorted, top-K matches", async () => {
@@ -33,5 +34,25 @@ describe("InMemoryVectorStore", () => {
     await s.upsert([rec("a", [1, 0]), rec("c", [0, 1])]);
     const hits = await s.query([1, 0], { minScore: 0.5 });
     expect(hits.map((h) => h.id)).toEqual(["a"]); // c scores ~0
+  });
+
+  it("deleteByDocumentKey removes records with that key, leaves the rest", async () => {
+    const s = new InMemoryVectorStore({ topK: 50 });
+    await s.upsert([
+      { id: "a:0", documentKey: "a", vector: [1, 0], text: "a0" },
+      { id: "a:1", documentKey: "a", vector: [0.9, 0.1], text: "a1" },
+      { id: "b:0", documentKey: "b", vector: [0, 1], text: "b0" },
+    ]);
+    await s.deleteByDocumentKey("a");
+    const ids = (await s.query([1, 0], { topK: 50 })).map((m) => m.id).sort();
+    expect(ids).toEqual(["b:0"]);
+  });
+});
+
+describe("vectorStoreSchema", () => {
+  it("requires deleteByDocumentKey (rejects an upsert+query-only object)", () => {
+    const partial = { upsert: async () => {}, query: async () => [] };
+    expect(vectorStoreSchema.safeParse(partial).success).toBe(false);
+    expect(vectorStoreSchema.safeParse(new InMemoryVectorStore()).success).toBe(true);
   });
 });
