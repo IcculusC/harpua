@@ -46,6 +46,29 @@ describe("openrouter arm", () => {
     expect(model.temperature).toBe(0.4);
   });
 
+  it("passes sessionId through — env beats the arm-scoped default", () => {
+    const fromArm: any = buildChatModel(
+      defaultReg({ openrouter: { sessionId: "arm-session" } }),
+      {
+        MODEL_PROVIDER: "openrouter",
+        OPENROUTER_MODEL: "anthropic/claude-sonnet-4.5",
+        OPENROUTER_API_KEY: "sk-or-test",
+      },
+    );
+    expect(fromArm.sessionId).toBe("arm-session");
+
+    const fromEnv: any = buildChatModel(
+      defaultReg({ openrouter: { sessionId: "arm-session" } }),
+      {
+        MODEL_PROVIDER: "openrouter",
+        OPENROUTER_MODEL: "anthropic/claude-sonnet-4.5",
+        OPENROUTER_API_KEY: "sk-or-test",
+        OPENROUTER_SESSION_ID: "env-session",
+      },
+    );
+    expect(fromEnv.sessionId).toBe("env-session");
+  });
+
   it("takes model from arm-scoped defaults when env omits it", () => {
     const model: any = buildChatModel(
       defaultReg({ openrouter: { model: "meta-llama/llama-3.1-8b-instruct" } }),

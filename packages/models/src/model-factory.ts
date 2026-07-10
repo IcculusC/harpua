@@ -83,6 +83,9 @@ export function buildChatModel(
         ...(apiKey ? { apiKey } : {}),
         ...(temp !== undefined ? { temperature: temp } : {}),
         ...(or.siteUrl !== undefined ? { siteUrl: or.siteUrl } : {}),
+        ...((parsed.OPENROUTER_SESSION_ID ?? or.sessionId) !== undefined
+          ? { sessionId: parsed.OPENROUTER_SESSION_ID ?? or.sessionId }
+          : {}),
         ...(or.siteName !== undefined ? { siteName: or.siteName } : {}),
         ...(or.provider !== undefined ? { provider: or.provider } : {}),
         ...(or.models !== undefined ? { models: or.models } : {}),
