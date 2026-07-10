@@ -41,4 +41,20 @@ describe("syncCorpus", () => {
     });
     expect(res.upserted).toBe(0);
   });
+
+  it("clears orphaned chunks when a corpus file is trimmed down and re-synced", async () => {
+    const emb = new MockEmbeddings();
+    const store = new InMemoryVectorStore({ topK: 100 });
+    const long = "# H\n\n" + Array.from({ length: 30 }, (_, i) => `Para ${i} body text here.`).join("\n\n");
+    const root = tmp({ "power.md": long });
+    await syncCorpus({ root, embeddings: emb, maxChunkChars: 40, store });
+    const before = (await store.query(await emb.embedQuery("body"), { topK: 100 })).length;
+    expect(before).toBeGreaterThan(1);
+
+    fs.writeFileSync(path.join(root, "power.md"), "# H\n\nPara 0 body text here.");
+    const res = await syncCorpus({ root, embeddings: emb, maxChunkChars: 40, store });
+    const ids = (await store.query(await emb.embedQuery("body"), { topK: 100 })).map((m) => m.id);
+    expect(ids.length).toBe(res.upserted);
+    expect(ids.length).toBeLessThan(before);
+  });
 });
