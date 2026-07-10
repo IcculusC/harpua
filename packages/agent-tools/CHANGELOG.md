@@ -1,5 +1,11 @@
 # @harpua/agent-tools
 
+## 0.4.0
+
+### Minor Changes
+
+- 52a7bfd: Add the `remember` agent tool — the write half paired with `search_knowledge`'s read. A model saves an excerpt/note (`{ text, source?, title? }`) into a VectorStore via `ingest` (content-hash dedup, no disk round-trip). `search_knowledge` now renders web provenance (`title (source)`) for records without a `file:line`. Store-required; a plain factory like `searchKnowledgeTool` (no Nest DI).
+
 ## 0.3.0
 
 ### Minor Changes
