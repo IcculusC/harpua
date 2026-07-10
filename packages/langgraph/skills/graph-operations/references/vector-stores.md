@@ -18,9 +18,10 @@ Omit `store` → the built-in corpus retrieval (unchanged). Pass one → your ba
 import type { VectorStore, VectorRecord, VectorMatch } from "@harpua/agent-tools";
 
 interface VectorStore<Q = {}> {
-  upsert(records: VectorRecord[]): Promise<void>;                 // { id, vector, text, metadata? }
+  upsert(records: VectorRecord[]): Promise<void>;                 // { id, documentKey, vector, text, metadata? }
   query(vector: number[], opts?: { topK?: number } & Partial<Q>): Promise<VectorMatch[]>;
   //     ^ scoring + top-K live HERE — a DB pushes the work down
+  deleteByDocumentKey(documentKey: string): Promise<void>;        // remove all records for one document
 }
 ```
 
@@ -57,7 +58,7 @@ await ingest(docs, { embeddings, store: myStore });
 - `Document = { id?: string; text: string; metadata?: Record<string, unknown> }`. Omit `id` and ingest hashes the text, so the same excerpt captured twice collapses to one record set.
 - ingest chunks with the built-in markdown chunker, embeds each chunk, and upserts. Your `metadata` rides through opaque (plus chunk `startLine`/`endLine`/`headingTrail`), exactly what `search_knowledge` reads back.
 - `syncCorpus({ root, … })` is now `readMarkdownDir(root) → ingest` — the markdown-folder source. Reach for `ingest` directly when your documents don't live on disk as `.md` files.
-- **Push-only (upsert), no delete — a *shrinking* re-ingest is a footgun.** Re-ingesting the same id replaces *those* records in place, but records are keyed `id:0`, `id:1`, …: if the new version has **fewer** chunks than before, the old tail (`id:6`…`id:9`) is never touched and keeps retrieving stale content, with provenance (`file`, `startLine`) that no longer matches. After a destructive edit to an explicit-id source — e.g. `syncCorpus` over a folder where a file was trimmed down — **recreate or clear the store** before re-ingesting. Id-less documents dodge this (new text hashes to a new id; the old version just lingers as harmless noise). A future optional `deleteByIdPrefix` on the port will make in-place shrink correct; until then, treat upsert-only as grow-or-replace, not shrink.
+- **Shrink-correct.** Each record carries a `documentKey` (the doc's id, or a content hash when id-less). `ingest` clears an explicit-id document's prior records (via the store's required `deleteByDocumentKey` — an indexable equality, not a prefix scan) before re-writing it, so trimming a source down — e.g. `syncCorpus` over a folder where a file was cut — removes its orphaned tail chunks; no stale content lingers. Id-less/content-hash documents are immutable-append by design: new text is a new key, and the old version stays as harmless noise.
 
 ## The write half — `remember` (agent-curated memory)
 
@@ -75,7 +76,7 @@ const tools = [
 - Input `{ text, source?, title? }`. `text` is embedded; `source`/`title` ride along as metadata and `search_knowledge` renders them as `title (source)` in place of `file:line`.
 - **Store-required** (unlike `search_knowledge`, which falls back to the on-disk corpus). Omit `store` and the factory throws.
 - Remembered excerpts are only visible when `search_knowledge` runs in **store mode over the same store** — in pure corpus mode (no store) it reads disk markdown and never sees them.
-- Content-hash dedup: re-remembering identical text upserts in place. There is no `forget` yet — deletes are deferred with the port's delete/lifecycle work.
+- Content-hash dedup: re-remembering identical text upserts in place. The store can delete (`deleteByDocumentKey`, used by `ingest` for shrink-correctness), but there is no agent-facing `forget` tool yet — that UX is a future cycle.
 
 ### Wiring into Nest
 
@@ -117,10 +118,10 @@ export class PgVectorStore implements VectorStore<PgQuery> {
     await this.ds.transaction(async (m) => {
       for (const r of records) {
         await m.query(
-          `INSERT INTO knowledge (id, embedding, text, metadata)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (id) DO UPDATE SET embedding = $2, text = $3, metadata = $4`,
-          [r.id, JSON.stringify(r.vector), r.text, r.metadata ?? {}],
+          `INSERT INTO knowledge (id, document_key, embedding, text, metadata)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (id) DO UPDATE SET document_key = $2, embedding = $3, text = $4, metadata = $5`,
+          [r.id, r.documentKey, JSON.stringify(r.vector), r.text, r.metadata ?? {}],
         );
       }
     });
@@ -138,6 +139,11 @@ export class PgVectorStore implements VectorStore<PgQuery> {
     return rows.map((row: any): VectorMatch => ({
       id: row.id, score: Number(row.score), text: row.text, metadata: row.metadata,
     }));
+  }
+
+  async deleteByDocumentKey(documentKey: string): Promise<void> {
+    // index document_key: `CREATE INDEX ON knowledge (document_key)`
+    await this.ds.query(`DELETE FROM knowledge WHERE document_key = $1`, [documentKey]);
   }
 }
 ```
