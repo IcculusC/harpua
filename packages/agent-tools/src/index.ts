@@ -53,6 +53,8 @@ export type { MarkdownChunk } from "./knowledge/chunk-markdown";
 // stays internal — it is the default path, not a public store.
 export { InMemoryVectorStore } from "./knowledge/in-memory-vector-store";
 export { syncCorpus } from "./knowledge/sync-corpus";
+export { ingest } from "./knowledge/ingest";
+export type { Document, IngestOptions, IngestResult } from "./knowledge/ingest";
 export type {
   VectorStore,
   VectorRecord,
