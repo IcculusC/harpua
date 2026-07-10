@@ -15,7 +15,7 @@ export const DEFAULT_MAX_CHUNK_CHARS = 1200;
 /** Resolves the corpus directory at call time (receives the run config). */
 export type KnowledgeRootResolver = (config?: RunnableConfig) => string;
 
-const embeddingsSchema = z.custom<EmbeddingsInterface>(
+export const embeddingsSchema = z.custom<EmbeddingsInterface>(
   (v) =>
     typeof v === "object" &&
     v !== null &&
@@ -29,7 +29,7 @@ const rootResolverSchema = z.custom<KnowledgeRootResolver>(
   "root must be a string or a function",
 );
 
-const vectorStoreSchema = z.custom<VectorStore>(
+export const vectorStoreSchema = z.custom<VectorStore>(
   (v) =>
     typeof v === "object" &&
     v !== null &&
