@@ -26,6 +26,7 @@ surprise.
   - [`@LangGraphAgent`](#langgraphagent)
   - [`@LangGraphMiddleware`](#langgraphmiddleware)
   - [Budget + Retry](#budget-retry)
+  - [Context management](#context-management)
   - [`responseFormat`](#responseformat)
   - [Semantics: loop and exit persist per thread, not per invoke](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
 - [Facade API](#facade-api)
@@ -852,10 +853,18 @@ export class WeatherAgent {}
 
 Two ready-made middlewares ship with the package:
 
-- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs })`** — a
+- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, reset? })`** — a
   graceful loop guard; its `beforeModel` hook calls `ctx.exit({ reason: "budget" })`
   the moment any one of the four caps is reached. It's the soft counterpart
-  to LangGraph's hard `recursionLimit` throw.
+  to LangGraph's hard `recursionLimit` throw. **`reset` defaults to `"invoke"`
+  — a behavior change**: `BudgetMiddleware`'s `beforeAgent` hook now resets
+  `loop`/`exit` back to their defaults at the start of every invoke, so a
+  long-lived thread no longer accumulates turn over turn into a permanent
+  exit. Pass `reset: "thread"` to restore the previous lifetime semantics
+  (`loop`/`exit` persist and accumulate across every invoke on the same
+  thread) — useful for a hard spend ceiling across a whole thread's
+  lifetime; see [Semantics](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
+  for the `clearAgentExit()` escape hatch that mode needs.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — wraps *both*
   `wrapModelCall` and `wrapToolCall` with the same retry loop: it re-invokes
   `next` while `retryable(err)` returns true, awaiting `backoff(attempt)`
@@ -919,6 +928,103 @@ from that **same feature module's** DI scope, and a sibling registration at
 the root `providers:` level is a different, non-importing module the graph
 can't see into.
 
+### Context management
+
+Long-running threads eventually blow the model's context window. Three more
+ready-made middlewares manage that — a fold that durably shrinks state, a
+view that renders what the model sees this turn, and a bundle over both:
+
+- **`provideCompaction({ triggerAt, keepRecent, pin?, strategy? })` →
+  `CompactionMiddleware`** — the fold. A `beforeModel` hook that durably
+  shrinks the checkpointed `messages` channel with `RemoveMessage` once
+  `triggerAt` fires, keeping only a pinned head and a recent tail of
+  `keepRecent` messages. Hysteresis snaps the cut forward to the next
+  `HumanMessage`, so a retained history never opens on an orphaned
+  `ToolMessage`.
+- **`provideContextWindow({ cacheHints?, evictToolOutputs?, evictBeyond?, pin? })`
+  → `ContextWindowMiddleware`** — the view. A `wrapModelCall` hook that
+  assembles `[pinned head · summary · tail]` for this turn, stamps
+  provider-agnostic cache boundaries onto it, and can optionally elide old
+  tool outputs. It never mutates checkpointed state (copy-on-write); the fold
+  above is the only thing that durably shrinks `messages`.
+- **`provideManagedContext({ triggerAt, keepRecent, pin?, strategy?, cacheHints?, evictToolOutputs?, evictBeyond? })`
+  → `ManagedContextMiddleware`** — the recommended path: one entry that
+  delegates to both of the above for you.
+
+Wire it exactly like Budget/Retry — list the middleware class in the agent's
+`middleware: [...]` array, and register its option provider in the **same
+`forFeature` call**:
+
+```ts
+import { Module } from "@nestjs/common";
+import {
+  LangGraphModule,
+  provideManagedContext,
+  ManagedContextMiddleware,
+} from "@harpua/langgraph";
+import { WeatherAgent } from "./weather-agent";
+import { WeatherTools } from "./weather.tools";
+
+@Module({
+  imports: [
+    LangGraphModule.forRoot(),
+    LangGraphModule.forFeature([WeatherAgent], {
+      providers: [
+        ...provideManagedContext({
+          triggerAt: { messages: 40 },
+          keepRecent: 20,
+        }),
+      ],
+    }),
+  ],
+  providers: [WeatherTools],
+})
+export class WeatherModule {}
+```
+
+```ts
+@LangGraphAgent({
+  name: "weatherAgent",
+  state: AgentState,
+  model: CHAT_MODEL,
+  tools: [WeatherTools],
+  middleware: [ManagedContextMiddleware],
+})
+export class WeatherAgent {}
+```
+
+`provideCompaction`/`provideContextWindow`/`provideManagedContext` all accept
+**partial option literals** — omitted fields fill in from defaults.
+`triggerAt` is one of `{ tokens: N }`, `{ messages: N }`, or a predicate
+`(signal) => boolean`; `keepRecent` is the message count kept as the tail
+(snapped to a `HumanMessage` boundary); `pin` is a predicate for the retained
+head and defaults to the first `HumanMessage`.
+
+`strategy` defaults to `"drop"` — `RemoveMessage` the folded span, no
+summary, no model call: free and lossy, and the right call when the durable
+facts you need already live somewhere else (a database, other state
+channels). Opt into `strategy: { kind: "summarize", model: CHAT_MODEL, schema? }`
+to have the fold call `model.withStructuredOutput(schema)` (defaulting to the
+package's own summary schema) over the discarded span before removing it; a
+summarizer error is logged as a warning and that fold silently falls back to
+`drop`.
+
+**A discrete `CompactionMiddleware` with `strategy: "summarize"` but no
+`ContextWindowMiddleware` writes a summary that nothing renders into the
+prompt** — the fold only ever removes messages from state; assembling
+`[head · summary · tail]` back into what the model actually sees is the
+view's job. That combination is strictly worse than `drop` (you pay for a
+model call and get nothing back for it). Whenever `strategy` is
+`"summarize"`, reach for `ManagedContextMiddleware`, or pair
+`CompactionMiddleware` with `ContextWindowMiddleware` explicitly.
+
+**Cache locality**: the byte-stable `[head · summary · tail]` layout is
+itself the whole optimization for providers that auto-cache off a stable
+prompt prefix (OpenAI, OpenRouter, DeepSeek) — no config needed. For
+Anthropic, `ContextWindowMiddleware` additionally translates its boundary
+markers into explicit `cache_control` blocks; this is on by default
+(`cacheHints: true`) and a no-op for every other provider.
+
 ### `responseFormat`
 
 Give the agent a zod schema and its final answer is coerced into a typed
@@ -954,16 +1060,29 @@ cap still produces a schema-shaped `outcome`, not a bare early return).
 
 The `loop` counters (`iteration`, `modelCalls`, `toolCalls`, `tokens`,
 `startedAt`) and the `exit` flag are ordinary `LastValue` state channels, so
-like the rest of state they're checkpointed — and **not reset per `invoke`**.
-They accumulate across every invocation on the same `thread_id`. Two
-consequences worth knowing before you tune budgets:
+like the rest of state they're checkpointed — nothing resets them by itself
+just because a new `invoke` starts on the same `thread_id`.
 
-- Budget caps are **per-thread-lifetime**, not per-invoke: `loop.iteration`
-  and friends keep climbing turn over turn *and* invoke over invoke on the
-  same thread.
+**As of `BudgetMiddleware`'s `reset: "invoke"` default**, its `beforeAgent`
+hook resets both channels back to their defaults at the start of every
+invoke, so in practice a long-lived thread no longer accumulates turn over
+turn toward a permanent exit. The lifetime-accumulation behavior below only
+applies when `BudgetMiddleware` is configured with `reset: "thread"` (or when
+nothing manages these channels at all):
+
+- Budget caps under `reset: "thread"` are **per-thread-lifetime**, not
+  per-invoke: `loop.iteration` and friends keep climbing turn over turn *and*
+  invoke over invoke on the same thread.
 - Once a thread has exited (`exit.requested === true`, set by a middleware's
-  `ctx.exit()`), a later re-invoke on that **same** thread stays exited —
-  start a new `thread_id` for a fresh run.
+  `ctx.exit()`) under that mode, a later re-invoke on that **same** thread
+  stays exited — clear it with `clearAgentExit()` and `updateState`, or start
+  a new `thread_id` for a fresh run:
+
+```ts
+import { clearAgentExit } from "@harpua/langgraph";
+
+await agent.updateState({ configurable: { thread_id } }, clearAgentExit());
+```
 
 ## Facade API
 

@@ -4,7 +4,8 @@ import { z } from "zod";
 import { AGENT_METADATA } from "../constants";
 import { LangGraph } from "../decorators";
 import { withAgentLoop } from "../middleware/loop-state";
-import type { MiddlewareEntry } from "../middleware/middleware.decorator";
+import { needsCompactionState, withCompactionState } from "../middleware/compaction-state";
+import { normalizeMiddleware, type MiddlewareEntry } from "../middleware/middleware.decorator";
 import type { ToolEntry } from "../interfaces";
 import { buildAgentGraph, type AgentBuild } from "./agent-compiler";
 
@@ -57,10 +58,14 @@ export function LangGraphAgent(options: LangGraphAgentOptions): ClassDecorator {
     // channel so the parsed result has somewhere to land. Only when
     // `responseFormat` is set — agents without it keep a lean state.
     const looped = withAgentLoop(options.state);
+    const mwClasses = (options.middleware ?? []).map((e) => normalizeMiddleware(e).use);
+    const withSummary = needsCompactionState(mwClasses)
+      ? withCompactionState(looped)
+      : looped;
     const state =
       options.responseFormat !== undefined
-        ? new StateSchema({ ...looped.fields, outcome: z.unknown().optional() })
-        : looped;
+        ? new StateSchema({ ...withSummary.fields, outcome: z.unknown().optional() })
+        : withSummary;
 
     LangGraph({
       name: options.name,

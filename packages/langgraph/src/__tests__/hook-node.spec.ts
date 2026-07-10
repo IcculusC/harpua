@@ -114,6 +114,66 @@ describe("makeHookNode", () => {
     expect(result.loop.startedAt).toBe(5000);
   });
 
+  class ResetLoopBeforeAgentMw {
+    beforeAgent() {
+      return { loop: { ...AGENT_LOOP_DEFAULT, startedAt: 0 } };
+    }
+  }
+
+  it("re-anchors startedAt from the clock when a beforeAgent patch resets loop to startedAt: 0, even though the incoming state.loop.startedAt was non-zero", async () => {
+    const middleware = new ResetLoopBeforeAgentMw();
+    const stubModuleRef = {
+      get(token: unknown) {
+        if (token === ResetLoopBeforeAgentMw) return middleware;
+        if (token === CLOCK_TOKEN) return () => 7777;
+        throw new Error(`unexpected token: ${String(token)}`);
+      },
+    };
+
+    const HookNode = makeHookNode({
+      hook: "beforeAgent",
+      middlewareClass: ResetLoopBeforeAgentMw,
+      clockToken: CLOCK_TOKEN,
+    });
+    const node = new HookNode(stubModuleRef as any);
+
+    // Invoke #2+ of a persisted thread: state carries a stale first-turn stamp.
+    const result = await node.run(
+      { loop: { ...AGENT_LOOP_DEFAULT, iteration: 9, startedAt: 100 } },
+      {} as any,
+    );
+
+    // The reset patch's startedAt: 0 must win over the stale prev (100) and be
+    // re-anchored to a FRESH clock reading -- NOT preserved as 100.
+    expect(result.loop.startedAt).toBe(7777);
+    expect(result.loop.iteration).toBe(0);
+  });
+
+  it("preserves a non-zero prev.startedAt when a beforeAgent middleware returns no loop patch", async () => {
+    const middleware = new NoopBeforeAgentMw();
+    const stubModuleRef = {
+      get(token: unknown) {
+        if (token === NoopBeforeAgentMw) return middleware;
+        if (token === CLOCK_TOKEN) return () => 7777;
+        throw new Error(`unexpected token: ${String(token)}`);
+      },
+    };
+
+    const HookNode = makeHookNode({
+      hook: "beforeAgent",
+      middlewareClass: NoopBeforeAgentMw,
+      clockToken: CLOCK_TOKEN,
+    });
+    const node = new HookNode(stubModuleRef as any);
+
+    const result = await node.run(
+      { loop: { ...AGENT_LOOP_DEFAULT, startedAt: 250 } },
+      {} as any,
+    );
+
+    expect(result.loop.startedAt).toBe(250);
+  });
+
   it("does not overwrite a non-zero startedAt on a subsequent beforeAgent run", async () => {
     const middleware = new NoopBeforeAgentMw();
     const stubModuleRef = {

@@ -25,8 +25,12 @@ export interface HookNodeConfig {
  * patch — this includes a short-circuit via `ctx.exit()`, which just writes
  * the reserved `exit` channel; an edge-level concern (a conditional edge
  * reading `state.exit.requested`) does the actual routing to the loop's exit.
- * `beforeAgent` additionally stamps `loop.startedAt` from the clock the first
- * time it runs (never overwriting a non-zero value already there).
+ * `beforeAgent` additionally (re-)anchors `loop.startedAt` from the clock
+ * whenever the merged `loop.startedAt` is zero — both on the first run (nothing
+ * stamped yet) AND when a middleware patch explicitly resets `loop` to a
+ * zero-`startedAt` value (e.g. Budget's per-invoke reset), so wall-time is
+ * measured from THIS invoke, not the thread's first-ever turn. A non-zero
+ * `startedAt` (already stamped, no reset patch) is preserved untouched.
  */
 export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
   @Injectable()
@@ -54,13 +58,10 @@ export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
 
       if (cfg.hook === "beforeAgent") {
         const prev = (state as any).loop ?? AGENT_LOOP_DEFAULT;
+        const merged = { ...prev, ...(patch as any).loop };
         return {
           ...patch,
-          loop: {
-            ...prev,
-            ...(patch as any).loop,
-            startedAt: prev.startedAt || clock(),
-          },
+          loop: { ...merged, startedAt: merged.startedAt || clock() },
         };
       }
 

@@ -292,6 +292,13 @@ export class RuleModelBuilder {
   ) => RuleResult;
   private readonly humanRules: HumanRule[] = [];
   private fallbackRule: (messages: BaseMessage[]) => RuleResult = () => "";
+  private readonly structuredValues: unknown[] = [];
+
+  /** Enqueue the next value `withStructuredOutput(...).invoke(...)` returns. */
+  structured(value: unknown): this {
+    this.structuredValues.push(value);
+    return this;
+  }
 
   /** Respond when the latest message is a tool result. */
   onToolResult(
@@ -326,10 +333,16 @@ export class RuleModelBuilder {
     const toolResultRule = this.toolResultRule;
     const humanRules = [...this.humanRules];
     const fallbackRule = this.fallbackRule;
+    const structuredValues = [...this.structuredValues];
 
     @Injectable()
     class RuleModel extends FakeChatModelBase {
       private seq = 0;
+
+      constructor() {
+        super();
+        this.structuredQueue = structuredValues;
+      }
 
       _llmType(): string {
         return "harpua-rule-fake";
