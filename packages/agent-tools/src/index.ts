@@ -49,6 +49,16 @@ export { searchKnowledgeTool } from "./knowledge/search-knowledge";
 export { MockEmbeddings, MOCK_EMBEDDING_DIMENSION } from "./knowledge/mock-embeddings";
 export { chunkMarkdown } from "./knowledge/chunk-markdown";
 export type { MarkdownChunk } from "./knowledge/chunk-markdown";
+// Pluggable vector store (BYO). The built-in corpus retrieval (queryCorpus)
+// stays internal — it is the default path, not a public store.
+export { InMemoryVectorStore } from "./knowledge/in-memory-vector-store";
+export { syncCorpus } from "./knowledge/sync-corpus";
+export type {
+  VectorStore,
+  VectorRecord,
+  VectorMatch,
+  BaseQueryOptions,
+} from "./knowledge/vector-store";
 export type {
   SearchKnowledgeToolOptions,
   ResolvedSearchKnowledgeToolOptions,
