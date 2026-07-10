@@ -153,3 +153,10 @@ while a real model gains the tools.
 - Adding a new tool provider but forgetting to list it in both `tools: [...]` and module `providers`. Bootstrap fails fast: "listed tool provider isn't provided in any module."
 - Bare `new Date()` in tool logic under test — inject a clock instead.
 - Stopping at a unit test when the project has an integration/e2e layer that exercises the same tool end to end through the graph.
+
+## Custom knowledge / RAG backend
+
+`search_knowledge` (from `@harpua/agent-tools`) uses a built-in on-disk corpus by
+default. To back it with your own vector store (pgvector/TypeORM, etc.) — or feed a
+store from a markdown folder with `syncCorpus` — see
+[`vector-stores.md`](vector-stores.md).

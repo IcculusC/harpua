@@ -3,6 +3,7 @@ import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 
 import { MockEmbeddings } from "./mock-embeddings";
+import type { VectorStore } from "./vector-store";
 
 /** Sane default number of chunks a search returns. */
 export const DEFAULT_TOP_K = 5;
@@ -28,6 +29,15 @@ const rootResolverSchema = z.custom<KnowledgeRootResolver>(
   "root must be a string or a function",
 );
 
+const vectorStoreSchema = z.custom<VectorStore>(
+  (v) =>
+    typeof v === "object" &&
+    v !== null &&
+    typeof (v as VectorStore).upsert === "function" &&
+    typeof (v as VectorStore).query === "function",
+  "store must implement upsert and query",
+);
+
 /**
  * Options for {@link searchKnowledgeTool}. `root` is the corpus directory
  * (string or per-call resolver, same pattern as fetch_url's saveDir);
@@ -51,6 +61,8 @@ export const searchKnowledgeToolOptionsSchema = z
      * not a safe "off" value.
      */
     minScore: z.number().optional(),
+    /** Bring-your-own vector store. Omit for the built-in on-disk corpus retrieval. */
+    store: vectorStoreSchema.optional(),
   })
   .strict();
 
