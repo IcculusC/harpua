@@ -95,8 +95,14 @@ export function searchKnowledgeTool(
             startLine?: number;
             endLine?: number;
             headingTrail?: string[];
+            source?: string;
+            title?: string;
           };
-          const where = md.file ? `${md.file}:${md.startLine}-${md.endLine}` : h.id;
+          const where = md.file
+            ? `${md.file}:${md.startLine}-${md.endLine}`
+            : md.title && md.source
+              ? `${md.title} (${md.source})`
+              : (md.source ?? md.title ?? h.id);
           const trail =
             md.headingTrail && md.headingTrail.length > 0
               ? ` — ${md.headingTrail.join(" > ")}`
