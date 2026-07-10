@@ -52,6 +52,12 @@ describe("fetch_url", () => {
 
     const files = fs.readdirSync(dir);
     expect(files).toHaveLength(1);
+    // The confirmation must name the file the way the file-exploration
+    // tools (jailed to this same directory) address it: BARE filename. A
+    // cwd-relative path double-resolves inside the jail ("sources/sources/x")
+    // and the model faithfully echoes whatever this message teaches it.
+    expect(out).toContain(`as ${files[0]}.`);
+    expect(out).not.toContain(dir);
     const content = fs.readFileSync(path.join(dir, files[0]), "utf8");
     expect(content).toContain("url: https://ti.com/lm317");
     expect(content).toContain("fetched: 2026-07-08");

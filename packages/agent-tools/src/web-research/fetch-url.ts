@@ -1,3 +1,4 @@
+import path from "node:path";
 import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableConfig } from "@langchain/core/runnables";
@@ -94,8 +95,12 @@ export function fetchUrlTool(
 
       const lineCount = markdown.split("\n").length;
       const label = title ?? `${finalUrl.host}${finalUrl.pathname}`;
+      // Name the file the way the file-exploration tools address it: they
+      // are jailed to this same directory, so a cwd-relative path in this
+      // confirmation ("sources/x.md") double-resolves inside the jail and
+      // the model faithfully echoes whatever this message teaches it.
       return (
-        `Saved "${label}" (${lineCount} lines) to ${saved}.\n` +
+        `Saved "${label}" (${lineCount} lines) as ${path.basename(saved)}.\n` +
         "Search it with search_files or read it with read_lines."
       );
     },
