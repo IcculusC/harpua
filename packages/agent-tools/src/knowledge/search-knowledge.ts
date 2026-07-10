@@ -1,7 +1,6 @@
 import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableConfig } from "@langchain/core/runnables";
-import { similarity } from "ml-distance";
 import { z } from "zod";
 
 import { errorMessage } from "../web-research/errors";
@@ -9,7 +8,7 @@ import {
   resolveSearchKnowledgeOptions,
   type SearchKnowledgeToolOptions,
 } from "./options";
-import { syncIndex } from "./knowledge-index";
+import { queryCorpus } from "./corpus-query";
 
 const DESCRIPTION =
   "Search everything saved in this project's sources (fetched web pages, " +
@@ -54,62 +53,61 @@ export function searchKnowledgeTool(
         return `search_knowledge: the embeddings backend failed (${errorMessage(err)}).`;
       }
 
-      let sync;
+      // A BYO store handles its own retrieval; otherwise the built-in corpus
+      // path (lazy incremental sync of the markdown root, then cosine scan).
+      // The model supplies only the query text — tuning is deployment-config.
+      let matches;
       try {
-        sync = await syncIndex({
-          root,
-          embeddings: opts.embeddings,
-          maxChunkChars: opts.maxChunkChars,
-          expectedDimension: queryVector.length,
-        });
+        matches = opts.store
+          ? await opts.store.query(queryVector, { topK: opts.topK })
+          : await queryCorpus(
+              { root, embeddings: opts.embeddings, maxChunkChars: opts.maxChunkChars },
+              queryVector,
+              { topK: opts.topK },
+            );
       } catch (err) {
-        return `search_knowledge: indexing the sources failed (${errorMessage(err)}).`;
+        return `search_knowledge: retrieval failed (${errorMessage(err)}).`;
       }
 
-      const scored = Object.entries(sync.index.files)
-        .flatMap(([file, entry]) =>
-          entry.chunks.map((chunk) => ({
-            file,
-            chunk,
-            score: similarity.cosine(queryVector, chunk.vector),
-          })),
-        )
-        // NaN shows up when either vector has zero magnitude (e.g. a
-        // punctuation-only query, or an empty chunk) — cosine is undefined
-        // there, so exclude it rather than let it sort/print as "score NaN".
-        .filter((s) => Number.isFinite(s.score));
-
-      if (scored.length === 0) {
+      if (matches.length === 0) {
         return (
           "search_knowledge: nothing indexed yet — save some pages first " +
           "(fetch_url / fetch_pdf) or add markdown files to the sources directory."
         );
       }
 
-      scored.sort((a, b) => b.score - a.score);
-      const hits = scored
-        .filter((s) => opts.minScore === undefined || s.score >= opts.minScore)
-        .slice(0, opts.topK);
+      // minScore as a tool-side post-filter on the returned score — works for
+      // any store, and lets us distinguish "empty corpus" from "all filtered".
+      // Equivalent to filtering before top-K, since scores are already sorted.
+      const hits =
+        opts.minScore === undefined
+          ? matches
+          : matches.filter((m) => m.score >= opts.minScore!);
 
       if (hits.length === 0) {
         return `search_knowledge: no chunks scored at or above minScore=${opts.minScore} for "${query}".`;
       }
 
-      const body = hits
-        .map(({ file, chunk, score }, i) => {
+      return hits
+        .map((h, i) => {
+          const md = (h.metadata ?? {}) as {
+            file?: string;
+            startLine?: number;
+            endLine?: number;
+            headingTrail?: string[];
+          };
+          const where = md.file ? `${md.file}:${md.startLine}-${md.endLine}` : h.id;
           const trail =
-            chunk.headingTrail.length > 0 ? ` — ${chunk.headingTrail.join(" > ")}` : "";
-          const text = chunk.text
+            md.headingTrail && md.headingTrail.length > 0
+              ? ` — ${md.headingTrail.join(" > ")}`
+              : "";
+          const text = h.text
             .split("\n")
             .map((line) => `   ${line}`)
             .join("\n");
-          return `${i + 1}. ${file}:${chunk.startLine}-${chunk.endLine} (score ${score.toFixed(2)})${trail}\n${text}`;
+          return `${i + 1}. ${where} (score ${h.score.toFixed(2)})${trail}\n${text}`;
         })
         .join("\n");
-
-      return sync.persistError
-        ? `${body}\n(note: index cache could not be written: ${sync.persistError})`
-        : body;
     },
     {
       name: "search_knowledge",
