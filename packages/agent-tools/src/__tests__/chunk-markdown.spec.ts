@@ -76,10 +76,40 @@ describe("chunkMarkdown", () => {
     }
   });
 
-  it("keeps a single paragraph over the cap as one chunk (never splits mid-paragraph)", () => {
-    const huge = "word ".repeat(500).trim();
+  it("hard-splits a single over-cap paragraph so no chunk exceeds the cap", () => {
+    // Field regression: fetch_pdf extractions used to arrive as one giant
+    // blank-line-free paragraph; "never split mid-paragraph" shipped 148KB
+    // chunks no embedding endpoint accepts.
+    const huge = "word ".repeat(500).trim(); // one 2499-char line
     const chunks = chunkMarkdown(`## Big\n\n${huge}`, { maxChunkChars: 100 });
-    expect(chunks.some((c) => c.text.includes(huge))).toBe(true);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(c.text.length).toBeLessThanOrEqual(100);
+      // Raw slices of one physical line keep that line's true span.
+      expect(c.startLine).toBe(3);
+      expect(c.endLine).toBe(3);
+    }
+    // Nothing lost beyond the standard per-chunk trim: every word survives.
+    const words = chunks.flatMap((c) => c.text.split(/\s+/)).filter(Boolean);
+    expect(words).toHaveLength(500);
+    expect(words.every((w) => w === "word")).toBe(true);
+  });
+
+  it("splits an over-cap multi-line paragraph at line boundaries", () => {
+    const lines = Array.from(
+      { length: 20 },
+      (_, i) => `line ${i} of dense text with no blank separators`,
+    );
+    const chunks = chunkMarkdown(`## Dense\n\n${lines.join("\n")}`, {
+      maxChunkChars: 120,
+    });
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const c of chunks) {
+      expect(c.text.length).toBeLessThanOrEqual(120);
+      // Line-boundary splits: chunk text is whole lines, never mid-line.
+      expect(lines.join("\n")).toContain(c.text);
+    }
+    expect(chunks[chunks.length - 1]!.endLine).toBe(3 + lines.length - 1);
   });
 
   it("drops whitespace-only sections and handles empty input", () => {

@@ -81,14 +81,31 @@ export function fetchPdfTool(
         return UNPDF_MISSING_MESSAGE;
       }
 
-      let text: string;
       let totalPages: number;
+      let pages: string[];
       try {
-        ({ text, totalPages } = await unpdf.extractText(read.bytes, {
-          mergePages: true,
-        }));
+        ({ text: pages, totalPages } = await unpdf.extractText(read.bytes));
       } catch (err) {
         return `fetch_pdf: could not extract text from the PDF (${errorMessage(err)}).`;
+      }
+
+      // One "## Page N" section per non-blank page. Extracted page text has
+      // few or no blank lines, so the page headings are what give the saved
+      // markdown real structure: heading-aware consumers (search_knowledge's
+      // chunker) get page-sized chunks with "Page N" trails instead of one
+      // giant paragraph, and hits can name the page they came from.
+      const pageWord = totalPages === 1 ? "page" : "pages";
+      const markdown = pages
+        .flatMap((page, i) => {
+          const body = page.trim();
+          return body.length === 0 ? [] : [`## Page ${i + 1}\n\n${body}`];
+        })
+        .join("\n\n");
+      if (markdown.length === 0) {
+        return (
+          `fetch_pdf: the PDF contained no extractable text (${totalPages} ` +
+          `${pageWord} — a scanned/image-only document?). Nothing saved.`
+        );
       }
 
       const dir =
@@ -97,18 +114,16 @@ export function fetchPdfTool(
 
       let saved: string;
       try {
-        saved = savePage({ dir, url: finalUrl, markdown: text, fetched });
+        saved = savePage({ dir, url: finalUrl, markdown, fetched });
       } catch (err) {
         return `fetch_pdf: could not save the page (${errorMessage(err)}).`;
       }
 
-      // Extracted PDF text is often one long run with no newlines, so a line
-      // count (fetch_url's metric) would be nonsensical here — report the
-      // extracted size in chars/pages instead.
+      // Chars/pages, not a line count — extracted text stays line-sparse
+      // within each page.
       const label = `${finalUrl.host}${finalUrl.pathname}`;
-      const pageWord = totalPages === 1 ? "page" : "pages";
       return (
-        `Saved "${label}" (${text.length.toLocaleString()} chars, ${totalPages} ${pageWord}) to ${saved}.\n` +
+        `Saved "${label}" (${markdown.length.toLocaleString()} chars, ${totalPages} ${pageWord}) to ${saved}.\n` +
         "Search it with search_files or read it with read_lines."
       );
     },

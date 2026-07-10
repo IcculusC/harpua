@@ -19,7 +19,8 @@ interface Section {
 /**
  * Heading-aware chunking for the knowledge index. Splits at h1–h3
  * boundaries; sections longer than `maxChunkChars` split further at blank
- * lines (never mid-paragraph). YAML frontmatter is excluded from text but
+ * lines, and paragraphs that alone exceed the cap are hard-split at line
+ * boundaries (raw slices for single monster lines). YAML frontmatter is excluded from text but
  * line numbering stays true so results point at the real file.
  */
 export function chunkMarkdown(
@@ -113,16 +114,58 @@ function splitByParagraphs(
   const groups: Array<Array<[number, string]>> = [];
   let group: Array<[number, string]> = [];
   let groupChars = 0;
+  const flush = (): void => {
+    if (group.length > 0) groups.push(group);
+    group = [];
+    groupChars = 0;
+  };
   for (const p of paragraphs) {
     const pChars = p.reduce((sum, [, l]) => sum + l.length + 1, 0);
-    if (group.length > 0 && groupChars + pChars > maxChars) {
-      groups.push(group);
-      group = [];
-      groupChars = 0;
+    // A single over-cap paragraph is hard-split — "never mid-paragraph" is an
+    // ideal, not a license to emit a 148KB chunk (PDF extractions arrive as
+    // one blank-line-free wall) that no embedding endpoint accepts.
+    if (pChars > maxChars) {
+      flush();
+      groups.push(...splitOversizedParagraph(p, maxChars));
+      continue;
     }
-    group.push(...p); // a single over-cap paragraph stays whole
+    if (group.length > 0 && groupChars + pChars > maxChars) flush();
+    group.push(...p);
     groupChars += pChars;
   }
-  if (group.length > 0) groups.push(group);
+  flush();
   return groups;
+}
+
+/**
+ * Split one over-cap paragraph: pack whole lines up to the cap, and slice a
+ * single line that alone exceeds the cap into cap-sized pieces (each piece
+ * keeps the line's true number, so spans stay honest).
+ */
+function splitOversizedParagraph(
+  paragraph: Array<[number, string]>,
+  maxChars: number,
+): Array<Array<[number, string]>> {
+  const out: Array<Array<[number, string]>> = [];
+  let run: Array<[number, string]> = [];
+  let runChars = 0;
+  const flush = (): void => {
+    if (run.length > 0) out.push(run);
+    run = [];
+    runChars = 0;
+  };
+  for (const [lineNo, line] of paragraph) {
+    if (line.length > maxChars) {
+      flush();
+      for (let i = 0; i < line.length; i += maxChars) {
+        out.push([[lineNo, line.slice(i, i + maxChars)]]);
+      }
+      continue;
+    }
+    if (runChars + line.length + 1 > maxChars) flush();
+    run.push([lineNo, line]);
+    runChars += line.length + 1;
+  }
+  flush();
+  return out;
 }
