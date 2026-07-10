@@ -39,6 +39,26 @@ await syncCorpus({ root: "./sources", embeddings, maxChunkChars: 1200, store: my
 
 The built-in corpus default does its own incremental sync internally — you only need `syncCorpus` to feed a *different* store.
 
+## Ingesting from any source — `ingest`
+
+`syncCorpus` is just one source. The primitive under it, `ingest`, takes plain documents from anywhere — a web excerpt, a notebook cell, a DB row — with no disk round-trip:
+
+```ts
+import { ingest } from "@harpua/agent-tools";
+import type { Document } from "@harpua/agent-tools";
+
+const docs: Document[] = [
+  { id: "notes/1", text: "…", metadata: { sourceUrl: "https://…" } },
+  { text: "an excerpt with no id" }, // id derived from a content hash → dedupes
+];
+await ingest(docs, { embeddings, store: myStore });
+```
+
+- `Document = { id?: string; text: string; metadata?: Record<string, unknown> }`. Omit `id` and ingest hashes the text, so the same excerpt captured twice collapses to one record set.
+- ingest chunks with the built-in markdown chunker, embeds each chunk, and upserts. Your `metadata` rides through opaque (plus chunk `startLine`/`endLine`/`headingTrail`), exactly what `search_knowledge` reads back.
+- `syncCorpus({ root, … })` is now `readMarkdownDir(root) → ingest` — the markdown-folder source. Reach for `ingest` directly when your documents don't live on disk as `.md` files.
+- Push-only (upsert). Re-ingesting a document with the same id (or same id-less text) replaces its records in place; there is no delete yet.
+
 ## Worked example — pgvector via TypeORM
 
 ```ts

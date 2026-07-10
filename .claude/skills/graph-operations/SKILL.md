@@ -17,7 +17,7 @@ Classify what you're adding, read the one matching reference, then follow it. Do
 | An **agent loop** (model↔tools) with `@LangGraphAgent`: capping turns/tokens or avoiding `GraphRecursionError`, retrying model/tool calls, trimming/compacting history, stopping the loop early, or writing a custom `@LangGraphMiddleware` | `packages/langgraph/skills/graph-operations/references/agents-and-middleware.md`, then apply the harpua overlay below |
 | A new `packages/*` library | `references/package.md` |
 | Wiring a chat model (env-driven, named models, OpenRouter/Ollama/openai-compatible, mock default) with `@harpua/models` | `packages/langgraph/skills/graph-operations/references/models.md` |
-| A custom vector-store backend for `search_knowledge` (pgvector/TypeORM, etc.), or feeding a store from a markdown folder with `syncCorpus` | `packages/langgraph/skills/graph-operations/references/vector-stores.md` |
+| A custom vector-store backend for `search_knowledge` (pgvector/TypeORM, etc.), feeding a store from a markdown folder with `syncCorpus`, or ingesting documents from any source with `ingest` | `packages/langgraph/skills/graph-operations/references/vector-stores.md` |
 | Testing a graph, a node, or an agentic loop (unit, e2e, scripted model, interrupt, streaming, persistence, type-level) | `packages/langgraph/skills/graph-operations/references/testing.md` |
 | Debugging / inspecting state (bootstrap or runtime errors, time travel, checkpoint store) | `packages/langgraph/skills/graph-operations/references/debugging.md` |
 | An approval gate or any human-in-the-loop pause (interrupt payloads, resume, HTTP/SSE/CLI surfacing, multi-step) | `packages/langgraph/skills/graph-operations/references/human-in-the-loop.md` |
