@@ -51,10 +51,14 @@ export type SaveDirResolver = (config?: RunnableConfig) => string;
  * this package's public `.d.ts`. The real module is structurally compatible.
  */
 export interface UnpdfModuleLike {
+  /**
+   * Per-page extraction — unpdf's no-options overload returns one string per
+   * page. (`mergePages: true` concatenates the whole document into a single
+   * blank-line-free wall that downstream chunkers cannot split sanely.)
+   */
   extractText(
     data: Uint8Array,
-    options: { mergePages: true },
-  ): Promise<{ totalPages: number; text: string }>;
+  ): Promise<{ totalPages: number; text: string[] }>;
 }
 
 /** Lazily loads `unpdf`. Injectable so tests can simulate the missing package. */
