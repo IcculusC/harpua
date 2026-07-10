@@ -33,9 +33,11 @@ describe("public exports (compaction family)", () => {
     for (const name of [
       "computeFold",
       "buildCompactionSignal",
+      "resolveTrigger",
       "translateCacheMarkers",
       "markCacheBoundary",
       "assembleWindow",
+      "evictOldToolOutputs",
       "summarizeSpan",
       "renderSummary",
     ]) {
