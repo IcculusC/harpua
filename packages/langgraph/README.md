@@ -854,8 +854,11 @@ export class WeatherAgent {}
 Two ready-made middlewares ship with the package:
 
 - **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, reset? })`** — a
-  graceful loop guard; its `beforeModel` hook calls `ctx.exit({ reason: "budget" })`
-  the moment any one of the four caps is reached. It's the soft counterpart
+  graceful loop guard; its `beforeModel` hook calls `ctx.exit({ reason: "budget:<cap>" })`
+  the moment any one of the four caps is reached — `budget:cycles`,
+  `budget:tool-calls`, `budget:tokens`, or `budget:wall`, in that precedence
+  order when several trip at once (match with `startsWith("budget")` if you
+  don't care which). It's the soft counterpart
   to LangGraph's hard `recursionLimit` throw. **`reset` defaults to `"invoke"`
   — a behavior change**: `BudgetMiddleware`'s `beforeAgent` hook now resets
   `loop`/`exit` back to their defaults at the start of every invoke, so a

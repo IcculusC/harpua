@@ -26,7 +26,7 @@ describe("BudgetMiddleware", () => {
 
     const result = await mw.beforeModel(ctx);
 
-    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget" } } });
+    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget:cycles" } } });
   });
 
   it("returns exit patch when toolCalls cap is hit", async () => {
@@ -48,7 +48,7 @@ describe("BudgetMiddleware", () => {
 
     const result = await mw.beforeModel(ctx);
 
-    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget" } } });
+    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget:tool-calls" } } });
   });
 
   it("returns exit patch when tokens cap is hit", async () => {
@@ -70,7 +70,7 @@ describe("BudgetMiddleware", () => {
 
     const result = await mw.beforeModel(ctx);
 
-    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget" } } });
+    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget:tokens" } } });
   });
 
   it("returns exit patch when wall-time cap is hit", async () => {
@@ -96,7 +96,32 @@ describe("BudgetMiddleware", () => {
 
     const result = await mw.beforeModel(ctx);
 
-    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget" } } });
+    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget:wall" } } });
+  });
+
+  it("reports the first cap in check order when several trip at once", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    // Everything over budget simultaneously: the reason must be deterministic
+    // (check order: cycles, tool-calls, tokens, wall), not implementation
+    // noise.
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 3, modelCalls: 3, toolCalls: 5, tokens: 100, startedAt: 500 },
+      config: {},
+      now: () => 5000,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget:cycles" } } });
   });
 
   it("does not trip the wall-time budget while startedAt is still the un-anchored 0 sentinel", async () => {
