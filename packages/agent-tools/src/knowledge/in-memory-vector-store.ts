@@ -35,4 +35,10 @@ export class InMemoryVectorStore implements VectorStore<InMemoryQueryOptions> {
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
   }
+
+  async deleteByDocumentKey(documentKey: string): Promise<void> {
+    for (const [id, r] of [...this.records]) {
+      if (r.documentKey === documentKey) this.records.delete(id);
+    }
+  }
 }

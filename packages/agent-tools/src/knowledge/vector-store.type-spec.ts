@@ -14,6 +14,7 @@ const _pg: VectorStore<PgQ> = {
     void opts?.minScore;
     return [];
   },
+  async deleteByDocumentKey() {},
 };
 
 // Base usage (the generic tool) sees only topK.
@@ -23,6 +24,7 @@ const _base: VectorStore = {
     void opts?.topK;
     return [];
   },
+  async deleteByDocumentKey() {},
 };
 
 void _pg;

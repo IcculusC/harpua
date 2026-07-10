@@ -34,8 +34,9 @@ export const vectorStoreSchema = z.custom<VectorStore>(
     typeof v === "object" &&
     v !== null &&
     typeof (v as VectorStore).upsert === "function" &&
-    typeof (v as VectorStore).query === "function",
-  "store must implement upsert and query",
+    typeof (v as VectorStore).query === "function" &&
+    typeof (v as VectorStore).deleteByDocumentKey === "function",
+  "store must implement upsert, query, and deleteByDocumentKey",
 );
 
 /**
