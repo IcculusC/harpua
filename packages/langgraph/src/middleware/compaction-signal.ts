@@ -14,7 +14,14 @@ export interface CompactionSignal<S = any> {
 /** Build the trigger signal from a node-hook context. */
 export function buildCompactionSignal<S>(ctx: MiddlewareContext<S>): CompactionSignal<S> {
   const messages: BaseMessage[] = ((ctx.state as any)?.messages ?? []) as BaseMessage[];
-  const last = [...messages].reverse().find((m) => isAIMessage(m)) as any;
+  let last: any;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && isAIMessage(m)) {
+      last = m;
+      break;
+    }
+  }
   const inputTokens =
     typeof last?.usage_metadata?.input_tokens === "number"
       ? last.usage_metadata.input_tokens

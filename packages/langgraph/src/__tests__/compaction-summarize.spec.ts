@@ -1,5 +1,6 @@
 import { HumanMessage, AIMessage, ToolMessage, RemoveMessage } from "@langchain/core/messages";
 import { ModuleRef } from "@nestjs/core";
+import { Logger } from "@nestjs/common";
 import { CompactionMiddleware } from "../middleware/compaction.middleware";
 import { CompactionOptions } from "../middleware/compaction.options";
 import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
@@ -56,5 +57,23 @@ describe("CompactionMiddleware (summarize)", () => {
     const patch: any = await mw.beforeModel(ctx(convo()));
     expect(patch.summary).toBeUndefined();
     expect(patch.messages.every((m: any) => m instanceof RemoveMessage)).toBe(true);
+  });
+
+  it("logs a warning (with the error message) when the summarizer throws, and still falls back to drop", async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    try {
+      const throwing = { withStructuredOutput: () => ({ invoke: async () => { throw new Error("unresolvable model token"); } }) };
+      const mw = new CompactionMiddleware(opts, moduleRefReturning(throwing));
+      const patch: any = await mw.beforeModel(ctx(convo()));
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0]?.[0]).toEqual(
+        expect.stringContaining("compaction: summarize failed, falling back to drop: unresolvable model token"),
+      );
+      expect(patch.summary).toBeUndefined();
+      expect(patch.messages.every((m: any) => m instanceof RemoveMessage)).toBe(true);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });

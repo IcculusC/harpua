@@ -1,9 +1,11 @@
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
-import { HumanMessage } from "@langchain/core/messages";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import {
   LangGraphAgent,
   CompactionMiddleware,
   provideCompaction,
+  ContextWindowMiddleware,
+  provideContextWindow,
   ManagedContextMiddleware,
   provideManagedContext,
 } from "@harpua/langgraph";
@@ -155,5 +157,114 @@ describe("compaction e2e (drop, real checkpointer)", () => {
       expect(res.messages.length).toBeLessThanOrEqual(12);
     }
     expect(Math.max(...counts)).toBeGreaterThanOrEqual(7);
+  });
+});
+
+describe("compaction e2e (summarize, real fold + view)", () => {
+  let harness: GraphTestingHarness;
+
+  afterEach(async () => {
+    await harness?.close();
+  });
+
+  it("folds via summarize and renders the written summary into a later model call", async () => {
+    const CHAT = Symbol.for("e2e:summarize:model");
+    // The scripted summary: `goal` is the needle we look for in the rendered
+    // SystemMessage the view (ContextWindowMiddleware) assembles from the
+    // `summary` channel the fold (CompactionMiddleware) wrote.
+    const SUMMARY = {
+      goal: "ship the quarterly report by friday, distinctive-goal-marker",
+      keyDecisions: ["use the new template"],
+      openQuestions: ["who reviews it"],
+      artifacts: ["report.docx"],
+      currentState: "drafting",
+    };
+
+    // Records every turn's assembled `req.messages` (post-view) so we can
+    // inspect what the model actually received, mirroring the prefix-stability
+    // recorder. Both branches (tool-result continuation and fresh-turn
+    // fallback) record — either can be the call that lands after a fold.
+    const captured: any[][] = [];
+    const Model = ruleModel()
+      .onToolResult((_last, messages) => {
+        captured.push([...messages]);
+        return "answered";
+      })
+      .fallback((messages) => {
+        captured.push([...messages]);
+        return { toolCalls: [{ name: "lookup_order", args: { id: "1" } }] };
+      })
+      // Generously enqueue the same scripted summary so the summarizer
+      // never runs dry across ~10 invokes' worth of possible folds.
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .structured(SUMMARY)
+      .build();
+
+    @LangGraphAgent({
+      name: "summarizeE2eAgent",
+      state: new StateSchema({ messages: MessagesValue }),
+      model: CHAT,
+      tools: [OrderTools],
+      // Fold (CompactionMiddleware) writes the `summary` channel; view
+      // (ContextWindowMiddleware) renders it into the prompt. Both are needed
+      // to exercise the fold -> summary channel -> view render path end to end.
+      middleware: [CompactionMiddleware, ContextWindowMiddleware],
+    })
+    class SummarizeE2eAgent {}
+
+    harness = await createGraphTestingModule({
+      graphs: [SummarizeE2eAgent],
+      providers: [OrderTools, OrderService, { provide: CHAT, useClass: Model }],
+      checkpointer: { type: "sqlite", path: ":memory:" },
+      featureProviders: [
+        // Same model token drives both the loop model and the summarizer —
+        // the scripted model supports both roles (`.invoke` and
+        // `.withStructuredOutput(...).invoke`).
+        ...provideCompaction({
+          triggerAt: { messages: 8 },
+          keepRecent: 4,
+          strategy: { kind: "summarize", model: CHAT },
+        }),
+        ...provideContextWindow({}),
+      ],
+    });
+    const agent = harness.get(SummarizeE2eAgent);
+
+    for (let i = 0; i < 10; i++) {
+      const res: any = await agent.invoke(
+        { messages: [new HumanMessage(`turn ${i}`)] },
+        { configurable: { thread_id: "e2e-summarize" } },
+      );
+      // Head safety holds even under the summarize strategy: the fold only
+      // ever cuts at HumanMessage boundaries.
+      expect(res.messages[0]).toBeInstanceOf(HumanMessage);
+    }
+
+    // At least one captured call must have been rendered with a SystemMessage
+    // carrying the scripted summary's `goal` text — proving the fold wrote the
+    // `summary` channel AND the view rendered it into the prompt.
+    const withSummary = captured.find((msgs) =>
+      msgs.some(
+        (m) =>
+          m instanceof SystemMessage &&
+          typeof m.content === "string" &&
+          m.content.includes(SUMMARY.goal),
+      ),
+    );
+    expect(withSummary).toBeDefined();
+    expect(withSummary![0]).toBeInstanceOf(HumanMessage);
   });
 });

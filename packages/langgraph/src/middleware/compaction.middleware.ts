@@ -1,4 +1,4 @@
-import { Inject, type Provider } from "@nestjs/common";
+import { Inject, Logger, type Provider } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import type { z } from "zod";
 import { RemoveMessage, isHumanMessage, type BaseMessage } from "@langchain/core/messages";
@@ -19,6 +19,8 @@ const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 @LangGraphMiddleware()
 export class CompactionMiddleware implements LangGraphMiddlewareContract {
   static readonly [COMPACTION_STATE] = true;
+
+  private readonly logger = new Logger(CompactionMiddleware.name);
 
   constructor(
     @Inject(COMPACTION_OPTS) private readonly opts: CompactionOptions,
@@ -43,7 +45,10 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
       const prior = (ctx.state?.summary ?? null) as CompactionSummary | null;
       const summary = await summarizeSpan(model, this.opts.strategy.schema, prior, plan.foldedSpan);
       return { messages: removals, summary };
-    } catch {
+    } catch (err) {
+      this.logger.warn(
+        `compaction: summarize failed, falling back to drop: ${err instanceof Error ? err.message : String(err)}`,
+      );
       return { messages: removals };
     }
   }
