@@ -240,4 +240,38 @@ describe("fetch_pdf", () => {
     expect(out).toMatch(/not a PDF/i);
     expect(fs.readdirSync(dir)).toHaveLength(0);
   });
+
+  it("accepts an octet-stream response whose body is a real PDF (%PDF- magic bytes)", async () => {
+    const bytes = makePdf("GitHub raw datasheet");
+    const extracted = "Sniffed via %PDF- magic bytes.";
+    const octetFetch: FetchFn = async () => pdfResponse(bytes, "application/octet-stream");
+    const tool = fetchPdfTool({
+      saveDir: dir,
+      fetchFn: octetFetch,
+      now: FIXED_NOW,
+      loadUnpdf: async () => ({
+        extractText: async () => ({ totalPages: 1, text: [extracted] }),
+      }),
+    });
+    const out = await runTool(tool, {
+      url: "https://raw.githubusercontent.com/x/y/z.pdf",
+    });
+    expect(out).toMatch(/search_files|read_lines/);
+    const files = fs.readdirSync(dir);
+    expect(files).toHaveLength(1);
+    expect(fs.readFileSync(path.join(dir, files[0]), "utf8")).toContain("Sniffed via");
+  });
+
+  it("still refuses an octet-stream body that isn't a PDF, naming the missing signature", async () => {
+    const octetHtml: FetchFn = async () =>
+      pdfResponse(
+        new TextEncoder().encode("<html><body>nope</body></html>"),
+        "application/octet-stream",
+      );
+    const tool = fetchPdfTool({ saveDir: dir, fetchFn: octetHtml, now: FIXED_NOW });
+    const out = await runTool(tool, { url: "https://example.com/page" });
+    expect(out).toMatch(/not a PDF/i);
+    expect(out).toContain("%PDF-");
+    expect(fs.readdirSync(dir)).toHaveLength(0);
+  });
 });
