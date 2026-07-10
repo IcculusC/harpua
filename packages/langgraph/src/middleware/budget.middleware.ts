@@ -50,13 +50,22 @@ export class BudgetMiddleware implements LangGraphMiddlewareContract {
     // `ctx.now()` against the un-anchored `0` sentinel would otherwise read as
     // an already-astronomically-exceeded wall time and trip immediately.
     const wallExceeded = startedAt > 0 && ctx.now() - startedAt >= this.opts.maxWallMs;
-    if (
-      iteration >= this.opts.maxCycles ||
-      toolCalls >= this.opts.maxToolCalls ||
-      tokens >= this.opts.maxTokens ||
-      wallExceeded
-    ) {
-      return ctx.exit({ reason: "budget" });
+    // Granular reasons ("budget:<cap>") so consumers can tell WHICH cap
+    // clipped a turn straight from the persisted exit meta — cumulative
+    // token budgets trip far earlier than cycle caps in practice, and an
+    // opaque "budget" hides that. Check order is the precedence order;
+    // consumers matching the old value should use startsWith("budget").
+    if (iteration >= this.opts.maxCycles) {
+      return ctx.exit({ reason: "budget:cycles" });
+    }
+    if (toolCalls >= this.opts.maxToolCalls) {
+      return ctx.exit({ reason: "budget:tool-calls" });
+    }
+    if (tokens >= this.opts.maxTokens) {
+      return ctx.exit({ reason: "budget:tokens" });
+    }
+    if (wallExceeded) {
+      return ctx.exit({ reason: "budget:wall" });
     }
   }
 }
