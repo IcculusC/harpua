@@ -57,7 +57,7 @@ await ingest(docs, { embeddings, store: myStore });
 - `Document = { id?: string; text: string; metadata?: Record<string, unknown> }`. Omit `id` and ingest hashes the text, so the same excerpt captured twice collapses to one record set.
 - ingest chunks with the built-in markdown chunker, embeds each chunk, and upserts. Your `metadata` rides through opaque (plus chunk `startLine`/`endLine`/`headingTrail`), exactly what `search_knowledge` reads back.
 - `syncCorpus({ root, … })` is now `readMarkdownDir(root) → ingest` — the markdown-folder source. Reach for `ingest` directly when your documents don't live on disk as `.md` files.
-- Push-only (upsert). Re-ingesting a document with the same id (or same id-less text) replaces its records in place; there is no delete yet.
+- **Push-only (upsert), no delete — a *shrinking* re-ingest is a footgun.** Re-ingesting the same id replaces *those* records in place, but records are keyed `id:0`, `id:1`, …: if the new version has **fewer** chunks than before, the old tail (`id:6`…`id:9`) is never touched and keeps retrieving stale content, with provenance (`file`, `startLine`) that no longer matches. After a destructive edit to an explicit-id source — e.g. `syncCorpus` over a folder where a file was trimmed down — **recreate or clear the store** before re-ingesting. Id-less documents dodge this (new text hashes to a new id; the old version just lingers as harmless noise). A future optional `deleteByIdPrefix` on the port will make in-place shrink correct; until then, treat upsert-only as grow-or-replace, not shrink.
 
 ## Worked example — pgvector via TypeORM
 
