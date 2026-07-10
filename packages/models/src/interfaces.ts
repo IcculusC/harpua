@@ -19,7 +19,7 @@ export type ModelProvider = z.infer<typeof ModelProviderSchema>;
  * model here never forces a client at boot. The arm is chosen by
  * `provider`/`MODEL_PROVIDER`; until it resolves to `openrouter`, these are
  * inert, so a role registered with an OpenRouter model default still boots on
- * the mock arm with zero env. `siteUrl`/`siteName`/`provider`/`models` map onto
+ * the mock arm with zero env. `siteUrl`/`siteName`/`provider`/`models`/`sessionId` map onto
  * `ChatOpenRouter`'s attribution + routing fields; `provider` is a passthrough
  * object so this package needs no type dependency on the optional peer.
  */
@@ -31,6 +31,8 @@ export const OpenRouterDefaultsSchema = z
     apiKey: z.string().min(1).optional(),
     /** Attribution: your app URL (HTTP-Referer). */
     siteUrl: z.string().optional(),
+    /** Groups related requests in OpenRouter's dashboard (session_id). */
+    sessionId: z.string().optional(),
     /** Attribution: your app name (X-Title). */
     siteName: z.string().optional(),
     /** OpenRouter provider routing preferences (passed through verbatim). */

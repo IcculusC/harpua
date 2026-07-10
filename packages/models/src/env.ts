@@ -6,6 +6,7 @@ import type { ModelDefaults } from "./interfaces";
 const ENV_KEYS = [
   "MODEL_PROVIDER",
   "OPENROUTER_MODEL",
+  "OPENROUTER_SESSION_ID",
   "OPENROUTER_API_KEY",
   "OLLAMA_MODEL",
   "OLLAMA_BASE_URL",
@@ -47,6 +48,7 @@ export function buildEnvSchema(prefix: string, defaults?: ModelDefaults) {
       MODEL_PROVIDER: ModelProviderSchema.default(providerDefault),
       OPENROUTER_MODEL: z.string().min(1).optional(),
       OPENROUTER_API_KEY: z.string().min(1).optional(),
+      OPENROUTER_SESSION_ID: z.string().min(1).optional(),
       OLLAMA_MODEL: z.string().min(1).optional(),
       OLLAMA_BASE_URL: z.string().url().optional(),
       OPENAI_COMPATIBLE_MODEL: z.string().min(1).optional(),
