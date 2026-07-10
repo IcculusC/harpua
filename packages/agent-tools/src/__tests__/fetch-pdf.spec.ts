@@ -107,6 +107,10 @@ describe("fetch_pdf", () => {
 
     const files = fs.readdirSync(dir);
     expect(files).toHaveLength(1);
+    // Bare filename in the confirmation — the address the jailed
+    // file-exploration tools accept (see fetch-url.spec for the full why).
+    expect(out).toContain(`as ${files[0]}.`);
+    expect(out).not.toContain(dir);
     const content = fs.readFileSync(path.join(dir, files[0]), "utf8");
     expect(content).toContain("url: https://ti.com/lm317.pdf");
     expect(content).toContain("fetched: 2026-07-08");

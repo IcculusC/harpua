@@ -1,3 +1,4 @@
+import path from "node:path";
 import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableConfig } from "@langchain/core/runnables";
@@ -107,8 +108,10 @@ export function fetchPdfTool(
       // extracted size in chars/pages instead.
       const label = `${finalUrl.host}${finalUrl.pathname}`;
       const pageWord = totalPages === 1 ? "page" : "pages";
+      // Bare filename, not a cwd-relative path — the jailed file tools
+      // address files relative to this same directory (see fetch-url.ts).
       return (
-        `Saved "${label}" (${text.length.toLocaleString()} chars, ${totalPages} ${pageWord}) to ${saved}.\n` +
+        `Saved "${label}" (${text.length.toLocaleString()} chars, ${totalPages} ${pageWord}) as ${path.basename(saved)}.\n` +
         "Search it with search_files or read it with read_lines."
       );
     },
