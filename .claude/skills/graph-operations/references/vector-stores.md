@@ -59,6 +59,46 @@ await ingest(docs, { embeddings, store: myStore });
 - `syncCorpus({ root, … })` is now `readMarkdownDir(root) → ingest` — the markdown-folder source. Reach for `ingest` directly when your documents don't live on disk as `.md` files.
 - **Push-only (upsert), no delete — a *shrinking* re-ingest is a footgun.** Re-ingesting the same id replaces *those* records in place, but records are keyed `id:0`, `id:1`, …: if the new version has **fewer** chunks than before, the old tail (`id:6`…`id:9`) is never touched and keeps retrieving stale content, with provenance (`file`, `startLine`) that no longer matches. After a destructive edit to an explicit-id source — e.g. `syncCorpus` over a folder where a file was trimmed down — **recreate or clear the store** before re-ingesting. Id-less documents dodge this (new text hashes to a new id; the old version just lingers as harmless noise). A future optional `deleteByIdPrefix` on the port will make in-place shrink correct; until then, treat upsert-only as grow-or-replace, not shrink.
 
+## The write half — `remember` (agent-curated memory)
+
+`ingest` is the plumbing; `remember` is the tool an agent calls. It saves one excerpt into the store so a later `search_knowledge` can recall it — the agent curates its own notebook memory (download a page → keep the useful passage with its reference → move on):
+
+```ts
+import { rememberTool, searchKnowledgeTool } from "@harpua/agent-tools";
+
+const tools = [
+  searchKnowledgeTool({ root, embeddings, store }), // read
+  rememberTool({ embeddings, store }),              // write — SAME store instance
+];
+```
+
+- Input `{ text, source?, title? }`. `text` is embedded; `source`/`title` ride along as metadata and `search_knowledge` renders them as `title (source)` in place of `file:line`.
+- **Store-required** (unlike `search_knowledge`, which falls back to the on-disk corpus). Omit `store` and the factory throws.
+- Remembered excerpts are only visible when `search_knowledge` runs in **store mode over the same store** — in pure corpus mode (no store) it reads disk markdown and never sees them.
+- Content-hash dedup: re-remembering identical text upserts in place. There is no `forget` yet — deletes are deferred with the port's delete/lifecycle work.
+
+### Wiring into Nest
+
+`remember` is a plain factory *because* `@harpua/agent-tools` is framework-neutral. The Nest-idiomatic seam is your app's provider, where the store's real dependencies (`DataSource`, config) live and DI belongs:
+
+```ts
+@Injectable()
+export class KnowledgeTools {
+  constructor(
+    @Inject(KNOWLEDGE_STORE) private readonly store: VectorStore,
+    @Inject(EMBEDDINGS) private readonly embeddings: EmbeddingsInterface,
+  ) {}
+
+  @LangGraphTool()
+  remember = rememberTool({ store: this.store, embeddings: this.embeddings });
+
+  @LangGraphTool()
+  searchKnowledge = searchKnowledgeTool({ root: "…", store: this.store, embeddings: this.embeddings });
+}
+```
+
+The same store instance feeds both tools; DI stays in your app, not in the library.
+
 ## Worked example — pgvector via TypeORM
 
 ```ts

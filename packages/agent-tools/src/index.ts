@@ -46,6 +46,8 @@ export type {
 // Keyless by default via MockEmbeddings; pass any LangChain embeddings
 // instance for real semantics.
 export { searchKnowledgeTool } from "./knowledge/search-knowledge";
+export { rememberTool } from "./knowledge/remember";
+export type { RememberToolOptions } from "./knowledge/remember";
 export { MockEmbeddings, MOCK_EMBEDDING_DIMENSION } from "./knowledge/mock-embeddings";
 export { chunkMarkdown } from "./knowledge/chunk-markdown";
 export type { MarkdownChunk } from "./knowledge/chunk-markdown";

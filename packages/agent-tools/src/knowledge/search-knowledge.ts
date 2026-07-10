@@ -27,6 +27,28 @@ const searchKnowledgeInputSchema = z.object({
     ),
 });
 
+/** Metadata a match may carry: `file`/`startLine`/`endLine` for corpus records,
+ *  `source`/`title` for remembered excerpts. Both optional. */
+interface MatchProvenance {
+  file?: string;
+  startLine?: number;
+  endLine?: number;
+  headingTrail?: string[];
+  source?: string;
+  title?: string;
+}
+
+/**
+ * The provenance label shown before each passage. Corpus records point at
+ * `file:line`; remembered excerpts show `title (source)` (or whichever is
+ * present); a record with neither falls back to its id.
+ */
+function provenanceLabel(md: MatchProvenance, id: string): string {
+  if (md.file) return `${md.file}:${md.startLine}-${md.endLine}`;
+  if (md.title && md.source) return `${md.title} (${md.source})`;
+  return md.source ?? md.title ?? id;
+}
+
 /**
  * `search_knowledge` — semantic-ish retrieval over a directory of markdown.
  * Each call lazily syncs the sidecar index (only new/changed files are
@@ -90,13 +112,8 @@ export function searchKnowledgeTool(
 
       return hits
         .map((h, i) => {
-          const md = (h.metadata ?? {}) as {
-            file?: string;
-            startLine?: number;
-            endLine?: number;
-            headingTrail?: string[];
-          };
-          const where = md.file ? `${md.file}:${md.startLine}-${md.endLine}` : h.id;
+          const md = (h.metadata ?? {}) as MatchProvenance;
+          const where = provenanceLabel(md, h.id);
           const trail =
             md.headingTrail && md.headingTrail.length > 0
               ? ` — ${md.headingTrail.join(" > ")}`
