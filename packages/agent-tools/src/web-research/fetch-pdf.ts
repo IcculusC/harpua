@@ -16,6 +16,19 @@ import { savePage } from "./save-page";
 export const UNPDF_MISSING_MESSAGE =
   'fetch_pdf requires the optional "unpdf" package — install it: pnpm add unpdf';
 
+/** PDFs begin with the "%PDF-" signature (0x25 50 44 46 2D). The strong signal
+ *  when a host mislabels the content-type (GitHub raw / S3 → octet-stream). */
+function isPdfBytes(bytes: Uint8Array): boolean {
+  return (
+    bytes.length >= 5 &&
+    bytes[0] === 0x25 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x44 &&
+    bytes[3] === 0x46 &&
+    bytes[4] === 0x2d
+  );
+}
+
 const DESCRIPTION =
   "Fetch a PDF by URL, extract its text, and save it locally as markdown so it " +
   "can be searched and read — the same fetch → save → explore loop as fetch_url, " +
@@ -62,16 +75,19 @@ export function fetchPdfTool(
       if (!guarded.ok) return guarded.error;
       const { finalUrl, contentType, response } = guarded;
 
-      if (!contentType.includes("application/pdf")) {
+      const read = await readBytesCapped("fetch_pdf", response, opts.maxResponseBytes);
+      if (!read.ok) return read.error;
+
+      // Trust the CONTENT, not just the header: GitHub raw / S3 / CDNs serve
+      // valid PDFs as application/octet-stream. Accept when the header says PDF
+      // OR the body starts with the %PDF- signature; refuse only when neither.
+      if (!contentType.includes("application/pdf") && !isPdfBytes(read.bytes)) {
         return (
-          `fetch_pdf: ${finalUrl.toString()} is not a PDF (server returned ` +
-          `"${contentType || "unknown"}") — only application/pdf is supported. ` +
+          `fetch_pdf: ${finalUrl.toString()} is not a PDF (content-type ` +
+          `"${contentType || "unknown"}", and the body doesn't start with %PDF-). ` +
           "Use fetch_url for HTML and plain-text pages."
         );
       }
-
-      const read = await readBytesCapped("fetch_pdf", response, opts.maxResponseBytes);
-      if (!read.ok) return read.error;
 
       // `unpdf` is an OPTIONAL peer loaded lazily. A missing install rejects
       // here; translate it into an install hint instead of throwing mid-graph.
