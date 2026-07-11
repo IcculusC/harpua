@@ -26,7 +26,7 @@ Inject the compiled runnable with `@InjectLangGraphRunnable(SupportAgent)`. See 
 
 ## Cap turns / avoid `GraphRecursionError`, and retry model calls — use the shipped middleware
 Don't count `AIMessage`s yourself and don't wrap `invoke` in try/catch. Use:
-- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs })`** — a graceful guard that ends the loop at the canonical exit when any cap is hit, instead of throwing `GraphRecursionError`.
+- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, reset })`** — a graceful guard that ends the loop at the canonical exit when any cap is hit, instead of throwing `GraphRecursionError`. `reset` defaults to `"invoke"` (caps are per-invoke); pass `reset: "thread"` for a lifetime ceiling — see [Semantics](#semantics-loopexit-reset-per-invoke-by-default).
 - **`provideRetry({ maxRetries, retryable, backoff })`** — retries the model AND tool calls with a shared, injectable backoff (inject a no-op backoff in tests).
 
 List the classes in `middleware: [...]` and register their options in **`forFeature`'s `{ providers }`** (see the DI gotcha):
@@ -83,8 +83,13 @@ export function provideKeywordStop(opts: KeywordStopOptions): Provider[] {
 ## `responseFormat` → typed `outcome`
 Set `responseFormat: <zod schema>` and a `StructuredResponseNode` coerces the final answer into `state.outcome` (a typed channel an outer graph can `route()` on). A `Budget`-forced stop routes through the same node, so even a graceful give-up yields a typed outcome.
 
-## Semantics: per-thread-lifetime, not per-invoke
-The reserved `loop` counters and the `exit` flag are **persisted** and are NOT reset per `invoke`. So budgets accumulate over a thread's lifetime, and a thread whose agent has exited stays exited — start a new `thread_id` for a fresh run.
+## Semantics: `loop`/`exit` reset per invoke by default
+The reserved `loop` counters and the `exit` flag are **persisted** (LastValue), so nothing resets them on its own — something has to, and `BudgetMiddleware` is what does.
+
+- **`reset: "invoke"` (the default):** `provideBudget`'s `beforeAgent` hook zeroes `loop` and clears `exit` at the start of every invoke. Caps are **per-invoke**, and a thread that exited last turn starts the next one clean. This is what you want for a chat thread.
+- **`reset: "thread"`:** counters accumulate over the thread's whole lifetime (a hard spend ceiling), and a thread whose agent has exited **stays exited** on re-invoke — clear it with `clearAgentExit()` + `graph.updateState`, or start a new `thread_id`.
+
+With no `provideBudget` at all, nothing manages these channels: they accumulate like `reset: "thread"`.
 
 ## Testing an agent whose middleware needs DI options
 `createGraphTestingModule` (in `@harpua/langgraph-testing`) does not forward a `providers` option into `forFeature`'s scope, so it cannot wire middleware options. Boot the agent directly instead:
