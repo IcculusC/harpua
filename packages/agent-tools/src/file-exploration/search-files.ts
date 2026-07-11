@@ -20,9 +20,11 @@ const DESCRIPTION =
   "is a regular expression (ripgrep syntax; escape literals). Optionally pass " +
   "a `glob` (e.g. `src/**/*.ts`) to narrow the files searched. Results are " +
   "`path:line:text`, respect .gitignore, and are capped — a truncation marker " +
-  "tells you when to narrow your pattern or add a glob. Search before you " +
-  "read: use this to locate the handful of lines you need, then open just " +
-  "those with read_lines. Read-only; never searches outside the project root.";
+  "tells you when to narrow your pattern or add a glob. Hidden files (dotfiles " +
+  "and dot-directories like `.github/`) are NOT searched, and no glob overrides " +
+  "that. Search before you read: use this to locate the handful of lines you " +
+  "need, then open just those with read_lines. Read-only; never searches " +
+  "outside the project root.";
 
 const searchFilesInputSchema = z.object({
   pattern: z
@@ -38,6 +40,20 @@ const searchFilesInputSchema = z.object({
 /** A "module not found" spawn error, matched by its Node error code. */
 const enoentError = z.object({ code: z.literal("ENOENT") });
 
+/**
+ * Excludes every dotfile and dot-directory, unconditionally.
+ *
+ * SECURITY, not tidiness. Ripgrep skips hidden files BY DEFAULT, but a positive
+ * `--glob` is a WHITELIST that overrides both that default and ignore rules — so
+ * without this, `search_files(pattern, glob: ".env")` happily reads `.env`, and
+ * so does any other glob naming it. The protection was an accident of the
+ * default, and any agent that named the file defeated it.
+ *
+ * Ripgrep globs are LAST-MATCH-WINS, so appending these AFTER the caller's glob
+ * beats it. Order is load-bearing: pushed first, they lose and the hole reopens.
+ */
+const EXCLUDE_HIDDEN = ["--glob", "!.*", "--glob", "!.*/**"];
+
 /** Build the ripgrep argument array. The `--` guard means a `-`-leading pattern is safe. */
 function buildSearchArgs(pattern: string, glob: string | undefined, maxMatches: number): string[] {
   const args = [
@@ -48,10 +64,226 @@ function buildSearchArgs(pattern: string, glob: string | undefined, maxMatches: 
     String(maxMatches),
   ];
   if (glob !== undefined) args.push("--glob", glob);
+  args.push(...EXCLUDE_HIDDEN);
   // Explicit search path: without one, ripgrep reads a piped stdin (the child's
   // stdin is a pipe, not a TTY) and blocks forever. "." searches the cwd tree.
   args.push("--", pattern, ".");
   return args;
+}
+
+/** Which exclusion mechanisms a probe is allowed to see past. */
+interface ProbeReach {
+  /** Look inside dotfiles/dot-directories, which the search itself never does. */
+  hidden: boolean;
+  /** Look past ignore rules (`.gitignore`/`.ignore`/parent dirs/global config). */
+  ignored: boolean;
+  /** Keep `.git/` out. False ONLY for the probe whose job is to ask about `.git/`. */
+  excludeGit?: boolean;
+}
+
+/**
+ * Ask ripgrep to LIST candidate files rather than search them. `--quiet` makes
+ * it stop at the first hit and print nothing, so the EXIT CODE is the whole
+ * answer (0 = at least one file, 1 = none, >=2 = the probe broke) — no stdout
+ * to parse and no full tree walk.
+ *
+ * A probe with no reach mirrors `buildSearchArgs` exactly, which is what makes
+ * the comparison meaningful: any file the widened probes see and this one does
+ * not was excluded by a mechanism we can then NAME.
+ */
+function buildProbeArgs(glob: string | undefined, reach: ProbeReach): string[] {
+  const args = ["--files", "--quiet"];
+  if (reach.ignored) args.push("--no-ignore");
+  if (glob !== undefined) args.push("--glob", glob);
+
+  if (reach.hidden) {
+    // Widen: see the dotfiles the search refuses to. Note --hidden alone is not
+    // enough — the search also appends EXCLUDE_HIDDEN, which this probe omits.
+    args.push("--hidden");
+  } else {
+    // Mirror the search exactly, hidden-exclusion included. If this probe could
+    // see a file the search cannot, every cause we name from it is a lie.
+    args.push(...EXCLUDE_HIDDEN);
+  }
+
+  // Widened probes walk `.git/`, which the search never does — so a glob like
+  // "**/config" would match `.git/config` and we'd report git plumbing as the
+  // user's ignored source file. LAST-MATCH-WINS again: the guard must come
+  // after the caller's glob or it silently loses to it.
+  //
+  // Which cuts both ways: it also overrides a caller who MEANT `.git/**`. One
+  // probe therefore drops the guard, so we can tell "your glob matched nothing"
+  // apart from "our own guard hid the files you asked for".
+  const widened = reach.hidden || reach.ignored;
+  if (widened && reach.excludeGit !== false) args.push("--glob", "!.git/**");
+  args.push(".");
+  return args;
+}
+
+/** Why did ripgrep search nothing — or did it in fact search? */
+type EmptyCause =
+  /** Files were searched. (Note: ripgrep silently skips BINARY files it did open.) */
+  | "searched"
+  /** Nothing matched at all — no such file, under any reach. */
+  | "no-such-file"
+  /** They are hidden. This tool never searches dotfiles. */
+  | "hidden"
+  /** They are excluded by an ignore rule. */
+  | "ignored"
+  /** The SAME files are both — `.env` listed in `.gitignore`; `.venv/`; `.next/`. */
+  | "hidden-and-ignored"
+  /** The glob spans both: SOME matches are hidden, OTHERS are ignored. */
+  | "mixed"
+  /** They live in `.git/`, which this tool never looks inside. */
+  | "git-internal"
+  /** A probe itself failed. We do not know, and must not guess. */
+  | "unknown";
+
+/**
+ * Ripgrep's exit code 1 means "produced no matches" — which is several
+ * different facts, and they demand OPPOSITE remedies. Establish which.
+ *
+ * This cannot be one question. `rg --files` honors ignore rules and skips
+ * hidden files exactly as the search does, so an empty listing collapses every
+ * cause into one. The two mechanisms are INDEPENDENT — a file can be hidden, or
+ * ignored, or both (`.env` listed in `.gitignore`; `.venv/`; `.next/`) — so they
+ * must be probed independently. Lifting them one at a time in a chain silently
+ * attributes a both-excluded file to whichever probe happened to fire.
+ *
+ *   as-searched      — mirrors the search exactly. Found it? It really searched.
+ *   + hidden only    — found only now? Hidden is what stopped it.
+ *   + ignored only   — found only now? An ignore rule is what stopped it.
+ *   + both           — found only now? BOTH did.
+ *   + .git/ as well  — found only now? Our own guard hid it, not their glob.
+ *   nothing, ever    — genuinely no such file.
+ *
+ * Guessing here is how the original bug reproduces itself: sending an agent
+ * hunting for a glob that was never broken, or telling it to abandon a file it
+ * could simply have read.
+ */
+async function diagnoseEmptySearch(glob: string | undefined, root: string): Promise<EmptyCause> {
+  /** Resolves to `true` when this reach finds a file, `null` when the probe broke. */
+  const finds = async (reach: ProbeReach): Promise<boolean | null> => {
+    const { code } = await runRg(buildProbeArgs(glob, reach), root);
+    if (code >= 2) return null; // the probe itself failed — invent nothing
+    return code === 0;
+  };
+
+  const asSearched = await finds({ hidden: false, ignored: false });
+  if (asSearched === null) return "unknown";
+  if (asSearched) return "searched";
+
+  // BOTH single-mechanism probes run before we conclude anything. A glob can
+  // span the two — one match hidden, another ignored — and returning on the
+  // first probe to fire would claim "EVERY file matching X is hidden" while
+  // silently never mentioning the ignored one. That is a confident partial
+  // answer: the failure that looks most like success.
+  const hiddenOnly = await finds({ hidden: true, ignored: false });
+  if (hiddenOnly === null) return "unknown";
+  const ignoredOnly = await finds({ hidden: false, ignored: true });
+  if (ignoredOnly === null) return "unknown";
+
+  if (hiddenOnly && ignoredOnly) return "mixed";
+  if (hiddenOnly) return "hidden";
+  if (ignoredOnly) return "ignored";
+
+  // Neither mechanism ALONE reveals a file, so any file that exists needs both
+  // lifted at once: it is hidden AND ignored (`.env` in `.gitignore`).
+  const both = await finds({ hidden: true, ignored: true });
+  if (both === null) return "unknown";
+  if (both) return "hidden-and-ignored";
+
+  // Every probe above keeps `.git/` out. So if the caller's glob pointed INTO
+  // `.git/`, it is OUR guard that hid their files — never blame their glob.
+  const inGit = await finds({ hidden: true, ignored: true, excludeGit: false });
+  if (inGit === null) return "unknown";
+  return inGit ? "git-internal" : "no-such-file";
+}
+
+/**
+ * Returned instead of "No matches." when nothing was searched. The message must
+ * actively stop the agent concluding the pattern is absent — it has no evidence
+ * either way, because no file was opened — and must name the REAL cause, since
+ * the remedy for a bad glob and the remedy for an ignored file are opposites.
+ */
+function nothingSearchedMessage(
+  pattern: string,
+  glob: string | undefined,
+  cause: Exclude<EmptyCause, "searched" | "unknown">,
+): string {
+  const scope = glob === undefined ? "in the project" : `matching "${glob}"`;
+  // Hidden files are excluded DELIBERATELY (secrets live in dotfiles), and that
+  // exclusion is now unconditional — no glob defeats it. So the hidden cases
+  // state the restriction and stop: pointing the agent at a tool that WOULD read
+  // `.env` turns an honest refusal into a how-to guide.
+  //
+  // Ignored files are different — `dist/`, `coverage/`, build output. Nothing is
+  // being protected, so dead-ending the agent there is just unhelpful.
+  const readThem = "Read them directly with read_lines, which has no such restriction.";
+  const hiddenIsDeliberate =
+    "search_files never searches hidden files — that is deliberate (secrets live " +
+    "in dotfiles), and no glob overrides it. Nothing is wrong with your glob.";
+  let why: string;
+  let hint: string;
+
+  switch (cause) {
+    case "hidden":
+      why = `every file ${scope} is hidden (a dotfile or inside a dot-directory)`;
+      hint = hiddenIsDeliberate;
+      break;
+
+    case "ignored":
+      why = `every file ${scope} is excluded by an ignore rule`;
+      // The rule need not live in this project at all: ripgrep honors a
+      // .gitignore in a PARENT directory above the root, and the global
+      // core.excludesFile. Naming ".gitignore" flatly sends the agent hunting
+      // through the project for a rule that may not be there.
+      hint =
+        "The rule may be in a .gitignore/.ignore here, in a parent directory " +
+        "above the project root, or in your global git config. They are ignored, " +
+        `not missing — a broader search would skip them too. ${readThem}`;
+      break;
+
+    case "hidden-and-ignored":
+      why = `every file ${scope} is BOTH hidden and excluded by an ignore rule`;
+      hint = hiddenIsDeliberate;
+      break;
+
+    case "mixed":
+      // The glob spans both mechanisms. Saying "every file is hidden" would be
+      // false AND would bury the ignored file entirely — the agent would answer
+      // confidently having never been told it exists.
+      why = `some files ${scope} are hidden, and others are excluded by an ignore rule`;
+      hint =
+        `${hiddenIsDeliberate} The ignored ones are a different matter: ${readThem}`;
+      break;
+
+    case "git-internal":
+      why = `the only files ${scope} are inside .git/`;
+      // This covers two very different callers: one who MEANT `.git/**`, and one
+      // whose broad glob (`**/config`) merely collided with git's plumbing. Name
+      // the tool's restriction rather than blaming a glob, and answer both.
+      hint =
+        "search_files never looks inside .git/ — that is a restriction of this " +
+        "tool, not a mistake in your glob. If you meant a project file, none matches.";
+      break;
+
+    default:
+      why =
+        glob === undefined
+          ? "the project contains no searchable files"
+          : `the glob "${glob}" matched no files`;
+      hint =
+        glob === undefined
+          ? ""
+          : 'Globs are relative to the project root, and a bare directory name matches nothing — use "src/**", not "src".';
+  }
+
+  return (
+    `search_files: nothing was searched — ${why}. ` +
+    `This is NOT evidence that "${pattern}" is absent: no file was opened.` +
+    (hint === "" ? "" : ` ${hint}`)
+  );
 }
 
 /** Cap ripgrep output by BOTH match count and byte size, appending a marker. */
@@ -85,8 +317,14 @@ function formatMatches(stdout: string, opts: ResolvedFileExplorationOptions): st
 /**
  * `search_files` — regex search over the sandboxed project via ripgrep. Bounded
  * (match + byte caps with a truncation marker), read-only, and confined to the
- * configured root. Falls back to a clear install hint when `rg` is absent and
- * distinguishes "no matches" from a real ripgrep error.
+ * configured root. Falls back to a clear install hint when `rg` is absent.
+ *
+ * Ripgrep's exit code 1 conflates "searched, found nothing" with "searched
+ * nothing at all", and the second is not evidence of anything. On an empty
+ * search this diagnoses which — and, when nothing was searched, names the
+ * mechanism responsible (no such file / hidden / ignored), because those need
+ * opposite remedies and a wrong guess sends an agent hunting for a glob that
+ * cannot exist, or abandoning a file it could simply have read.
  */
 export function searchFilesTool(options: FileExplorationOptions): StructuredToolInterface {
   const opts = resolveOptions(options);
@@ -99,7 +337,18 @@ export function searchFilesTool(options: FileExplorationOptions): StructuredTool
           buildSearchArgs(pattern, glob, opts.maxMatches),
           sandbox.root,
         );
-        if (code === 1) return "No matches.";
+        if (code === 1) {
+          // "Produced no matches" is not one fact. It is "searched, found
+          // nothing" — or "searched nothing at all", which is not evidence of
+          // anything and must never be reported as though it were. A glob is
+          // the common cause but NOT the only one (an empty tree, or a root
+          // where ignore rules exclude everything, does it with no glob), so
+          // ask unconditionally. The cost lands only on a path that was
+          // already a dead end, and `--quiet` makes the probe early-exit.
+          const cause = await diagnoseEmptySearch(glob, sandbox.root);
+          if (cause === "searched" || cause === "unknown") return "No matches.";
+          return nothingSearchedMessage(pattern, glob, cause);
+        }
         if (code >= 2) {
           return `search_files failed: ${stderr.trim() || `ripgrep exited ${code}`}`;
         }
