@@ -33,6 +33,8 @@ describe("isSecretPath (default policy)", () => {
     "cert.pfx",
     "id_rsa",
     "id_ed25519",
+    ".env/inner", // a directory literally named .env — its contents are still secret
+    "sub/.env/prod",
   ])("blocks %s", (rel) => {
     expect(secret(rel)).toBe(true);
   });

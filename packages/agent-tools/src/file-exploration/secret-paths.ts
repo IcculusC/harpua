@@ -28,7 +28,8 @@ export const DEFAULT_SECRET_PATTERNS: readonly RegExp[] = [
   // dotenv files, including .env.local / .env.production — but NOT the
   // .example/.sample/.template variants, which are placeholder-only, meant to be
   // committed and read, and hold no secret. The negative lookahead exempts them.
-  /(^|\/)\.env(\.(?!example$|sample$|template$)[^/]*)?$/i,
+  // Trailing `(\/|$)` also covers a directory literally named `.env`.
+  /(^|\/)\.env(\.(?!example$|sample$|template$)[^/]*)?(\/|$)/i,
   // credential dirs — block the dir itself AND everything beneath it, so neither
   // its contents nor its filename listing is reachable
   /(^|\/)\.ssh(\/|$)/i,
