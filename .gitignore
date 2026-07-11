@@ -8,3 +8,4 @@ coverage
 .DS_Store
 .claude/worktrees/
 docs/superpowers/
+.claude/settings.local.json
