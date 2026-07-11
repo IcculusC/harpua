@@ -33,7 +33,6 @@ describe("isSecretPath (default policy)", () => {
     "cert.pfx",
     "id_rsa",
     "id_ed25519",
-    ".env.example", // acknowledged cost — .env* is intentionally broad
   ])("blocks %s", (rel) => {
     expect(secret(rel)).toBe(true);
   });
@@ -47,13 +46,34 @@ describe("isSecretPath (default policy)", () => {
     ".eslintrc.json",
     ".prettierrc",
     ".gitignore",
+    // Near-misses: the anchors must keep every one of these readable. Without a
+    // test here, a future "simplification" of the regexes would silently start
+    // blocking legitimate files with a green suite.
     "environment.ts", // must not false-match ".env"
+    "env.config.ts",
+    "config.env.js",
     "prevent.md",
-    "id_rsad", // must anchor: not exactly id_rsa
-    "notes.key.txt", // .key is not the extension
+    "id_rsad", // anchored: not exactly id_rsa
+    "id_rsa.pub", // the PUBLIC key is not a secret
+    "notes.key.txt", // .key is not the extension here
     "src/keyboard.ts",
+    "keynote.md",
+    // .env template variants are placeholder-only and meant to be read.
+    ".env.example",
+    ".env.sample",
+    ".env.template",
+    "config/.env.example",
   ])("allows %s", (rel) => {
     expect(secret(rel)).toBe(false);
+  });
+
+  it("still blocks real dotenv files while allowing the templates", () => {
+    expect(secret(".env")).toBe(true);
+    expect(secret(".env.local")).toBe(true);
+    expect(secret(".env.production")).toBe(true);
+    expect(secret(".env.example")).toBe(false);
+    expect(secret(".env.sample")).toBe(false);
+    expect(secret(".env.template")).toBe(false);
   });
 
   it("matches on the basename regardless of directory depth", () => {

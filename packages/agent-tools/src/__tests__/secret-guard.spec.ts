@@ -88,6 +88,33 @@ describe("secret-path guard (through the real tools)", () => {
     expect(out).not.toMatch(/search_files|file_stats|cat\b/i);
   });
 
+  // The guard matches the ROOT-RELATIVE path, not the absolute one. If the
+  // sandbox root itself lives under a secret-named ancestor (a repo checked out
+  // inside ~/.ssh, say), matching the absolute path would refuse EVERY file.
+  // This pins that: ordinary files stay readable, only a relative secret is
+  // refused, no matter what the root's own path contains.
+  it("reads normal files when the root sits under a secret-named ancestor", async () => {
+    const parent = makeTmpDir("agent-tools-nested-");
+    // `.ssh` as a genuine path COMPONENT of the root's absolute path — matching
+    // the absolute path (the M2 bug) would then refuse every file under it.
+    const nestedRoot = path.join(parent, ".ssh", "project");
+    fs.mkdirSync(nestedRoot, { recursive: true });
+    writeFile(nestedRoot, "app.ts", "export const ok = true;\n");
+    writeFile(nestedRoot, ".env", SECRET);
+    try {
+      const read = readLinesTool({ root: nestedRoot });
+      // The root's absolute path contains a secret-looking segment, yet a
+      // normal file inside is readable...
+      expect(await runTool(read, { path: "app.ts" })).toContain("export const ok");
+      // ...while a genuinely-secret RELATIVE path is still refused.
+      const denied = await runTool(read, { path: ".env" });
+      expect(denied).not.toContain("hunter2");
+      expect(denied).toMatch(/secret/i);
+    } finally {
+      removeTmpDir(parent);
+    }
+  });
+
   // A custom empty policy disables the guard (opt-out remains possible).
   it("an empty blockedSecretPatterns disables the guard", async () => {
     const read = readLinesTool({ root, blockedSecretPatterns: [] });

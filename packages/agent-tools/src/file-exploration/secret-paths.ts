@@ -25,8 +25,10 @@
  * `id_rsad` does not match `id_rsa`.
  */
 export const DEFAULT_SECRET_PATTERNS: readonly RegExp[] = [
-  // dotenv files, including .env.local / .env.production (and, accepted, .env.example)
-  /(^|\/)\.env(\.[^/]*)?$/i,
+  // dotenv files, including .env.local / .env.production — but NOT the
+  // .example/.sample/.template variants, which are placeholder-only, meant to be
+  // committed and read, and hold no secret. The negative lookahead exempts them.
+  /(^|\/)\.env(\.(?!example$|sample$|template$)[^/]*)?$/i,
   // credential dirs — block the dir itself AND everything beneath it, so neither
   // its contents nor its filename listing is reachable
   /(^|\/)\.ssh(\/|$)/i,
