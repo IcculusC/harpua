@@ -54,6 +54,28 @@ function buildSearchArgs(pattern: string, glob: string | undefined, maxMatches: 
   return args;
 }
 
+/**
+ * Ask ripgrep which files a glob actually matches. `--files` LISTS candidate
+ * files without searching them, so this answers "was anything searched?" — the
+ * question ripgrep's exit code cannot answer on its own.
+ */
+function buildFileListArgs(glob: string): string[] {
+  return ["--files", "--glob", glob, "."];
+}
+
+/**
+ * Returned instead of "No matches." when the glob excluded every file. The
+ * message must actively stop the agent concluding the pattern is absent: it
+ * has no evidence either way, because nothing was read.
+ */
+function nothingSearchedMessage(pattern: string, glob: string): string {
+  return (
+    `search_files: the glob "${glob}" matched no files, so nothing was searched. ` +
+    `This is NOT evidence that "${pattern}" is absent — no file was opened. ` +
+    "Check the glob (it is relative to the project root), or search without one."
+  );
+}
+
 /** Cap ripgrep output by BOTH match count and byte size, appending a marker. */
 function formatMatches(stdout: string, opts: ResolvedFileExplorationOptions): string {
   const lines = stdout
@@ -85,8 +107,12 @@ function formatMatches(stdout: string, opts: ResolvedFileExplorationOptions): st
 /**
  * `search_files` — regex search over the sandboxed project via ripgrep. Bounded
  * (match + byte caps with a truncation marker), read-only, and confined to the
- * configured root. Falls back to a clear install hint when `rg` is absent and
- * distinguishes "no matches" from a real ripgrep error.
+ * configured root. Falls back to a clear install hint when `rg` is absent.
+ *
+ * Distinguishes three outcomes ripgrep's exit code conflates into two: a real
+ * ripgrep error, "searched and found nothing", and "the glob matched no files,
+ * so nothing was searched" — the last being the one that misleads an agent into
+ * believing a pattern is absent from files it never opened.
  */
 export function searchFilesTool(options: FileExplorationOptions): StructuredToolInterface {
   const opts = resolveOptions(options);
@@ -99,7 +125,19 @@ export function searchFilesTool(options: FileExplorationOptions): StructuredTool
           buildSearchArgs(pattern, glob, opts.maxMatches),
           sandbox.root,
         );
-        if (code === 1) return "No matches.";
+        if (code === 1) {
+          // Exit 1 means "produced no matches" — which is TWO different facts:
+          // the pattern is absent from the files searched, or the glob excluded
+          // every file and nothing was searched at all. ripgrep cannot tell us
+          // which. Only a glob can cause the second, so only then do we ask.
+          // The cost lands solely on a path that was already a dead end.
+          if (glob !== undefined) {
+            const listed = await runRg(buildFileListArgs(glob), sandbox.root);
+            const matchedAFile = listed.stdout.split("\n").some((l) => l.trim().length > 0);
+            if (!matchedAFile) return nothingSearchedMessage(pattern, glob);
+          }
+          return "No matches.";
+        }
         if (code >= 2) {
           return `search_files failed: ${stderr.trim() || `ripgrep exited ${code}`}`;
         }

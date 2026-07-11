@@ -77,6 +77,55 @@ describe("search_files (injected exec seam)", () => {
     expect(out).toBe("No matches.");
   });
 
+  // ripgrep exits 1 both when it searched and found nothing AND when a glob
+  // excluded every file so it searched nothing at all. Collapsing those into
+  // one "No matches." tells the agent the pattern is absent from files that
+  // were never opened — and it believes the tool over its own eyes.
+  it("says nothing was searched when the glob matched no files", async () => {
+    const spy = jest
+      .spyOn(runRgModule, "runRg")
+      // The search itself: exit 1, no matches produced.
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 })
+      // The follow-up `--files` probe: the glob matched zero files.
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 });
+
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: ";;", glob: "*.kicad_sch" });
+
+    expect(out).not.toBe("No matches.");
+    expect(out).toContain("*.kicad_sch");
+    expect(out).toMatch(/matched no files/i);
+    // The whole point: it must not let the agent conclude the pattern is absent.
+    expect(out).toMatch(/nothing was searched/i);
+
+    // The probe asks ripgrep to LIST files, not search them.
+    const probeArgs = spy.mock.calls[1][0];
+    expect(probeArgs).toContain("--files");
+    expect(probeArgs).toContain("*.kicad_sch");
+  });
+
+  it("still reports 'No matches.' when the glob matched files but the pattern is absent", async () => {
+    jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 })
+      // The glob DID match a file — so "no matches" is a true statement.
+      .mockResolvedValueOnce({ stdout: "src/beta.ts\n", stderr: "", code: 0 });
+
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "zzz", glob: "src/**/*.ts" });
+    expect(out).toBe("No matches.");
+  });
+
+  it("does not probe at all when no glob was supplied", async () => {
+    // With no glob, ripgrep searched the whole sandbox: "No matches." is true
+    // and there is nothing to disambiguate. Don't pay for a second process.
+    const spy = stubRg({ stdout: "", stderr: "", code: 1 });
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "zzz" });
+    expect(out).toBe("No matches.");
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("surfaces a real ripgrep error (exit >= 2)", async () => {
     stubRg({ stdout: "", stderr: "regex parse error: unclosed group", code: 2 });
     const search = searchFilesTool({ root });
@@ -134,5 +183,28 @@ const rgAvailable = (): boolean => {
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "definitely_absent_token_xyz" });
     expect(out).toBe("No matches.");
+  });
+
+  // The field failure, verbatim: a correct query whose glob matches no files.
+  // The control (searching without the glob) proves the pattern IS in the
+  // corpus — so a bare "No matches." here would be a lie, and the agent that
+  // believed it re-read the file six times hunting for lines it had seen.
+  it("distinguishes 'nothing was searched' from 'searched, found nothing'", async () => {
+    const search = searchFilesTool({ root });
+
+    // Control: the pattern is genuinely present.
+    const control = await runTool(search, { pattern: "NEEDLE" });
+    expect(control).toContain("src/alpha.ts");
+
+    // Same pattern, but the glob matches zero files in this corpus.
+    const scoped = await runTool(search, { pattern: "NEEDLE", glob: "*.kicad_sch" });
+    expect(scoped).not.toBe("No matches.");
+    expect(scoped).toMatch(/matched no files/i);
+    expect(scoped).toMatch(/nothing was searched/i);
+
+    // And the honest negative still reads as before: the glob matched a real
+    // file, the pattern simply isn't in it.
+    const honest = await runTool(search, { pattern: "definitely_absent_xyz", glob: "**/beta.ts" });
+    expect(honest).toBe("No matches.");
   });
 });
