@@ -28,7 +28,7 @@ surprise.
   - [Budget + Retry](#budget-retry)
   - [Context management](#context-management)
   - [`responseFormat`](#responseformat)
-  - [Semantics: loop and exit persist per thread, not per invoke](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
+  - [Semantics: loop and exit reset per invoke by default](#semantics-loop-and-exit-reset-per-invoke-by-default)
 - [Facade API](#facade-api)
 - [Notes](#notes)
 - [Agent skills](#agent-skills)
@@ -772,7 +772,7 @@ Register and inject it exactly like a hand-written `@LangGraph` class —
 you; nothing about it is a black box; you can always eject to a hand-written
 graph later and the wiring looks the same. The one thing it adds to your
 `state` that a hand-written graph wouldn't have: two reserved, merged
-channels, `loop` and `exit` (see [Semantics](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
+channels, `loop` and `exit` (see [Semantics](#semantics-loop-and-exit-reset-per-invoke-by-default)
 below), so `res.loop` and `res.exit` are present on every invoke result
 alongside the fields you declared.
 
@@ -866,7 +866,7 @@ Two ready-made middlewares ship with the package:
   exit. Pass `reset: "thread"` to restore the previous lifetime semantics
   (`loop`/`exit` persist and accumulate across every invoke on the same
   thread) — useful for a hard spend ceiling across a whole thread's
-  lifetime; see [Semantics](#semantics-loop-and-exit-persist-per-thread-not-per-invoke)
+  lifetime; see [Semantics](#semantics-loop-and-exit-reset-per-invoke-by-default)
   for the `clearAgentExit()` escape hatch that mode needs.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — wraps *both*
   `wrapModelCall` and `wrapToolCall` with the same retry loop: it re-invokes
@@ -1059,27 +1059,31 @@ compiles in a `StructuredResponseNode` that calls the model's
 `ctx.exit()` short-circuits the loop early (e.g. `BudgetMiddleware` hitting a
 cap still produces a schema-shaped `outcome`, not a bare early return).
 
-### Semantics: loop and exit persist per thread, not per invoke
+### Semantics: loop and exit reset per invoke by default
 
 The `loop` counters (`iteration`, `modelCalls`, `toolCalls`, `tokens`,
 `startedAt`) and the `exit` flag are ordinary `LastValue` state channels, so
-like the rest of state they're checkpointed — nothing resets them by itself
-just because a new `invoke` starts on the same `thread_id`.
+like the rest of state they're checkpointed: **nothing resets them by itself**
+just because a new `invoke` starts on the same `thread_id`. Something has to
+reset them, and `BudgetMiddleware` is what does.
 
-**As of `BudgetMiddleware`'s `reset: "invoke"` default**, its `beforeAgent`
-hook resets both channels back to their defaults at the start of every
-invoke, so in practice a long-lived thread no longer accumulates turn over
-turn toward a permanent exit. The lifetime-accumulation behavior below only
-applies when `BudgetMiddleware` is configured with `reset: "thread"` (or when
-nothing manages these channels at all):
+`BudgetMiddleware` defaults to **`reset: "invoke"`** — its `beforeAgent` hook
+zeroes the `loop` counters and clears a stuck `exit` at the start of every
+invoke. So with the default budget in place, caps are per-invoke and a
+long-lived thread does not accumulate turn over turn toward a permanent exit.
+This is what you want for a chat thread.
 
-- Budget caps under `reset: "thread"` are **per-thread-lifetime**, not
-  per-invoke: `loop.iteration` and friends keep climbing turn over turn *and*
-  invoke over invoke on the same thread.
+The lifetime-accumulation semantics apply when `BudgetMiddleware` is
+configured with **`reset: "thread"`** — a hard spend ceiling across a whole
+thread — or when nothing manages these channels at all:
+
+- Budget caps are **per-thread-lifetime**, not per-invoke: `loop.iteration`
+  and friends keep climbing turn over turn *and* invoke over invoke on the
+  same thread.
 - Once a thread has exited (`exit.requested === true`, set by a middleware's
-  `ctx.exit()`) under that mode, a later re-invoke on that **same** thread
-  stays exited — clear it with `clearAgentExit()` and `updateState`, or start
-  a new `thread_id` for a fresh run:
+  `ctx.exit()`), a later re-invoke on that **same** thread stays exited —
+  clear it with `clearAgentExit()` and `updateState`, or start a new
+  `thread_id` for a fresh run:
 
 ```ts
 import { clearAgentExit } from "@harpua/langgraph";
