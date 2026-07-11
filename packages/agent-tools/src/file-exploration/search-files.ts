@@ -21,10 +21,10 @@ const DESCRIPTION =
   "a `glob` (e.g. `src/**/*.ts`) to narrow the files searched. Results are " +
   "`path:line:text`, respect .gitignore, and are capped — a truncation marker " +
   "tells you when to narrow your pattern or add a glob. Hidden files (dotfiles " +
-  "and dot-directories like `.github/`) are NOT searched; read those directly " +
-  "with read_lines. Search before you read: use this to locate the handful of " +
-  "lines you need, then open just those with read_lines. Read-only; never " +
-  "searches outside the project root.";
+  "and dot-directories like `.github/`) are NOT searched, and no glob overrides " +
+  "that. Search before you read: use this to locate the handful of lines you " +
+  "need, then open just those with read_lines. Read-only; never searches " +
+  "outside the project root.";
 
 const searchFilesInputSchema = z.object({
   pattern: z

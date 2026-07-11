@@ -4,7 +4,9 @@
 
 **`search_files` no longer reads hidden files, even when a glob names them.** Ripgrep skips dotfiles by default, but a positive `--glob` is a *whitelist* that overrides that default **and** ignore rules — so `search_files(pattern, glob: ".env")` (and `*.env`, and any other glob naming it) read `.env` straight out, `.gitignore` notwithstanding. The protection was an accident of the default, and any agent that named the file defeated it. Hidden files are now excluded unconditionally: no glob overrides it.
 
-This is a **behavior change**: a caller who relied on an explicit glob to reach a dotfile will no longer get one. Read such files with `read_lines`, which is unrestricted by design.
+This is a **behavior change**: a caller who relied on an explicit glob to reach a dotfile will no longer get one.
+
+**Scope:** this closes `search_files` as a *search-based* path to hidden-file contents. It does **not** make dotfiles unreadable across the toolkit — `read_lines` and `file_stats` still read and list them by design. If your threat model is "no agent may read `.env`", hardening `search_files` alone is not sufficient; that is a separate, deliberate decision about the file tools as a whole.
 
 **`search_files` also no longer reports `"No matches."` when it searched nothing at all.** Ripgrep exits `1` both when it searched files and found nothing *and* when it searched no file whatsoever — and the second is not evidence of anything. The tool collapsed those into one string, telling agents a pattern was absent from files it had never opened. In production this cost ~11 model calls in a single turn: the agent disbelieved its own earlier `read_file` output and re-read the target file in six widening windows, hunting for lines the tool had just told it did not exist.
 
