@@ -2,13 +2,18 @@
 "@harpua/agent-tools": patch
 ---
 
-`search_files` no longer reports `"No matches."` when it searched nothing at all. ripgrep exits `1` both when it searched files and found nothing *and* when it searched no files whatsoever — because a glob matched none, because ignore rules excluded them all, or because the tree is empty. The tool collapsed those into one string, telling agents a pattern was absent from files it had never opened.
+`search_files` no longer reports `"No matches."` when it searched nothing at all. ripgrep exits `1` both when it searched files and found nothing *and* when it searched no file whatsoever — and the second is not evidence of anything. The tool collapsed those into one string, telling agents a pattern was absent from files it had never opened.
 
-An empty search now establishes *why* it was empty before answering, and says so:
+An empty search now establishes **why** it was empty before answering, and names the mechanism responsible — because the remedies are opposites, and a wrong guess sends an agent hunting for a glob that cannot exist or abandoning a file it could simply have read:
 
 - **Files were searched** → `"No matches."`, unchanged and true.
-- **The glob matched no files** → says nothing was searched, that this is not evidence the pattern is absent, and notes that a bare directory name (`src`) matches nothing where `src/**` works.
-- **The matching files are excluded by ignore rules** → names ignore rules as the cause rather than blaming the glob, and does *not* suggest broadening the search, which would silently skip those files and hand back a confident partial answer.
-- **The probe itself fails** → falls back to `"No matches."` rather than inventing a cause.
+- **The glob matched nothing** → says nothing was searched, and notes that a bare directory name (`src`) matches no files where `src/**` works.
+- **The files are hidden** → `search_files` never searches dotfiles (`.github/`, `.env`, `.vscode/`), which it now also states in its description. Points at `read_lines`, which reads them fine.
+- **The files are excluded by an ignore rule** → names ignore rules rather than blaming the glob, and notes the rule may live in a parent directory or global git config rather than in the project at all.
+- **Both at once** (`.env` listed in `.gitignore`; `.venv/`, `.next/`, `.turbo/`) → names both, since no glob can reach them.
+- **The files are inside `.git/`** → says so, rather than blaming a glob that was correct.
+- **A probe itself fails** → falls back to `"No matches."` and invents no cause.
 
-The diagnosis costs at most two extra `rg --files --quiet` probes, which print nothing and exit at the first file found, and only ever run on a search that already came back empty.
+Every case where the files exist now points at `read_lines`, which applies no ignore-rule or dotfile filter — so the agent is never dead-ended on a file it could have read.
+
+The diagnosis runs only on a search that already came back empty, and costs at most a few `rg --files --quiet` probes, which print nothing and exit at the first file found.

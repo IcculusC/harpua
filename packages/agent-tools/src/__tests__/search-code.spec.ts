@@ -87,12 +87,14 @@ describe("search_files (injected exec seam)", () => {
   //
   // `--quiet` means the probe prints nothing and its EXIT CODE is the answer:
   // 0 = at least one file, 1 = none, >=2 = the probe itself broke.
-  // Probes widen the reach ONE mechanism at a time, so the first one that finds
-  // the file names the mechanism that excluded it:
-  //   call 0  the search        1 = produced nothing
-  //   call 1  probe, no reach   mirrors the search exactly
-  //   call 2  probe + --hidden  found only here => the files are HIDDEN
-  //   call 3  probe + ignore    found only here => the files are IGNORED
+  // Hidden and ignore rules are INDEPENDENT mechanisms, so they are probed
+  // independently — a file can be excluded by either, or by both at once:
+  //   call 0  the search               1 = produced nothing
+  //   call 1  probe, no reach          mirrors the search exactly
+  //   call 2  probe + hidden only      found only here => HIDDEN
+  //   call 3  probe + ignored only     found only here => IGNORED
+  //   call 4  probe + both             found only here => BOTH
+  //   call 5  probe + .git/ as well    found only here => our own guard hid it
   const EMPTY = { stdout: "", stderr: "", code: 1 };
   const FOUND = { stdout: "", stderr: "", code: 0 };
   const BROKE = { stdout: "", stderr: "rg: broke", code: 2 };
@@ -103,7 +105,9 @@ describe("search_files (injected exec seam)", () => {
       .mockResolvedValueOnce(EMPTY) // search
       .mockResolvedValueOnce(EMPTY) // as-searched
       .mockResolvedValueOnce(EMPTY) // +hidden
-      .mockResolvedValueOnce(EMPTY); // +ignored — nothing, under any reach
+      .mockResolvedValueOnce(EMPTY) // +ignored
+      .mockResolvedValueOnce(EMPTY) // +both
+      .mockResolvedValueOnce(EMPTY); // +.git — nothing, under any reach
 
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: ";;", glob: "*.kicad_sch" });
@@ -163,27 +167,87 @@ describe("search_files (injected exec seam)", () => {
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY)
       .mockResolvedValueOnce(EMPTY)
-      .mockResolvedValueOnce(EMPTY) // not hidden either
-      .mockResolvedValueOnce(FOUND); // only visible past ignore rules
+      .mockResolvedValueOnce(EMPTY) // not hidden
+      .mockResolvedValueOnce(FOUND); // visible once ignore rules are lifted
 
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "NEEDLE", glob: "dist/**/*.js" });
 
-    expect(out).toMatch(/ignore rules/i);
+    expect(out).toMatch(/excluded by an ignore rule/i);
     expect(out).toMatch(/NOT evidence/i);
     expect(out).not.toMatch(/matched no files/i);
     // Never advise a broader search: it would skip them too.
     expect(out).toMatch(/ignored, not missing/i);
+    // The rule may not even be IN the project — don't send the agent hunting
+    // through a .gitignore that need not exist.
+    expect(out).toMatch(/parent directory|global git config/i);
+    // The files are readable. Never dead-end the agent.
+    expect(out).toMatch(/read_lines/);
 
-    // The widened probes must not wander into .git/, and ripgrep globs are
-    // LAST-MATCH-WINS — so the guard has to come AFTER the caller's glob or it
-    // silently loses to it.
+    // The ignore probe must NOT also lift `hidden` — that conflation is what
+    // made a hidden-and-ignored file report as merely "ignored".
     const ignoreProbe = spy.mock.calls[3][0] as string[];
     expect(ignoreProbe).toContain("--no-ignore");
+    expect(ignoreProbe).not.toContain("--hidden");
+    // Widened probes must not wander into .git/, and ripgrep globs are
+    // LAST-MATCH-WINS — the guard has to come AFTER the caller's glob.
     expect(ignoreProbe).toContain("!.git/**");
     expect(ignoreProbe.lastIndexOf("!.git/**")).toBeGreaterThan(
       ignoreProbe.lastIndexOf("dist/**/*.js"),
     );
+  });
+
+  // `.env` listed in .gitignore. `.venv/`, `.next/`, `.turbo/`. The intersection
+  // is the COMMON case, and a chain that lifts one mechanism at a time
+  // misattributes it to whichever probe happens to fire first.
+  it("names BOTH mechanisms when a file is hidden and ignored at once", async () => {
+    const spy = jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce(EMPTY)
+      .mockResolvedValueOnce(EMPTY)
+      .mockResolvedValueOnce(EMPTY) // hidden alone doesn't reach it (still ignored)
+      .mockResolvedValueOnce(EMPTY) // ignore alone doesn't reach it (still hidden)
+      .mockResolvedValueOnce(FOUND); // only both together
+
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "SECRET", glob: ".env" });
+
+    expect(out).toMatch(/BOTH hidden and excluded by an ignore rule/i);
+    expect(out).toMatch(/no glob will reach them/i);
+    expect(out).toMatch(/read_lines/);
+    expect(out).not.toMatch(/matched no files/i);
+
+    // The both-probe must genuinely lift BOTH. (Dropping --hidden here is the
+    // mutation that previously survived the entire suite.)
+    const bothProbe = spy.mock.calls[4][0] as string[];
+    expect(bothProbe).toContain("--hidden");
+    expect(bothProbe).toContain("--no-ignore");
+  });
+
+  // Our own `!.git/**` guard is last-match-wins, so it overrides a caller who
+  // MEANT .git/**. Blaming their glob for files our guard hid is the same lie.
+  it("admits it was our own .git guard, not the caller's glob", async () => {
+    const spy = jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce(EMPTY)
+      .mockResolvedValueOnce(EMPTY)
+      .mockResolvedValueOnce(EMPTY)
+      .mockResolvedValueOnce(EMPTY)
+      .mockResolvedValueOnce(EMPTY) // every guarded probe is blind here
+      .mockResolvedValueOnce(FOUND); // ...until we drop the guard
+
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "url", glob: ".git/**" });
+
+    expect(out).toMatch(/inside \.git\//i);
+    expect(out).toMatch(/not a mistake in your glob/i);
+    expect(out).not.toMatch(/matched no files/i);
+    // Never serve the bare-directory advice for a glob that was correct.
+    expect(out).not.toMatch(/bare directory name/i);
+
+    // Only the last probe drops the guard.
+    const gitProbe = spy.mock.calls[5][0] as string[];
+    expect(gitProbe).not.toContain("!.git/**");
   });
 
   it("reports nothing-searched with no glob at all when ignore rules exclude everything", async () => {
@@ -200,7 +264,7 @@ describe("search_files (injected exec seam)", () => {
     const out = await runTool(search, { pattern: "NEEDLE" });
 
     expect(out).not.toBe("No matches.");
-    expect(out).toMatch(/every file in the project is excluded by ignore rules/i);
+    expect(out).toMatch(/every file in the project is excluded by an ignore rule/i);
   });
 
   it("still reports 'No matches.' when files WERE searched and the pattern is absent", async () => {
@@ -224,6 +288,8 @@ describe("search_files (injected exec seam)", () => {
     ["the first probe", [EMPTY, BROKE]],
     ["the hidden probe", [EMPTY, EMPTY, BROKE]],
     ["the ignore probe", [EMPTY, EMPTY, EMPTY, BROKE]],
+    ["the both probe", [EMPTY, EMPTY, EMPTY, EMPTY, BROKE]],
+    ["the .git probe", [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, BROKE]],
   ])("falls back to 'No matches.' when %s fails, inventing no cause", async (_label, seq) => {
     const spy = jest.spyOn(runRgModule, "runRg");
     for (const r of seq) spy.mockResolvedValueOnce(r);
@@ -328,8 +394,9 @@ const rgAvailable = (): boolean => {
     const out = await runTool(search, { pattern: "NEEDLE", glob: "ignored/**" });
 
     expect(out).not.toBe("No matches.");
-    expect(out).toMatch(/ignore rules/i);
+    expect(out).toMatch(/excluded by an ignore rule/i);
     expect(out).toMatch(/nothing was searched/i);
+    expect(out).toMatch(/read_lines/);
     // The glob was correct — never blame it, and never send the agent hunting
     // for a better one that cannot exist.
     expect(out).not.toMatch(/matched no files/i);
@@ -361,10 +428,42 @@ const rgAvailable = (): boolean => {
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "repositoryformatversion", glob: "**/config" });
 
-    // There is no user file named `config` — the honest answer, and the one the
-    // agent can act on. Never "it exists but is ignored/hidden".
-    expect(out).toMatch(/matched no files/i);
-    expect(out).not.toMatch(/ignore rules/i);
-    expect(out).not.toMatch(/hidden/i);
+    // `**/config` genuinely DOES match .git/config, so "matched no files" would
+    // itself be false. Name the real reason it went unsearched, and tell the
+    // agent no project file matches — never call git plumbing their ignored source.
+    expect(out).toMatch(/inside \.git\//i);
+    expect(out).toMatch(/if you meant a project file, none matches/i);
+    expect(out).not.toMatch(/excluded by an ignore rule/i);
+    expect(out).not.toMatch(/is hidden/i);
+  });
+
+  // ...but when the caller DELIBERATELY globs into .git/ (reading .git/config
+  // for the remote URL is routine), our own guard is what blinded us. Blaming
+  // their glob would be the same lie in a new place.
+  it("admits its own .git guard when the caller deliberately globs .git/", async () => {
+    writeFile(root, ".git/config", '[remote "origin"]\n\turl = git@github.com:x/y.git\n');
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "url", glob: ".git/**" });
+
+    expect(out).toMatch(/inside \.git\//i);
+    expect(out).toMatch(/not a mistake in your glob/i);
+    expect(out).toMatch(/read_lines/);
+    expect(out).not.toMatch(/matched no files/i);
+    expect(out).not.toMatch(/bare directory name/i);
+  });
+
+  // The intersection — hidden AND ignored — is the common case in the wild
+  // (.env in .gitignore, .venv/, .next/, .turbo/), and it is exactly the case a
+  // one-at-a-time ladder misattributes.
+  it("names both mechanisms for a file that is hidden AND ignored", async () => {
+    writeFile(root, ".cache/secret.txt", "TOKEN=abc123\n");
+    writeFile(root, ".ignore", "ignored/\n.cache/\n");
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "TOKEN", glob: ".cache/**" });
+
+    expect(out).not.toBe("No matches.");
+    expect(out).toMatch(/BOTH hidden and excluded by an ignore rule/i);
+    expect(out).toMatch(/read_lines/);
+    expect(out).not.toMatch(/matched no files/i);
   });
 });
