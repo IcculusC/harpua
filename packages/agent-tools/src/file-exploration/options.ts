@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { DEFAULT_SECRET_PATTERNS } from "./secret-paths";
+
 /** Sane default page size for {@link readLinesTool} (lines per page). */
 export const DEFAULT_PAGE_LINES = 200;
 /** Sane default match cap for {@link searchFilesTool}. */
@@ -30,6 +32,16 @@ export const fileExplorationOptionsSchema = z
     maxOutputBytes: z.number().int().positive().default(DEFAULT_MAX_OUTPUT_BYTES),
     /** File-size ceiling above which read_lines refuses to open a file. */
     maxFileBytes: z.number().int().positive().default(DEFAULT_MAX_FILE_BYTES),
+    /**
+     * Paths whose contents the path-reading tools (`read_lines`, `file_stats`)
+     * refuse to open — matched against the realpath'd, root-relative path so a
+     * symlink or `..` cannot smuggle one past. Defaults to a curated
+     * credential list ({@link DEFAULT_SECRET_PATTERNS}); pass your own to extend
+     * or replace it, or `[]` to disable the guard entirely.
+     */
+    blockedSecretPatterns: z
+      .array(z.instanceof(RegExp))
+      .default([...DEFAULT_SECRET_PATTERNS]),
   })
   .strict();
 

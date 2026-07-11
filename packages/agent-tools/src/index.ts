@@ -11,6 +11,10 @@ export { fileExplorationTools } from "./file-exploration/file-exploration-tools"
 export { searchFilesTool, RG_MISSING_MESSAGE } from "./file-exploration/search-files";
 export { readLinesTool } from "./file-exploration/read-lines";
 export { fileStatsTool } from "./file-exploration/file-stats";
+export {
+  DEFAULT_SECRET_PATTERNS,
+  isSecretPath,
+} from "./file-exploration/secret-paths";
 export type {
   FileExplorationOptions,
   ResolvedFileExplorationOptions,

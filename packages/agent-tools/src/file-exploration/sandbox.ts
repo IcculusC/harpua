@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "./secret-paths";
+
 /**
  * Thrown when a resolved path escapes the sandbox root. Tools catch it and
  * return its message as a polite refusal rather than letting it propagate.
@@ -9,6 +11,18 @@ export class SandboxError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SandboxError";
+  }
+}
+
+/**
+ * Thrown when a resolved path is a known-secret file (`.env`, private keys, …).
+ * Subclasses {@link SandboxError} so tools that already catch that — every
+ * path-reading tool does — refuse it without any change to their bodies.
+ */
+export class SecretPathError extends SandboxError {
+  constructor(message: string) {
+    super(message);
+    this.name = "SecretPathError";
   }
 }
 
@@ -61,8 +75,16 @@ function isWithin(root: string, candidate: string): boolean {
 /**
  * Build a sandbox rooted at `rawRoot`. Validates at construction that the root
  * exists and is a directory, then stores its realpath as the boundary.
+ *
+ * `secretPatterns` (default {@link DEFAULT_SECRET_PATTERNS}) are refused by
+ * `resolve`. The check runs on the REALPATH'd, confirmed-inside path — after
+ * symlinks and `..` are collapsed — so a harmless-looking name cannot resolve
+ * to a secret and slip through. Pass `[]` to disable.
  */
-export function createSandbox(rawRoot: string): Sandbox {
+export function createSandbox(
+  rawRoot: string,
+  secretPatterns: readonly RegExp[] = DEFAULT_SECRET_PATTERNS,
+): Sandbox {
   let stat: fs.Stats;
   try {
     stat = fs.statSync(rawRoot);
@@ -83,6 +105,17 @@ export function createSandbox(rawRoot: string): Sandbox {
         throw new SandboxError(
           `Refused: "${input}" resolves outside the sandbox root (${root}). ` +
             `Paths must stay within the project root.`,
+        );
+      }
+      // On the REAL path, so a symlink/`..` that lands on a secret is caught by
+      // where it actually points, not by the name the caller used. No bypass
+      // hint in the message — naming another tool would just relocate the leak.
+      const rel = path.relative(root, real);
+      if (isSecretPath(rel, secretPatterns)) {
+        throw new SecretPathError(
+          `Refused: "${input}" is a protected secret path (credentials, keys, ` +
+            `and similar are never readable through these tools). This is ` +
+            `deliberate — it is not a path you can reach another way here.`,
         );
       }
       return real;

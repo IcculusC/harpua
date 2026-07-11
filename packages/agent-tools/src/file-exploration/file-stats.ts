@@ -122,7 +122,7 @@ function formatListing(
  */
 export function fileStatsTool(options: FileExplorationOptions): StructuredToolInterface {
   const opts = resolveOptions(options);
-  const sandbox = createSandbox(opts.root);
+  const sandbox = createSandbox(opts.root, opts.blockedSecretPatterns);
 
   return tool(
     async ({ path: input }) => {
