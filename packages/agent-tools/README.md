@@ -65,6 +65,14 @@ no single call floods the model's context), and nothing ever writes. The tool
 descriptions teach the workflow: size things up with `file_stats`, locate lines
 with `search_files`, then page just those with `read_lines`.
 
+**Secrets stay unreadable.** `search_files` never searches hidden files (dotfiles
+and dot-directories), and no glob overrides that — so a search can't be used to
+read `.env`. `read_lines` and `file_stats` refuse a curated set of secret paths
+(`.env`, `.ssh/`, private keys, and similar; configurable via
+`blockedSecretPatterns`), checked on the resolved real path so a symlink or `..`
+can't smuggle one through. Non-secret dotfiles (`.github/`, `.vscode/`) and
+`.env.example`-style templates stay readable.
+
 ```ts
 import { fileExplorationTools } from "@harpua/agent-tools";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
@@ -83,12 +91,16 @@ const toolNode = new ToolNode(tools);
 
 - **`search_files`** `{ pattern, glob? }` — regex search via [ripgrep](https://github.com/BurntSushi/ripgrep)
   (`rg` must be installed; the tool returns an install hint if it isn't). Respects
-  ignore files, distinguishes "No matches." from a real error, and caps output.
+  ignore files, skips hidden files, and caps output. On an empty result it says
+  *why* — genuinely absent, glob matched nothing, or the matches were hidden or
+  ignored — rather than a bare "No matches." that an agent could misread as
+  "not there" about files it never opened.
 - **`read_lines`** `{ path, start? }` — one line-numbered page of a text file with
   a `file — lines A–B of TOTAL` header and the next `start=` when more remain.
-  Refuses binary and oversize files.
+  Refuses binary files, oversize files, and secret paths.
 - **`file_stats`** `{ path? }` — line count / byte size / binary flag for a file,
   or a bounded per-file listing for a directory (omit `path` for the root).
+  Refuses to stat a secret path.
 
 `options` is validated with zod (`root` required; every cap is a positive
 integer with a default; unknown keys rejected). The individual factories
