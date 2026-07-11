@@ -138,19 +138,24 @@ describe("search_files (injected exec seam)", () => {
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY) // search: skips hidden
       .mockResolvedValueOnce(EMPTY) // as-searched: also skips hidden
-      .mockResolvedValueOnce(FOUND); // +hidden: there they are
+      .mockResolvedValueOnce(FOUND) // +hidden: there they are
+      .mockResolvedValueOnce(EMPTY); // +ignored: nothing ignored here
 
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "actions/checkout", glob: ".github/**" });
 
     expect(out).toMatch(/hidden/i);
-    expect(out).toMatch(/read_lines/);
+    expect(out).toMatch(/deliberate/i);
     expect(out).toMatch(/NOT evidence/i);
+    // Hidden files are withheld on purpose — never hand out the read_lines bypass.
+    expect(out).not.toMatch(/read_lines/);
     // The glob was correct and nothing is gitignored. Never claim either.
     expect(out).not.toMatch(/matched no files/i);
     expect(out).not.toMatch(/ignore rules/i);
-    // Stops at the hidden probe — no reason to ask about ignore rules.
-    expect(spy).toHaveBeenCalledTimes(3);
+    // BOTH single-mechanism probes run before concluding — otherwise a glob
+    // spanning a hidden file and an ignored one would claim "every file ... is
+    // hidden" and never mention the ignored one at all.
+    expect(spy).toHaveBeenCalledTimes(4);
 
     const hiddenProbe = spy.mock.calls[2][0];
     expect(hiddenProbe).toContain("--hidden");
@@ -213,8 +218,8 @@ describe("search_files (injected exec seam)", () => {
     const out = await runTool(search, { pattern: "SECRET", glob: ".env" });
 
     expect(out).toMatch(/BOTH hidden and excluded by an ignore rule/i);
-    expect(out).toMatch(/no glob will reach them/i);
-    expect(out).toMatch(/read_lines/);
+    expect(out).toMatch(/no glob overrides it/i);
+    expect(out).not.toMatch(/read_lines/);
     expect(out).not.toMatch(/matched no files/i);
 
     // The both-probe must genuinely lift BOTH. (Dropping --hidden here is the
@@ -356,6 +361,48 @@ const rgAvailable = (): boolean => {
     expect(scoped).not.toContain("alpha.ts");
   });
 
+  // SECURITY. ripgrep skips hidden files by default, but a positive --glob is a
+  // WHITELIST that overrides that default AND ignore rules — so before this,
+  // every one of these globs read the secret straight out of .env. The
+  // protection was an accident of the default, and naming the file defeated it.
+  it.each([".env", "*.env", "**/.env", "**/*", "**"])(
+    "refuses to search a hidden file even when the glob names it (%s)",
+    async (glob) => {
+      writeFile(root, ".env", "SECRET=hunter2\n");
+      const search = searchFilesTool({ root });
+      const out = await runTool(search, { pattern: "SECRET", glob });
+
+      // The invariant for EVERY glob: the secret never leaks and .env is never
+      // reported as a match. (A broad glob like `**` still searches the visible
+      // files and honestly says "No matches."; only a glob that targets .env
+      // specifically produces the hidden message — covered below.)
+      expect(out).not.toContain("hunter2");
+      expect(out).not.toMatch(/\.env:\d+:/);
+    },
+  );
+
+  it("still refuses the hidden file with no glob at all", async () => {
+    writeFile(root, ".env", "SECRET=hunter2\n");
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "SECRET" });
+    expect(out).not.toContain("hunter2");
+  });
+
+  // ...and having refused, it must not then hand out the bypass. read_lines CAN
+  // read .env; advertising that turns an honest refusal into a how-to guide.
+  it("does not offer a read_lines workaround for hidden files", async () => {
+    writeFile(root, ".env", "SECRET=hunter2\n");
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "SECRET", glob: ".env" });
+
+    expect(out).toMatch(/hidden/i);
+    expect(out).toMatch(/deliberate/i);
+    expect(out).toMatch(/no glob overrides it/i);
+    expect(out).not.toMatch(/read_lines/);
+    // Still honest about what it does NOT know.
+    expect(out).toMatch(/NOT evidence/i);
+  });
+
   it("returns 'No matches.' for a pattern that is absent", async () => {
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "definitely_absent_token_xyz" });
@@ -414,7 +461,8 @@ const rgAvailable = (): boolean => {
 
     expect(out).not.toBe("No matches.");
     expect(out).toMatch(/hidden/i);
-    expect(out).toMatch(/read_lines/);
+    expect(out).toMatch(/deliberate/i);
+    expect(out).not.toMatch(/read_lines/);
     expect(out).not.toMatch(/ignore rules/i);
     expect(out).not.toMatch(/matched no files/i);
   });
@@ -447,7 +495,6 @@ const rgAvailable = (): boolean => {
 
     expect(out).toMatch(/inside \.git\//i);
     expect(out).toMatch(/not a mistake in your glob/i);
-    expect(out).toMatch(/read_lines/);
     expect(out).not.toMatch(/matched no files/i);
     expect(out).not.toMatch(/bare directory name/i);
   });
@@ -463,7 +510,27 @@ const rgAvailable = (): boolean => {
 
     expect(out).not.toBe("No matches.");
     expect(out).toMatch(/BOTH hidden and excluded by an ignore rule/i);
-    expect(out).toMatch(/read_lines/);
+    expect(out).not.toMatch(/read_lines/);
     expect(out).not.toMatch(/matched no files/i);
+  });
+
+  // A glob can span BOTH mechanisms: one match hidden, another merely ignored.
+  // Returning on the first probe to fire would claim "EVERY file matching X is
+  // hidden" — false — and would never mention the ignored file at all, leaving
+  // the agent to answer confidently without knowing it exists.
+  it("names both mechanisms when the glob spans a hidden file AND an ignored one", async () => {
+    writeFile(root, ".config/a.txt", "TOKEN here\n"); // hidden, NOT ignored
+    writeFile(root, "dist/b.txt", "TOKEN here\n"); // ignored, NOT hidden
+    writeFile(root, ".ignore", "ignored/\ndist/\n");
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "TOKEN", glob: "**/*.txt" });
+
+    expect(out).not.toBe("No matches.");
+    // Never "every file … is hidden" — dist/b.txt is not hidden.
+    expect(out).toMatch(/some files.*are hidden/i);
+    expect(out).toMatch(/others are excluded by an ignore rule/i);
+    expect(out).toMatch(/NOT evidence/i);
+    // The ignored one is readable and worth naming; the hidden one stays withheld.
+    expect(out).toMatch(/read_lines/);
   });
 });
