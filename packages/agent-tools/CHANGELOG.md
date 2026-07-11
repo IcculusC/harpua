@@ -1,5 +1,42 @@
 # @harpua/agent-tools
 
+## 0.6.0
+
+### Minor Changes
+
+- ccf93ae: **`search_files` no longer reads hidden files, even when a glob names them.** Ripgrep skips dotfiles by default, but a positive `--glob` is a _whitelist_ that overrides that default **and** ignore rules — so `search_files(pattern, glob: ".env")` (and `*.env`, and any other glob naming it) read `.env` straight out, `.gitignore` notwithstanding. The protection was an accident of the default, and any agent that named the file defeated it. Hidden files are now excluded unconditionally: no glob overrides it.
+
+  This is a **behavior change**: a caller who relied on an explicit glob to reach a dotfile will no longer get one.
+
+  **Scope:** this closes `search_files` as a _search-based_ path to hidden-file contents. It does **not** make dotfiles unreadable across the toolkit — `read_lines` and `file_stats` still read and list them by design. If your threat model is "no agent may read `.env`", hardening `search_files` alone is not sufficient; that is a separate, deliberate decision about the file tools as a whole.
+
+  **`search_files` also no longer reports `"No matches."` when it searched nothing at all.** Ripgrep exits `1` both when it searched files and found nothing _and_ when it searched no file whatsoever — and the second is not evidence of anything. The tool collapsed those into one string, telling agents a pattern was absent from files it had never opened. In production this cost ~11 model calls in a single turn: the agent disbelieved its own earlier `read_file` output and re-read the target file in six widening windows, hunting for lines the tool had just told it did not exist.
+
+  An empty search now establishes **why** it was empty before answering, and names the mechanism — the remedies are opposites, and a wrong guess sends an agent hunting for a glob that cannot exist, or abandoning a file it could simply have read:
+
+  - **Files were searched** → `"No matches."`, unchanged and true.
+  - **The glob matched nothing** → says nothing was searched, and notes that a bare directory name (`src`) matches no files where `src/**` works.
+  - **The files are hidden** → states that hidden files are never searched and that this is deliberate. Offers no bypass.
+  - **Excluded by an ignore rule** → names ignore rules rather than blaming the glob, notes the rule may live in a parent directory or global git config rather than in the project, and points at `read_lines`.
+  - **Both at once** (`.env` in `.gitignore`; `.venv/`, `.next/`, `.turbo/`) → names both.
+  - **The glob spans both** (one match hidden, another ignored) → says so, rather than claiming _every_ match is hidden and silently never mentioning the ignored file.
+  - **Inside `.git/`** → says so, rather than blaming a glob that was correct.
+  - **A probe itself fails** → falls back to `"No matches."` and invents no cause.
+
+  Diagnosis runs only on a search that already came back empty, and costs at most a few `rg --files --quiet` probes, which print nothing and exit at the first file found.
+
+  `search_files`' description now states outright that hidden files are not searched.
+
+- 8a8d4db: **`read_lines` and `file_stats` now refuse to open known-secret paths.** Previously `read_lines({ path: ".env" })` returned the file's contents — so hardening `search_files` against hidden-file reads (the sibling change) did not actually keep an injected agent away from secrets; it just closed one of several doors. This closes the path-reader door.
+
+  The guard runs inside the sandbox's path resolution, on the **realpath'd** path — _after_ symlinks and `..` are collapsed — so a harmless-looking name (`notes.txt` → `.env`), a symlinked secret directory, a multi-hop symlink chain, or a normalizing traversal (`src/../.env`) all resolve to the real secret and are refused. The refusal names no alternative tool, so it can't double as a how-to.
+
+  It is a **targeted** credential denylist, not a blanket dotfile ban: `.env` (and `.env.local`, `.env.production`, …), `.ssh/`, `.aws/`, `.gnupg/`, `.kube/`, `.docker/`, `.netrc`, `.pgpass`, `.git-credentials`, `.htpasswd`, `.npmrc`, `.pypirc`, `credentials`/`credentials.json`, `id_rsa`/`id_dsa`/`id_ecdsa`/`id_ed25519`, and `*.pem`/`*.key`/`*.p12`/`*.pfx`. Non-secret dotfiles (`.github/`, `.vscode/`, `.eslintrc`) stay readable, as do the placeholder `.env.example`/`.env.sample`/`.env.template` templates and public keys (`id_rsa.pub`).
+
+  Configurable via the new `blockedSecretPatterns` option (an array of `RegExp` matched against the root-relative POSIX path): extend it with project-specific secrets, replace it, or pass `[]` to disable. Exports `DEFAULT_SECRET_PATTERNS` and `isSecretPath`.
+
+  **Known limits.** The guard blocks reading secret _contents_, not the appearance of a non-hidden secret _filename_ in a `file_stats` directory listing (e.g. `server.pem` still shows as a name with its size; opening it is refused). And a hardlink to a secret under a non-secret name is not caught — `realpath` cannot distinguish a hardlink from the real file, so this is inherent to any path-based guard, and creating one requires filesystem write access these read-only tools never grant. Symlinks, `..` traversal, and a directory literally named `.env` _are_ all covered, because the check runs on the realpath'd, root-relative path.
+
 ## 0.5.0
 
 ### Minor Changes
