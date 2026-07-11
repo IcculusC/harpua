@@ -55,24 +55,92 @@ function buildSearchArgs(pattern: string, glob: string | undefined, maxMatches: 
 }
 
 /**
- * Ask ripgrep which files a glob actually matches. `--files` LISTS candidate
- * files without searching them, so this answers "was anything searched?" — the
- * question ripgrep's exit code cannot answer on its own.
+ * Ask ripgrep to LIST candidate files rather than search them. `--quiet` makes
+ * it stop at the first hit and print nothing, so the EXIT CODE is the whole
+ * answer (0 = at least one file, 1 = none) — no stdout to parse and no full
+ * tree walk. Pass `respectIgnoreRules: false` to see files that exist but are
+ * excluded by `.gitignore`/`.ignore`.
  */
-function buildFileListArgs(glob: string): string[] {
-  return ["--files", "--glob", glob, "."];
+function buildProbeArgs(glob: string | undefined, respectIgnoreRules: boolean): string[] {
+  const args = ["--files", "--quiet"];
+  if (!respectIgnoreRules) args.push("--no-ignore", "--hidden");
+  if (glob !== undefined) args.push("--glob", glob);
+  args.push(".");
+  return args;
+}
+
+/** Why did ripgrep search nothing — or did it in fact search? */
+type EmptyCause =
+  /** Files were searched; the pattern really is absent. "No matches." is true. */
+  | "searched"
+  /** Nothing matched the glob (or the tree holds no searchable files). */
+  | "no-such-file"
+  /** Files exist, but ignore rules excluded every one of them. */
+  | "ignored"
+  /** The probe itself failed. We do not know, and must not guess. */
+  | "unknown";
+
+/**
+ * Ripgrep's exit code 1 means "produced no matches" — which is several
+ * different facts. Establish which.
+ *
+ * This cannot be one question: `--files` honors ignore rules EXACTLY as the
+ * search does, so an empty listing means either "nothing matched the glob" or
+ * "everything matching it is gitignored". Those demand opposite advice, and
+ * telling an agent to fix a glob that was never broken sends it into precisely
+ * the loop this whole fix exists to break.
+ */
+async function diagnoseEmptySearch(glob: string | undefined, root: string): Promise<EmptyCause> {
+  const respecting = await runRg(buildProbeArgs(glob, true), root);
+  // The probe broke. Don't invent a cause — fall back to the plain negative.
+  if (respecting.code >= 2) return "unknown";
+  // Files WERE searched, so the pattern is genuinely absent from them.
+  if (respecting.code === 0) return "searched";
+
+  // Nothing was searched. Ignore rules, or nothing there at all?
+  const ignoring = await runRg(buildProbeArgs(glob, false), root);
+  if (ignoring.code >= 2) return "unknown";
+  return ignoring.code === 0 ? "ignored" : "no-such-file";
 }
 
 /**
- * Returned instead of "No matches." when the glob excluded every file. The
- * message must actively stop the agent concluding the pattern is absent: it
- * has no evidence either way, because nothing was read.
+ * Returned instead of "No matches." when nothing was searched. The message must
+ * actively stop the agent concluding the pattern is absent — it has no evidence
+ * either way, because no file was opened — and must name the REAL cause, since
+ * the remedy for a bad glob and the remedy for an ignored file are opposites.
  */
-function nothingSearchedMessage(pattern: string, glob: string): string {
+function nothingSearchedMessage(
+  pattern: string,
+  glob: string | undefined,
+  cause: "no-such-file" | "ignored",
+): string {
+  let why: string;
+  let hint: string;
+
+  if (cause === "ignored") {
+    why =
+      glob === undefined
+        ? "every file in the project is excluded by ignore rules (.gitignore/.ignore)"
+        : `every file matching "${glob}" is excluded by ignore rules (.gitignore/.ignore)`;
+    // Do NOT suggest dropping the glob: those files are ignored, not merely
+    // out of scope, so a broader search would skip them too and hand back a
+    // confident partial answer.
+    hint = "They are ignored, not missing — a broader search would skip them too.";
+  } else {
+    why =
+      glob === undefined
+        ? "the project contains no searchable files"
+        : `the glob "${glob}" matched no files`;
+    hint =
+      glob === undefined
+        ? ""
+        : 'Globs are relative to the project root, and a bare directory name matches nothing — use "src/**", not "src".';
+  }
+
   return (
-    `search_files: the glob "${glob}" matched no files, so nothing was searched. ` +
-    `This is NOT evidence that "${pattern}" is absent — no file was opened. ` +
-    "Check the glob (it is relative to the project root), or search without one."
+    `search_files: nothing was searched — ${why}. ` +
+    `This is NOT evidence that "${pattern}" is absent: no file was opened.` +
+    (hint === "" ? "" : ` ${hint}`)
   );
 }
 
@@ -126,17 +194,16 @@ export function searchFilesTool(options: FileExplorationOptions): StructuredTool
           sandbox.root,
         );
         if (code === 1) {
-          // Exit 1 means "produced no matches" — which is TWO different facts:
-          // the pattern is absent from the files searched, or the glob excluded
-          // every file and nothing was searched at all. ripgrep cannot tell us
-          // which. Only a glob can cause the second, so only then do we ask.
-          // The cost lands solely on a path that was already a dead end.
-          if (glob !== undefined) {
-            const listed = await runRg(buildFileListArgs(glob), sandbox.root);
-            const matchedAFile = listed.stdout.split("\n").some((l) => l.trim().length > 0);
-            if (!matchedAFile) return nothingSearchedMessage(pattern, glob);
-          }
-          return "No matches.";
+          // "Produced no matches" is not one fact. It is "searched, found
+          // nothing" — or "searched nothing at all", which is not evidence of
+          // anything and must never be reported as though it were. A glob is
+          // the common cause but NOT the only one (an empty tree, or a root
+          // where ignore rules exclude everything, does it with no glob), so
+          // ask unconditionally. The cost lands only on a path that was
+          // already a dead end, and `--quiet` makes the probe early-exit.
+          const cause = await diagnoseEmptySearch(glob, sandbox.root);
+          if (cause === "searched" || cause === "unknown") return "No matches.";
+          return nothingSearchedMessage(pattern, glob, cause);
         }
         if (code >= 2) {
           return `search_files failed: ${stderr.trim() || `ripgrep exited ${code}`}`;

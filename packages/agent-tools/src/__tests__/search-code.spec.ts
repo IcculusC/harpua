@@ -71,23 +71,30 @@ describe("search_files (injected exec seam)", () => {
   });
 
   it("reports no matches distinctly from an error (exit 1)", async () => {
-    stubRg({ stdout: "", stderr: "", code: 1 });
+    jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 }) // search: empty
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 0 }); // probe: files exist
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "zzz" });
     expect(out).toBe("No matches.");
   });
 
-  // ripgrep exits 1 both when it searched and found nothing AND when a glob
-  // excluded every file so it searched nothing at all. Collapsing those into
-  // one "No matches." tells the agent the pattern is absent from files that
-  // were never opened — and it believes the tool over its own eyes.
+  // ripgrep exits 1 both when it searched and found nothing AND when it searched
+  // NOTHING AT ALL. Collapsing those into one "No matches." tells the agent a
+  // pattern is absent from files that were never opened — and it believes the
+  // tool over its own eyes. The probes below establish which fact it was.
+  //
+  // `--quiet` means the probe prints nothing and its EXIT CODE is the answer:
+  // 0 = at least one file, 1 = none, >=2 = the probe itself broke.
+  const SEARCH_EMPTY = { stdout: "", stderr: "", code: 1 };
+
   it("says nothing was searched when the glob matched no files", async () => {
     const spy = jest
       .spyOn(runRgModule, "runRg")
-      // The search itself: exit 1, no matches produced.
-      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 })
-      // The follow-up `--files` probe: the glob matched zero files.
-      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 });
+      .mockResolvedValueOnce(SEARCH_EMPTY) // the search: no matches produced
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 }) // probe: zero files
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 }); // probe --no-ignore: still zero
 
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: ";;", glob: "*.kicad_sch" });
@@ -97,33 +104,83 @@ describe("search_files (injected exec seam)", () => {
     expect(out).toMatch(/matched no files/i);
     // The whole point: it must not let the agent conclude the pattern is absent.
     expect(out).toMatch(/nothing was searched/i);
+    expect(out).toMatch(/NOT evidence/i);
 
-    // The probe asks ripgrep to LIST files, not search them.
+    // The probe LISTS files (--files) and answers via its exit code (--quiet);
+    // it never searches, and never buffers the tree into stdout.
     const probeArgs = spy.mock.calls[1][0];
     expect(probeArgs).toContain("--files");
+    expect(probeArgs).toContain("--quiet");
     expect(probeArgs).toContain("*.kicad_sch");
   });
 
-  it("still reports 'No matches.' when the glob matched files but the pattern is absent", async () => {
+  // `rg --files` honors ignore rules EXACTLY as the search does, so "zero files
+  // listed" does NOT mean the glob was wrong — the files may exist and simply be
+  // gitignored. Blaming the glob there sends the agent hunting for a better glob
+  // that cannot exist, and telling it to drop the glob hands back a confident
+  // PARTIAL answer with the ignored hits silently missing.
+  it("blames ignore rules, not the glob, when the matching files are ignored", async () => {
     jest
       .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce(SEARCH_EMPTY)
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 }) // probe: nothing visible
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 0 }); // --no-ignore: they DO exist
+
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "NEEDLE", glob: "dist/**/*.js" });
+
+    expect(out).toMatch(/ignore rules/i);
+    expect(out).toMatch(/nothing was searched/i);
+    expect(out).toMatch(/NOT evidence/i);
+    // The glob was fine. Never say it wasn't.
+    expect(out).not.toMatch(/matched no files/i);
+    // And never advise a broader search: it would skip them too.
+    expect(out).toMatch(/ignored, not missing/i);
+  });
+
+  it("reports nothing-searched with no glob at all when ignore rules exclude everything", async () => {
+    // The gate is NOT "was a glob supplied" — an empty tree, or a root whose
+    // ignore rules exclude every file, searches nothing with no glob at all.
+    jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce(SEARCH_EMPTY)
       .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 })
-      // The glob DID match a file — so "no matches" is a true statement.
-      .mockResolvedValueOnce({ stdout: "src/beta.ts\n", stderr: "", code: 0 });
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 0 });
+
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "NEEDLE" });
+
+    expect(out).not.toBe("No matches.");
+    expect(out).toMatch(/every file in the project is excluded by ignore rules/i);
+  });
+
+  it("still reports 'No matches.' when files WERE searched and the pattern is absent", async () => {
+    const spy = jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce(SEARCH_EMPTY)
+      // The probe found a file, so files were searched: the negative is honest.
+      .mockResolvedValueOnce({ stdout: "", stderr: "", code: 0 });
 
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "zzz", glob: "src/**/*.ts" });
     expect(out).toBe("No matches.");
+    // Cause established in one probe — no need for the --no-ignore follow-up.
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 
-  it("does not probe at all when no glob was supplied", async () => {
-    // With no glob, ripgrep searched the whole sandbox: "No matches." is true
-    // and there is nothing to disambiguate. Don't pay for a second process.
-    const spy = stubRg({ stdout: "", stderr: "", code: 1 });
+  // A FAILING probe must never be laundered into a claim about the glob. If we
+  // don't know why the search was empty, we say the plain, weaker thing.
+  it("falls back to 'No matches.' when the probe itself fails, inventing no cause", async () => {
+    jest
+      .spyOn(runRgModule, "runRg")
+      .mockResolvedValueOnce(SEARCH_EMPTY)
+      .mockResolvedValueOnce({ stdout: "", stderr: "rg: broke", code: 2 });
+
     const search = searchFilesTool({ root });
-    const out = await runTool(search, { pattern: "zzz" });
+    const out = await runTool(search, { pattern: "zzz", glob: "src/**/*.ts" });
     expect(out).toBe("No matches.");
-    expect(spy).toHaveBeenCalledTimes(1);
+    expect(out).not.toMatch(/matched no files/i);
+    expect(out).not.toMatch(/ignore rules/i);
   });
 
   it("surfaces a real ripgrep error (exit >= 2)", async () => {
@@ -206,5 +263,21 @@ const rgAvailable = (): boolean => {
     // file, the pattern simply isn't in it.
     const honest = await runTool(search, { pattern: "definitely_absent_xyz", glob: "**/beta.ts" });
     expect(honest).toBe("No matches.");
+  });
+
+  // `rg --files` obeys ignore rules exactly as the search does, so a glob
+  // pointed at ignored files lists nothing — and naively that reads as "your
+  // glob is wrong". It isn't. The fixture's .ignore excludes ignored/, and
+  // ignored/skip.ts genuinely contains NEEDLE.
+  it("names ignore rules — not the glob — when the matching files are ignored", async () => {
+    const search = searchFilesTool({ root });
+    const out = await runTool(search, { pattern: "NEEDLE", glob: "ignored/**" });
+
+    expect(out).not.toBe("No matches.");
+    expect(out).toMatch(/ignore rules/i);
+    expect(out).toMatch(/nothing was searched/i);
+    // The glob was correct — never blame it, and never send the agent hunting
+    // for a better one that cannot exist.
+    expect(out).not.toMatch(/matched no files/i);
   });
 });
