@@ -49,7 +49,9 @@ class OneToolThenDoneModel extends BaseChatModel {
           tool_calls: [
             {
               name: "dangerous_exec",
-              args: { cmd: "ls" },
+              // The human text names the command, so a test can drive the
+              // tool into its slow (active-overrun) or gated (interrupt) path.
+              args: { cmd: String(last?.content ?? "").replace(/^run /, "") },
               id: `call_${this.generateCalls}`,
               type: "tool_call",
             },
@@ -61,6 +63,11 @@ class OneToolThenDoneModel extends BaseChatModel {
 
 const dangerousExec = tool(
   async ({ cmd }) => {
+    if (cmd === "slow") {
+      // An ACTIVE overrun: the tool genuinely burns wall time, no human involved.
+      await sleep(WALL_MS * 2);
+      return "ran slow";
+    }
     const approved = interrupt(`approve: ${cmd}?`);
     return approved === "y" ? `ran ${cmd}` : "declined";
   },
@@ -124,20 +131,15 @@ describe("persisted budget exit vs the next invoke", () => {
     await app?.close();
   });
 
-  it("current maxWallMs semantics: time suspended at interrupt() counts, so a slow approval walls the resume", async () => {
+  it("an ACTIVE tool overrun (no human involved) still walls the turn", async () => {
     const config = { configurable: { thread_id: "t-wall" } };
 
-    const paused = (await agent.invoke(
-      { messages: [new HumanMessage("run ls")] },
+    const walled = (await agent.invoke(
+      { messages: [new HumanMessage("run slow")] },
       config,
     )) as any;
-    expect(paused.__interrupt__).toBeDefined();
-
-    await sleep(WALL_MS * 2); // the human deliberates past the wall
-
-    const resumed = (await agent.invoke(new Command({ resume: "y" }), config)) as any;
-    expect(resumed.exit?.requested).toBe(true);
-    expect(resumed.exit?.meta?.reason).toBe("budget:wall");
+    expect(walled.exit?.requested).toBe(true);
+    expect(walled.exit?.meta?.reason).toBe("budget:wall");
   });
 
   it("the walled thread RECOVERS on the next fresh turn even with a beforeAgent middleware ordered before Budget", async () => {

@@ -26,7 +26,7 @@ Inject the compiled runnable with `@InjectLangGraphRunnable(SupportAgent)`. See 
 
 ## Cap turns / avoid `GraphRecursionError`, and retry model calls — use the shipped middleware
 Don't count `AIMessage`s yourself and don't wrap `invoke` in try/catch. Use:
-- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, reset })`** — a graceful guard that ends the loop at the canonical exit when any cap is hit, instead of throwing `GraphRecursionError`. `reset` defaults to `"invoke"` (caps are per-invoke); pass `reset: "thread"` for a lifetime ceiling — see [Semantics](#semantics-loopexit-reset-per-invoke-by-default).
+- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, reset })`** — a graceful guard that ends the loop at the canonical exit when any cap is hit, instead of throwing `GraphRecursionError`. `reset` defaults to `"invoke"` (caps are per-invoke); pass `reset: "thread"` for a lifetime ceiling — see [Semantics](#semantics-loopexit-reset-per-invoke-by-default). `maxWallMs` measures UNATTENDED time: suspension at an `interrupt()` is credited back on `Command` resume (the facade shifts `loop.startedAt`), so a slow human approval never trips the wall — an actively-running overrun still does.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — retries the model AND tool calls with a shared, injectable backoff (inject a no-op backoff in tests).
 
 List the classes in `middleware: [...]` and register their options in **`forFeature`'s `{ providers }`** (see the DI gotcha):
