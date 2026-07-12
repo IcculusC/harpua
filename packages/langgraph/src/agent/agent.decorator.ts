@@ -7,6 +7,7 @@ import { withAgentLoop } from "../middleware/loop-state";
 import { needsCompactionState, withCompactionState } from "../middleware/compaction-state";
 import { normalizeMiddleware, type MiddlewareEntry } from "../middleware/middleware.decorator";
 import type { ToolEntry } from "../interfaces";
+import type { SystemPromptSource } from "./system-prompt-middleware";
 import { buildAgentGraph, type AgentBuild } from "./agent-compiler";
 
 /** Options for the {@link LangGraphAgent} preset decorator. */
@@ -21,8 +22,14 @@ export interface LangGraphAgentOptions {
   tools?: ToolEntry[];
   /** Middleware entries partitioned into wrap hooks and node hooks. */
   middleware?: MiddlewareEntry[];
-  /** A system prompt (or a DI token resolving one) prepended at model time. */
-  systemPrompt?: string | InjectionToken;
+  /**
+   * A system prompt prepended at model time: a string (baked), a DI token
+   * resolving one (fixed after first resolution — singleton providers
+   * memoize), or a source function re-invoked every model turn so the prefix
+   * can be rebuilt from mutable state. A class is always treated as a DI
+   * token; any other function is treated as a source.
+   */
+  systemPrompt?: string | InjectionToken | SystemPromptSource;
   /** When set, a `StructuredResponseNode` coerces the final answer to this schema. */
   responseFormat?: unknown;
   /** Default recursion limit merged into every invoke/stream call. */
