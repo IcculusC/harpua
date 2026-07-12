@@ -166,12 +166,31 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
       usesTools ? [TOOLS, exitTarget] : [exitTarget],
     );
 
-  // START -> beforeAgent… -> beforeModel… -> CallModel (each hook via conditionalNext).
+  // START -> beforeAgent… -> beforeModel… -> CallModel.
+  //
+  // The beforeAgent SEGMENT chains unconditionally: a thread can carry a
+  // PERSISTED `exit.requested` from its previous turn (that is how a budget
+  // stop ends a run), and routing on it mid-segment would send the run to the
+  // exit before a later beforeAgent hook — Budget's per-invoke reset — gets
+  // to clear it, permanently sticking the thread (issue #54). The exit check
+  // for the segment happens once, on its LAST node's outbound edge: by then
+  // every beforeAgent hook has run, a stale exit has been cleared by a
+  // reset-style hook (or deliberately kept, under `reset: "thread"`), and a
+  // fresh `ctx.exit()` from any beforeAgent hook still routes out before the
+  // model runs. (Corollary, documented: order a reset-style hook FIRST among
+  // beforeAgent middlewares — a later reset would also clear a sibling's
+  // fresh same-turn exit.) beforeModel hooks keep per-node conditionals.
   const preModel = [...beforeAgentNodes, ...beforeModelNodes];
   const firstStart = preModel[0] ?? callModelNode;
   edges.push({ from: START, to: firstStart });
   preModel.forEach((node, i) => {
-    edges.push(conditionalNext(node, preModel[i + 1] ?? callModelNode));
+    const next = preModel[i + 1] ?? callModelNode;
+    const isMidBeforeAgent = i < beforeAgentNodes.length - 1;
+    if (isMidBeforeAgent) {
+      edges.push({ from: node, to: next });
+    } else {
+      edges.push(conditionalNext(node, next));
+    }
   });
 
   // TOOLS loop-back re-enters at the shared beforeModel chain (beforeAgent runs
