@@ -534,6 +534,15 @@ export function provideGraphBoundModel(
     provide,
     useFactory: (moduleRef: ModuleRef): GraphBoundModel => {
       const chatModel = moduleRef.get<BaseChatModel>(model, { strict: false });
+      if (chatModel == null) {
+        // Without this, the guard below dereferences null and the crash names
+        // neither the token nor this provider.
+        throw new Error(
+          `provideGraphBoundModel: model token ${String(model)} resolved to ` +
+            "null — check the token's provider registration (is its factory " +
+            "returning null in this scope?).",
+        );
+      }
       const tools = buildGraphTools(graph, moduleRef);
       if (tools.length > 0 && typeof chatModel.bindTools === "function") {
         return chatModel.bindTools(tools);

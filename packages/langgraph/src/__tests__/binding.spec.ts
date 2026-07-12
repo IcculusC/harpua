@@ -195,6 +195,26 @@ describe("provideGraphBoundModel", () => {
     }
   });
 
+  it("names the token when the model resolves to null instead of crashing on bindTools", async () => {
+    const NULL_MODEL = Symbol.for("test:chat:smart");
+    await expect(
+      Test.createTestingModule({
+        providers: [
+          OrderService,
+          OrderTools,
+          { provide: NULL_MODEL, useValue: null },
+          provideGraphBoundModel({
+            provide: BOUND_MODEL,
+            graph: BoundToolsGraph,
+            model: NULL_MODEL,
+          }),
+        ],
+      })
+        .compile()
+        .then((built) => built.createNestApplication().init()),
+    ).rejects.toThrow(/provideGraphBoundModel.*chat:smart.*null/s);
+  });
+
   it("returns the model unchanged when the graph has no tools", async () => {
     const built = await Test.createTestingModule({
       providers: [
