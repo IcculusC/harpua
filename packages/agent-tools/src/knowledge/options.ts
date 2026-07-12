@@ -29,6 +29,11 @@ const rootResolverSchema = z.custom<KnowledgeRootResolver>(
   "root must be a string or a function",
 );
 
+/** Provider function-name charset (OpenAI/Anthropic reject anything else). */
+export const toolNameSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9_-]+$/, "tool names may only contain letters, digits, _ and -");
+
 export const vectorStoreSchema = z.custom<VectorStore>(
   (v) =>
     typeof v === "object" &&
@@ -48,8 +53,20 @@ export const vectorStoreSchema = z.custom<VectorStore>(
  */
 export const searchKnowledgeToolOptionsSchema = z
   .object({
-    /** Corpus directory of markdown files (string or per-call resolver). */
-    root: z.union([z.string().min(1), rootResolverSchema]),
+    /**
+     * Tool name the model sees. Override to mount several instances side by
+     * side (e.g. a corpus `search_knowledge` next to a remembered-excerpts
+     * `search_memory`); failure/empty messages carry the resolved name.
+     */
+    name: toolNameSchema.default("search_knowledge"),
+    /** Tool description the model sees; defaults to the stock corpus wording. */
+    description: z.string().min(1).optional(),
+    /**
+     * Corpus directory of markdown files (string or per-call resolver).
+     * Required for the built-in corpus retrieval; irrelevant — and optional —
+     * when a BYO `store` handles retrieval.
+     */
+    root: z.union([z.string().min(1), rootResolverSchema]).optional(),
     /** LangChain embeddings instance; defaults to the lexical mock. */
     embeddings: embeddingsSchema.default(() => new MockEmbeddings()),
     /** Chunks returned per query (hard-capped at {@link TOP_K_CEILING}). */
@@ -65,7 +82,16 @@ export const searchKnowledgeToolOptionsSchema = z
     /** Bring-your-own vector store. Omit for the built-in on-disk corpus retrieval. */
     store: vectorStoreSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((o, ctx) => {
+    if (o.store === undefined && o.root === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["root"],
+        message: "root is required when no store is provided",
+      });
+    }
+  });
 
 /** Caller-facing options: `root` required, everything else defaulted. */
 export type SearchKnowledgeToolOptions = z.input<typeof searchKnowledgeToolOptionsSchema>;
