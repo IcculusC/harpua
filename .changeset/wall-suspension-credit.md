@@ -10,5 +10,9 @@ a human deliberating at an approval prompt no longer burns the wall budget —
 previously one slow approval exited the resumed turn `budget:wall`. An active
 overrun (a tool or model genuinely consuming wall time) still trips the cap.
 The credit is applied per resume, accumulates across multiple approvals on a
-thread, and is skipped entirely for non-`Command` input, graphs without the
-agent `loop` channel, and threads with no pending interrupt.
+thread, and is skipped entirely — falling back to plain wall-clock — for
+non-`Command` input, a `resume` of `null`/`undefined` (LangGraph's own resume
+predicate), resumes pinned to an explicit `checkpoint_id`, graphs without the
+agent `loop` channel, threads with no pending interrupt, and threads the app
+edited via `updateState` while paused. It applies in `reset: "thread"` mode
+too: the lifetime wall now also measures unattended time.

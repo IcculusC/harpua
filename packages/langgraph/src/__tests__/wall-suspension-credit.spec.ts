@@ -151,6 +151,73 @@ describe("interrupt suspension is credited against maxWallMs", () => {
     expect(String(done2.messages?.at(-1)?.content)).toBe("done");
   });
 
+  it("a NULL resume (LangGraph rejects it) must not mutate the paused thread first", async () => {
+    const config = { configurable: { thread_id: "t-credit-null" } };
+    const paused = (await agent.invoke(
+      { messages: [new HumanMessage("run ls")] },
+      config,
+    )) as any;
+    expect(paused.__interrupt__).toBeDefined();
+
+    const before = (await agent.getState(config)) as any;
+    const anchor = before.values?.loop?.startedAt;
+
+    await sleep(50);
+    // LangGraph's own predicate is `resume != null`, so null is NOT a resume —
+    // the invoke throws EmptyInputError. The credit must not have run first.
+    await expect(
+      agent.invoke(new Command({ resume: null }), config),
+    ).rejects.toThrow();
+
+    const after = (await agent.getState(config)) as any;
+    expect(after.values?.loop?.startedAt).toBe(anchor);
+    // The pending approval is still visible to state consumers.
+    const interrupts = (after.tasks ?? []).flatMap((t: any) => t.interrupts ?? []);
+    expect(interrupts.length).toBeGreaterThan(0);
+
+    // And the thread is still properly resumable afterwards.
+    const done = (await agent.invoke(new Command({ resume: "y" }), config)) as any;
+    expect(String(done.messages?.at(-1)?.content)).toBe("done");
+  });
+
+  it("a resume targeting an explicit checkpoint_id skips the credit (no junk fork)", async () => {
+    const config = { configurable: { thread_id: "t-credit-ckpt" } };
+    const paused = (await agent.invoke(
+      { messages: [new HumanMessage("run ls")] },
+      config,
+    )) as any;
+    expect(paused.__interrupt__).toBeDefined();
+
+    const snap = (await agent.getState(config)) as any;
+    const anchor = snap.values?.loop?.startedAt;
+    const pinned = {
+      configurable: { ...snap.config.configurable },
+    };
+    expect(pinned.configurable.checkpoint_id).toBeDefined();
+
+    await sleep(50);
+    await agent.invoke(new Command({ resume: "y" }), pinned).catch(() => undefined);
+
+    // Whatever the replay did, the credit must not have rewritten the anchor
+    // or forked a stray update checkpoint onto the thread's history.
+    const history: any[] = [];
+    for await (const s of agent.getStateHistory({
+      configurable: { thread_id: "t-credit-ckpt" },
+    })) {
+      history.push(s);
+    }
+    const updateForks = history.filter((s) => s.metadata?.source === "update");
+    expect(updateForks).toHaveLength(0);
+    const latest = (await agent.getState({
+      configurable: { thread_id: "t-credit-ckpt" },
+    })) as any;
+    // Anchor either untouched (credit skipped) or reset by a completed turn —
+    // never shifted by a credit that the replay then ignored.
+    if (latest.values?.loop?.startedAt !== anchor) {
+      expect(latest.values?.exit?.meta?.reason ?? "").not.toBe("");
+    }
+  });
+
   it("resuming via the facade's resume() helper is credited too", async () => {
     const config = { configurable: { thread_id: "t-credit-3" } };
     const paused = (await agent.invoke(

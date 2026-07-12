@@ -883,7 +883,11 @@ Two ready-made middlewares ship with the package:
   an `interrupt()` is credited back when the facade resumes it with a
   `Command({ resume })`, so a human deliberating at an approval prompt
   doesn't count against the wall — an active overrun (a tool or model
-  genuinely burning wall time) still trips it.
+  genuinely burning wall time) still trips it. The credit applies in
+  `reset: "thread"` mode too (the lifetime wall measures unattended time),
+  and is skipped — falling back to plain wall-clock — when a resume targets
+  an explicit `checkpoint_id` or when the app edited the paused thread with
+  `updateState` before resuming.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — wraps *both*
   `wrapModelCall` and `wrapToolCall` with the same retry loop: it re-invokes
   `next` while `retryable(err)` returns true, awaiting `backoff(attempt)`

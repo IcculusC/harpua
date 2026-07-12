@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Type } from "@nestjs/common";
-import { Command } from "@langchain/langgraph";
+import { Command, isCommand } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { StateSnapshot } from "@langchain/langgraph";
 import type { GraphRegistry } from "./graph-registry";
@@ -64,8 +64,16 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
     input: any,
     merged: RunnableConfig,
   ): Promise<void> {
-    if (!(input instanceof Command)) return;
-    if ((input as Command).resume === undefined) return;
+    // `isCommand` (not instanceof): a consumer's Command can come from a
+    // different @langchain/langgraph package instance. `!= null` (not
+    // `!== undefined`): LangGraph's own resume predicate is `resume != null`,
+    // so a null resume is NOT a resume — it must not mutate the thread
+    // before LangGraph rejects it.
+    if (!isCommand(input)) return;
+    if ((input as Command).resume == null) return;
+    // A resume pinned to an explicit checkpoint replays from THAT checkpoint;
+    // an updateState here would fork a credit the replay ignores.
+    if ((merged.configurable as Record<string, unknown>)?.checkpoint_id != null) return;
     const compiled = this.registry.getCompiled(this.graphDef);
     const snapshot = await compiled.getState(merged);
     const loop = (snapshot?.values as { loop?: { startedAt?: unknown } })?.loop;
