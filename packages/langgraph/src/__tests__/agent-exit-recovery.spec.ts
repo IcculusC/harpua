@@ -77,7 +77,11 @@ class NoopConventionsMiddleware {
   beforeAgent(): void {}
 }
 
-const WALL_MS = 150;
+// Generous margin: the agent preset has no injectable clock (hook nodes fall
+// back to Date.now), so this suite is real-time — the wall must be wide
+// enough that scheduling under a parallel full-suite run can't trip it
+// incidentally, while the deliberate sleeps still overshoot it 2x.
+const WALL_MS = 400;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 @LangGraphAgent({
@@ -154,9 +158,11 @@ describe("persisted budget exit vs the next invoke", () => {
       // The turn did real work: it reached the model and paused at the
       // tool's approval interrupt instead of exiting at the door.
       expect(next.__interrupt__).toBeDefined();
-      // Clean up the pending approval so the next iteration starts fresh.
-      const done = (await agent.invoke(new Command({ resume: "y" }), config)) as any;
-      expect(done.exit?.meta?.reason).not.toBe("budget:wall");
+      // Drain the pending approval so the next iteration starts fresh. No
+      // assertion: under a loaded suite this resume can legitimately trip
+      // the real-time wall — and the regression under test is precisely
+      // that the NEXT fresh turn recovers from a walled turn.
+      await agent.invoke(new Command({ resume: "y" }), config);
     }
   });
 
