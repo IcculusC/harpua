@@ -96,6 +96,7 @@ export type { LangGraphRunnableConfig } from "@langchain/langgraph";
 // transparently to primitives (fully ejectable and addressable).
 export { LangGraphAgent, getAgentMetadata } from "./agent/agent.decorator";
 export type { LangGraphAgentOptions } from "./agent/agent.decorator";
+export type { SystemPromptSource } from "./agent/system-prompt-middleware";
 
 // Middleware: DI-provider classes implementing node hooks
 // (beforeAgent/beforeModel/afterModel/afterAgent) and/or callable-wrap hooks
@@ -126,6 +127,7 @@ export type {
   ModelNext,
   ToolNext,
 } from "./middleware/middleware.types";
+export { lastNonSystemIsHuman } from "./middleware/turn-start";
 
 // Reserved persisted loop state the agent loop and its middleware share.
 export { withAgentLoop, AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./middleware/loop-state";

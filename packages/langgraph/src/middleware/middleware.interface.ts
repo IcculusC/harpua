@@ -22,6 +22,14 @@ export type NodeHookName = "beforeAgent" | "beforeModel" | "afterModel" | "after
  * The middleware contract for the agent loop. Node hooks observe/patch state
  * around the agent's lifecycle; the `wrap*Call` hooks intercept the model and
  * tool invocations themselves (each responsible for calling `next`).
+ *
+ * `wrap*Call` hooks compose onion-style (first in the `middleware` array is
+ * outermost), and each hook receives the request AS CONSTRUCTED BY THE HOOK
+ * OUTSIDE IT — not the original — so an outer sibling's mutations (an
+ * appended `SystemMessage`, trimmed history) are visible to every hook
+ * further in. In particular, gating on "the last message is a
+ * `HumanMessage`" is unsafe under composition: use `lastNonSystemIsHuman`
+ * (exported from this package, see `turn-start.ts`) instead.
  */
 export interface LangGraphMiddleware<S = any> {
   beforeAgent?(
