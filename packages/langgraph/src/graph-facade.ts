@@ -50,8 +50,42 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
     return getGraphMetadata(this.graphDef)?.name ?? this.graphDef.name;
   }
 
-  invoke(input: any, config?: RunnableConfig): Promise<TState> {
+  /**
+   * `maxWallMs` guards UNATTENDED runaway, not human deliberation. When a
+   * `Command` resume arrives for a thread suspended at an `interrupt()`,
+   * shift the reserved `loop.startedAt` anchor forward by the time the run
+   * spent suspended (measured from the halted checkpoint's timestamp) so the
+   * wall budget excludes the wait for human input. No-op for non-Command
+   * input, graphs without the agent `loop` channel, threads with no pending
+   * interrupt, and unparsable checkpoints — on any doubt, the anchor is left
+   * alone and behavior falls back to plain wall-clock.
+   */
+  private async creditSuspension(
+    input: any,
+    merged: RunnableConfig,
+  ): Promise<void> {
+    if (!(input instanceof Command)) return;
+    if ((input as Command).resume === undefined) return;
+    const compiled = this.registry.getCompiled(this.graphDef);
+    const snapshot = await compiled.getState(merged);
+    const loop = (snapshot?.values as { loop?: { startedAt?: unknown } })?.loop;
+    if (!loop || typeof loop.startedAt !== "number" || loop.startedAt <= 0) return;
+    const suspended = (snapshot.tasks ?? []).some(
+      (t: unknown) => ((t as { interrupts?: unknown[] }).interrupts?.length ?? 0) > 0,
+    );
+    if (!suspended) return;
+    const haltedAt = Date.parse(snapshot.createdAt ?? "");
+    if (!Number.isFinite(haltedAt)) return;
+    const suspendedMs = Date.now() - haltedAt;
+    if (suspendedMs <= 0) return;
+    await compiled.updateState(merged, {
+      loop: { ...loop, startedAt: loop.startedAt + suspendedMs },
+    });
+  }
+
+  async invoke(input: any, config?: RunnableConfig): Promise<TState> {
     const merged = this.withDefaults(config);
+    await this.creditSuspension(input, merged);
     return withGraphSpan(
       { graphName: this.graphName, threadId: threadIdOf(merged) },
       () => this.registry.getCompiled(this.graphDef).invoke(input, merged),
@@ -64,7 +98,7 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
    * matches {@link invoke}. The compiled graph returns an `IterableReadableStream`,
    * which is a plain `AsyncIterable`.
    */
-  private streamWith(
+  private async streamWith(
     input: any,
     streamMode: StreamMode | StreamMode[] | undefined,
     config?: RunnableConfig,
@@ -73,6 +107,7 @@ export class GraphFacade<TState = any> implements LangGraphRunnable<TState> {
     if (streamMode !== undefined) {
       (merged as Record<string, unknown>).streamMode = streamMode;
     }
+    await this.creditSuspension(input, merged);
     return withGraphStreamSpan(
       { graphName: this.graphName, threadId: threadIdOf(merged) },
       () => this.registry.getCompiled(this.graphDef).stream(input, merged),

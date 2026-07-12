@@ -879,6 +879,11 @@ Two ready-made middlewares ship with the package:
   beforeAgent segment runs before the exit flag routes — but if one of your
   own middlewares calls `ctx.exit()` from a `beforeAgent` hook, list
   `BudgetMiddleware` first so its reset can't clear that fresh exit.
+  `maxWallMs` guards **unattended** runaway: time a run spends suspended at
+  an `interrupt()` is credited back when the facade resumes it with a
+  `Command({ resume })`, so a human deliberating at an approval prompt
+  doesn't count against the wall — an active overrun (a tool or model
+  genuinely burning wall time) still trips it.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — wraps *both*
   `wrapModelCall` and `wrapToolCall` with the same retry loop: it re-invokes
   `next` while `retryable(err)` returns true, awaiting `backoff(attempt)`
