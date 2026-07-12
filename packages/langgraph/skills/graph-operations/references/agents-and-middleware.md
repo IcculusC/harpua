@@ -73,11 +73,39 @@ export function provideKeywordStop(opts: KeywordStopOptions): Provider[] {
 
 `MiddlewareContext` gives `state` (readonly), `loop` (`{ iteration, modelCalls, toolCalls, tokens, startedAt }`), `config`, `now()` (injected clock), `interrupt(payload)`, and `exit(meta)`.
 
+## Composing the system prompt: pick the form by where the content comes from
+
+| Prompt section | Form |
+|---|---|
+| Fixed for the app's lifetime | `systemPrompt: "..."` (string), or a DI token (resolved once, then memoized) |
+| Rebuildable from module scope, no DI | source function `() => string \| Promise<string>` — re-invoked every model turn |
+| **DI-backed or turn-conditional** | **your own `wrapModelCall` middleware, stacked on top** |
+
+The source form is a plain no-arg function: it **cannot reach DI**. Don't bridge that with module-level mutable state populated at boot — it leaks across boots in a multi-boot test harness. A section that comes from a provider (a live skill menu, per-project conventions, RAG excerpts) is a middleware:
+
+```ts
+@LangGraphMiddleware()
+export class SkillMenuMiddleware implements LangGraphMiddlewareContract {
+  constructor(private readonly registry: SkillRegistry) {} // ← DI, which a source function can't have
+
+  wrapModelCall(req: ModelRequest<any>, next: ModelNext) {
+    const [head, ...rest] = req.messages;
+    if (!(head instanceof SystemMessage)) return next(req);
+    // Append onto the LEADING SystemMessage. Emit byte-stable output while the
+    // menu is unchanged so the provider's prompt cache stays warm.
+    const menu = this.registry.renderMenu();
+    return next({ ...req, messages: [new SystemMessage(`${head.content}\n\n${menu}`), ...rest] });
+  }
+}
+```
+
+This composes by design, not by accident: `systemPrompt` itself lowers to the **outermost** `wrapModelCall` (the compiler unshifts it), so every middleware you list receives the request with the prepended prompt already in place. Stack one middleware per section — `middleware: [SkillMenuMiddleware, ProjectConventionsMiddleware, KnowledgeAugmentMiddleware]` — and they apply in onion order (first = outermost). Each may gate on turn state via node hooks or `lastNonSystemIsHuman` (see the sibling-mutation gotcha below).
+
 ## Good to know (the things that trip people up)
 - **Stopping the loop:** `ctx.exit(meta)` from a node hook flips a reserved `exit` state flag that the loop's conditional edges route on. Prefer it over `throw`ing or returning a LangGraph `Command({goto})` — a `Command` goto is *additive* with the node's static edge, so it won't short-circuit the loop.
 - **Trimming / compacting history:** do it in a `wrapModelCall`, not a node. The `messages` channel is append-only (`MessagesValue` reducer), so a node returning `{ messages: trimmed }` would *append*, not replace. In a wrap hook you change only the per-call request — `return next({ ...req, messages: trimmed })` — so the model sees fewer messages this turn while the persisted transcript stays intact. (`systemPrompt` sugar lowers to exactly such a wrap for the same reason.)
 - **Wrap hooks see sibling mutations.** Composition is onion-order (first in `middleware` = outermost) and each `wrapModelCall` receives the request AS CONSTRUCTED by the hook outside it — so an outer sibling's appended `SystemMessage` trailer hides the human turn from a "last message is human" gate and the inner hook silently never fires. Gate turn-start middleware on `lastNonSystemIsHuman(req.messages)` (exported from `@harpua/langgraph`), never on the literal tail.
-- **`systemPrompt` forms:** a string is baked in; a DI token is fixed after first resolution (singleton providers memoize — a token prompt CANNOT change at runtime); a **source function** `() => string | Promise<string>` is re-invoked every model turn, so the prefix can be rebuilt from mutable state (a live skill menu) at the cost of resetting prompt caching when it changes. A class is always treated as a DI token; any other function is a source. Caveat: if a request already leads with a persisted `SystemMessage`, the prepend is skipped entirely — a persisted leading `SystemMessage` pins the prompt, and even a source form is not re-read for that request.
+- **`systemPrompt` forms:** a string is baked in; a DI token is fixed after first resolution (singleton providers memoize — a token prompt CANNOT change at runtime); a **source function** `() => string | Promise<string>` is re-invoked every model turn, so the prefix can be rebuilt from mutable state (a live skill menu) at the cost of resetting prompt caching when it changes. A class is always treated as a DI token; any other function is a source. For a section that needs DI or turn-gating, don't fight these forms — stack a `wrapModelCall` middleware (see [Composing the system prompt](#composing-the-system-prompt-pick-the-form-by-where-the-content-comes-from)). Caveat: if a request already leads with a persisted `SystemMessage`, the prepend is skipped entirely — a persisted leading `SystemMessage` pins the prompt, and even a source form is not re-read for that request.
 - **Middleware option providers** belong in `forFeature([Agent], { providers: [...] })`, not the app module's top-level `providers`. The middleware classes are DI-registered inside the agent's feature-module scope; a registration at the app root is a different scope the agent's generated nodes can't see, so `@Inject(...OPTS)` won't resolve at boot.
 - **Two names:** the decorator is `LangGraphMiddleware`; the hook interface is `LangGraphMiddlewareContract` (a TS `isolatedModules` constraint blocks the same name for both).
 - **`{ use, on }` node-scoping** isn't in v1 — list the middleware class directly; the compiler rejects the `{ use, on }` form.
