@@ -43,6 +43,19 @@ describe("systemPrompt as a function source", () => {
     expect(reply.content).toBe("async prompt");
   });
 
+  it("treats a plain (non-arrow) function as a source too", async () => {
+    const mw = await bootMiddleware(function plainSource() {
+      return "plain-function prompt";
+    });
+    const reply = await mw.wrapModelCall(request(), echo);
+    expect(reply.content).toBe("plain-function prompt");
+  });
+
+  it("rejects loudly when a source returns a non-string", async () => {
+    const mw = await bootMiddleware(() => undefined as unknown as string);
+    await expect(mw.wrapModelCall(request(), echo)).rejects.toThrow(/string/i);
+  });
+
   it("still skips the prepend when the request already leads with a SystemMessage", async () => {
     const source = jest.fn(() => "should not land");
     const mw = await bootMiddleware(source);

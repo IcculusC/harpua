@@ -1,8 +1,15 @@
 import { Injectable, type InjectionToken, type Type } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import { SystemMessage } from "@langchain/core/messages";
+import { z } from "zod";
 import type { LangGraphMiddleware } from "../middleware/middleware.interface";
 import type { ModelNext, ModelRequest } from "../middleware/middleware.types";
+
+// Parsed (not just typed) so a source that resolves to a non-string fails
+// loudly at the middleware, not as a cryptic SystemMessage construction
+// error at model time. Kept param-free: the zod peer range spans ^3 || ^4
+// and custom-message options differ between the majors.
+const SourceResult = z.string();
 
 /**
  * A prompt source: called on EVERY model turn, so it can rebuild the prefix
@@ -55,7 +62,7 @@ export function makeSystemPromptMiddleware(
         typeof sp === "string"
           ? sp
           : isSource
-            ? await (sp as SystemPromptSource)()
+            ? SourceResult.parse(await (sp as SystemPromptSource)())
             : this.moduleRef.get<string>(sp as InjectionToken, { strict: false });
 
       return next({ ...req, messages: [new SystemMessage(text), ...req.messages] });
