@@ -138,6 +138,7 @@ export type { LoopInfo, AgentExit } from "./middleware/loop-state";
 // module) — the plain export specifier carries both.
 export { BudgetMiddleware, BudgetOptions, BUDGET_OPTS, provideBudget } from "./middleware/budget.middleware";
 export { RetryMiddleware, RetryOptions, RETRY_OPTS, provideRetry } from "./middleware/retry.middleware";
+export { ProviderGuardrailMiddleware, ProviderGuardrailOptions, PROVIDER_GUARDRAIL_OPTS, provideProviderGuardrail } from "./middleware/provider-guardrail.middleware";
 
 // Context management middleware family: durable compaction (fold) + the
 // cache-coherent render layout (view), plus a batteries-included bundle.
