@@ -794,7 +794,14 @@ kinds of hook:
   like a Nest interceptor. `wrapModelCall` receives a `ModelRequest` whose
   `messages` and `model` are mutable properties (rewrite either before
   calling `next(req)`); `wrapToolCall` receives a `ToolRequest` (`name`,
-  `args`, `id`, `state`).
+  `args`, `id`, `state`). Wrap hooks compose onion-style (first in the
+  `middleware` array is outermost), and each hook receives the request **as
+  constructed by the hook outside it** — an outer sibling's appended
+  `SystemMessage` or trimmed history is what the inner hook sees. That makes
+  gating on "the last message is a `HumanMessage`" unsafe under composition
+  (an outer sibling's trailer hides the human turn and the inner hook
+  silently never fires); gate turn-start work on the exported
+  `lastNonSystemIsHuman(req.messages)` instead.
 
 `MiddlewareContext<S>` gives node hooks: `state` (`Readonly<S>`), `loop`
 (the `LoopInfo` counters below), `config` (the run's `LangGraphRunnableConfig`),
