@@ -171,6 +171,48 @@ describe("@LangGraphAgent lowering", () => {
     }
   });
 
+  it("chains the beforeAgent segment plain, with ONE conditional at its boundary (issue #54)", () => {
+    // Two beforeAgent hooks + one beforeModel hook: the shape that used to
+    // brick — a persisted exit routed out at BA0's conditional before a
+    // later reset hook could run.
+    @LangGraphMiddleware()
+    class Boot2Stub {
+      beforeAgent() {
+        return {};
+      }
+    }
+
+    @LangGraphAgent({
+      name: "segmented",
+      state: new StateSchema({ messages: MessagesValue }),
+      model: CHAT_MODEL,
+      middleware: [BootStub, Boot2Stub, BudgetStub],
+    })
+    class SegmentedAgent {}
+
+    const edges = edgesOf(SegmentedAgent);
+    const nodeName = (t: unknown) =>
+      typeof t === "function" ? (t as { name: string }).name : String(t);
+    const from = (pattern: RegExp) =>
+      edges.find((e) => typeof e.from === "function" && pattern.test(nodeName(e.from)));
+
+    // BA0 (BootStub) -> BA1 (Boot2Stub): PLAIN edge, no conditional.
+    const ba0 = from(/BootStub\$beforeAgent/)!;
+    expect(isRouteMarker(ba0.to)).toBe(false);
+    expect(nodeName(ba0.to)).toMatch(/Boot2Stub\$beforeAgent/);
+
+    // BA1 (Boot2Stub, segment boundary) -> conditional route to BM0.
+    const ba1 = from(/Boot2Stub\$beforeAgent/)!;
+    expect(isRouteMarker(ba1.to)).toBe(true);
+    expect(nodeName((ba1.to as RouteMarker<any>).pathMap![1])).toMatch(
+      /BudgetStub\$beforeModel/,
+    );
+
+    // BM0 (BudgetStub) -> still a per-node conditional.
+    const bm0 = from(/BudgetStub\$beforeModel/)!;
+    expect(isRouteMarker(bm0.to)).toBe(true);
+  });
+
   it("loops back through the beforeModel chain, never re-running beforeAgent", () => {
     const edges = edgesOf(BuddyAgent);
     const loopBack = edges.find((e) => e.from === TOOLS)!;

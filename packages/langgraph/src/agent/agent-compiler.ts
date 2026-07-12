@@ -62,10 +62,12 @@ function setStableName(cls: Type<any>, name: string): void {
 
 /**
  * Lowers a `@LangGraphAgent`'s options into concrete node classes plus a static
- * edge list matching the canonical agent-loop topology. Routing is entirely
- * edge-level: every hook node's outbound edge is a conditional `route` that
- * sends the loop to its canonical exit when `state.exit.requested` is set (the
- * flag `ctx.exit()` writes), otherwise to the next node in the chain.
+ * edge list matching the canonical agent-loop topology. Routing is edge-level:
+ * a conditional `route` sends the loop to its canonical exit when
+ * `state.exit.requested` is set (the flag `ctx.exit()` writes), otherwise to
+ * the next node in the chain. The beforeAgent segment chains PLAIN edges with
+ * one conditional on its last node (so a persisted exit can't skip the
+ * per-invoke reset — issue #54); beforeModel and later hooks route per-node.
  */
 export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
   const modelToken: InjectionToken = Symbol(`${options.name}$BoundModel`);
