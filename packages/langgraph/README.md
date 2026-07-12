@@ -874,7 +874,11 @@ Two ready-made middlewares ship with the package:
   (`loop`/`exit` persist and accumulate across every invoke on the same
   thread) — useful for a hard spend ceiling across a whole thread's
   lifetime; see [Semantics](#semantics-loop-and-exit-reset-per-invoke-by-default)
-  for the `clearAgentExit()` escape hatch that mode needs.
+  for the `clearAgentExit()` escape hatch that mode needs. The reset works
+  regardless of where Budget sits in the `middleware` array — the whole
+  beforeAgent segment runs before the exit flag routes — but if one of your
+  own middlewares calls `ctx.exit()` from a `beforeAgent` hook, list
+  `BudgetMiddleware` first so its reset can't clear that fresh exit.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — wraps *both*
   `wrapModelCall` and `wrapToolCall` with the same retry loop: it re-invokes
   `next` while `retryable(err)` returns true, awaiting `backoff(attempt)`

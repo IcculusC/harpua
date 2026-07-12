@@ -81,6 +81,7 @@ export function provideKeywordStop(opts: KeywordStopOptions): Provider[] {
 - **Middleware option providers** belong in `forFeature([Agent], { providers: [...] })`, not the app module's top-level `providers`. The middleware classes are DI-registered inside the agent's feature-module scope; a registration at the app root is a different scope the agent's generated nodes can't see, so `@Inject(...OPTS)` won't resolve at boot.
 - **Two names:** the decorator is `LangGraphMiddleware`; the hook interface is `LangGraphMiddlewareContract` (a TS `isolatedModules` constraint blocks the same name for both).
 - **`{ use, on }` node-scoping** isn't in v1 — list the middleware class directly; the compiler rejects the `{ use, on }` form.
+- **beforeAgent hooks all run before the exit flag routes.** The beforeAgent segment chains unconditionally and the exit check happens once, after its last node — so a PERSISTED exit from the previous turn can't short-circuit the chain before Budget's per-invoke reset clears it (the "permanently exited thread" bug, issue #54). Corollary: if one of your own beforeAgent hooks calls `ctx.exit()`, order `BudgetMiddleware` FIRST in `middleware: [...]` — a reset that runs after your hook would clear its fresh exit too.
 
 ## `responseFormat` → typed `outcome`
 Set `responseFormat: <zod schema>` and a `StructuredResponseNode` coerces the final answer into `state.outcome` (a typed channel an outer graph can `route()` on). A `Budget`-forced stop routes through the same node, so even a graceful give-up yields a typed outcome.
