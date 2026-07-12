@@ -65,6 +65,52 @@ FAST_MODEL_PROVIDER=openrouter   # flips "fast" real; model preset; shares OPENR
 constructor(@InjectChatModel("fast") private readonly fast: BaseChatModel) {}
 ```
 
+## Per-call model routing (swap a named role for ONE model call)
+
+Use the strong arm only for the calls that need it (e.g. the turn where a
+middleware injected RAG excerpts) and keep the cheap default for the tool
+loop. Three pieces, all existing exports — do NOT hand-roll a provider:
+
+1. **Bind the role with the graph's tools** in the graph's `forFeature`
+   scope (a raw role model can't emit the graph's tool calls;
+   `ModelRequest.withModel` wants an already-BOUND model):
+
+```ts
+const SMART_BOUND = Symbol("agent:SMART_BOUND");
+
+LangGraphModule.forFeature([SupportAgent], {
+  providers: [
+    provideGraphBoundModel({
+      provide: SMART_BOUND,
+      graph: SupportAgent,
+      model: getChatModelToken("smart"),
+    }),
+    RoutingMiddleware,
+  ],
+})
+```
+
+2. **Swap per call** in a `wrapModelCall` middleware via `req.withModel`:
+
+```ts
+@LangGraphMiddleware()
+export class RoutingMiddleware implements LangGraphMiddlewareContract {
+  constructor(@Inject(SMART_BOUND) private readonly smart: GraphBoundModel) {}
+
+  wrapModelCall(req: ModelRequest<any>, next: ModelNext) {
+    return needsSmartArm(req) ? next(req.withModel(this.smart)) : next(req);
+  }
+}
+```
+
+3. **Scope gotcha:** the middleware injecting the bound token must be
+   instantiated in the SAME `forFeature` scope where the token is provided
+   (see the middleware DI gotcha in `agents-and-middleware.md`).
+
+If the role token resolves to null (e.g. its factory returns null in that
+scope), `provideGraphBoundModel` throws a named error at boot rather than a
+`bindTools` TypeError at first use.
+
 ## Env reference (`<P>` = prefix: empty for default, `FAST_`, …)
 
 | Arm | Variables | Required? |
