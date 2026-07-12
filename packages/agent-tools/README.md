@@ -241,6 +241,41 @@ it's only a cache; markdown stays the source of truth. Runtime dependency
 note: this family adds `ml-distance` (pure JS) for cosine similarity — see
 the intro for the package's full runtime dependency list.
 
+#### Two backends, two names: `search_knowledge` + `search_memory`
+
+The tool's `name` and `description` are overridable, so an app can mount the
+fetched-sources corpus and a remembered-excerpts store as **two distinctly
+named tools** and let the agent pick a backend explicitly. With a bring-your-own
+`store` the corpus `root` is not required, and the tool's failure/empty
+messages carry whichever name you gave it. Pair the store with `remember`
+(the write half) and point its `searchToolName` at the renamed reader so its
+guidance stays coherent:
+
+```ts
+import {
+  searchKnowledgeTool,
+  rememberTool,
+  InMemoryVectorStore,
+} from "@harpua/agent-tools";
+
+const store = new InMemoryVectorStore({ topK: 5 });
+
+const toolNode = new ToolNode([
+  // fetched pages / PDFs / notes on disk:
+  searchKnowledgeTool({ root: sources, embeddings }),
+  // excerpts the agent deliberately saved:
+  searchKnowledgeTool({
+    store,
+    embeddings,
+    name: "search_memory",
+    description:
+      "Search excerpts you previously chose to remember. Prefer this for " +
+      "facts you saved yourself; use search_knowledge for the full sources.",
+  }),
+  rememberTool({ store, embeddings, searchToolName: "search_memory" }),
+]);
+```
+
 ## Using with `@harpua/langgraph`
 
 [`@harpua/langgraph`](../langgraph) accepts these tools directly in a graph's

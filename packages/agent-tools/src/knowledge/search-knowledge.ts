@@ -66,36 +66,40 @@ export function searchKnowledgeTool(
 
   return tool(
     async ({ query }, config?: RunnableConfig) => {
-      const root = typeof opts.root === "function" ? opts.root(config) : opts.root;
-
       let queryVector: number[];
       try {
         queryVector = await opts.embeddings.embedQuery(query);
       } catch (err) {
-        return `search_knowledge: the embeddings backend failed (${errorMessage(err)}).`;
+        return `${opts.name}: the embeddings backend failed (${errorMessage(err)}).`;
       }
 
       // A BYO store handles its own retrieval; otherwise the built-in corpus
-      // path (lazy incremental sync of the markdown root, then cosine scan).
+      // path (lazy incremental sync of the markdown root, then cosine scan —
+      // `root` is guaranteed by options validation when there is no store).
       // The model supplies only the query text — tuning is deployment-config.
       let matches;
       try {
-        matches = opts.store
-          ? await opts.store.query(queryVector, { topK: opts.topK })
-          : await queryCorpus(
-              { root, embeddings: opts.embeddings, maxChunkChars: opts.maxChunkChars },
-              queryVector,
-              { topK: opts.topK },
-            );
+        if (opts.store) {
+          matches = await opts.store.query(queryVector, { topK: opts.topK });
+        } else {
+          const root = typeof opts.root === "function" ? opts.root(config) : opts.root!;
+          matches = await queryCorpus(
+            { root, embeddings: opts.embeddings, maxChunkChars: opts.maxChunkChars },
+            queryVector,
+            { topK: opts.topK },
+          );
+        }
       } catch (err) {
-        return `search_knowledge: retrieval failed (${errorMessage(err)}).`;
+        return `${opts.name}: retrieval failed (${errorMessage(err)}).`;
       }
 
       if (matches.length === 0) {
-        return (
-          "search_knowledge: nothing indexed yet — save some pages first " +
-          "(fetch_url / fetch_pdf) or add markdown files to the sources directory."
-        );
+        // The fetch_url/fetch_pdf guidance is corpus-specific; a BYO store is
+        // filled by whatever writes to it (e.g. `remember`), not by fetching.
+        return opts.store
+          ? `${opts.name}: nothing stored yet — nothing has been ingested into this store.`
+          : `${opts.name}: nothing indexed yet — save some pages first ` +
+              "(fetch_url / fetch_pdf) or add markdown files to the sources directory.";
       }
 
       // minScore as a tool-side post-filter on the returned score — works for
@@ -107,7 +111,7 @@ export function searchKnowledgeTool(
           : matches.filter((m) => m.score >= opts.minScore!);
 
       if (hits.length === 0) {
-        return `search_knowledge: no chunks scored at or above minScore=${opts.minScore} for "${query}".`;
+        return `${opts.name}: no chunks scored at or above minScore=${opts.minScore} for "${query}".`;
       }
 
       return hits
@@ -127,8 +131,8 @@ export function searchKnowledgeTool(
         .join("\n");
     },
     {
-      name: "search_knowledge",
-      description: DESCRIPTION,
+      name: opts.name,
+      description: opts.description ?? DESCRIPTION,
       schema: searchKnowledgeInputSchema,
     },
   );

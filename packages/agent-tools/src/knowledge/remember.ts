@@ -6,11 +6,11 @@ import { z } from "zod";
 import { errorMessage } from "../web-research/errors";
 import { ingest } from "./ingest";
 import { MockEmbeddings } from "./mock-embeddings";
-import { embeddingsSchema, vectorStoreSchema } from "./options";
+import { embeddingsSchema, toolNameSchema, vectorStoreSchema } from "./options";
 
-const DESCRIPTION =
+const makeDescription = (searchToolName: string) =>
   "Save an excerpt or note into this project's searchable knowledge so you " +
-  "— or a later step — can find it again with search_knowledge. Use it when " +
+  `— or a later step — can find it again with ${searchToolName}. Use it when ` +
   "you hit a passage worth keeping: paste the exact useful text (not the " +
   "whole document), plus where it came from (source URL/citation) and a short title.";
 
@@ -32,6 +32,12 @@ const rememberToolOptionsSchema = z.object({
   embeddings: embeddingsSchema.default(() => new MockEmbeddings()),
   store: vectorStoreSchema,
   maxChunkChars: z.number().int().positive().optional(),
+  /**
+   * Name of the search tool that reads this store — referenced in the
+   * description and success message so the loop stays coherent when the
+   * reader is mounted under a different name (e.g. `search_memory`).
+   */
+  searchToolName: toolNameSchema.default("search_knowledge"),
 });
 export type RememberToolOptions = z.input<typeof rememberToolOptionsSchema>;
 
@@ -65,8 +71,12 @@ export function rememberTool(options: RememberToolOptions): StructuredToolInterf
 
       const label = title ?? (text.length > 60 ? `${text.slice(0, 60)}…` : text);
       const passages = result.upserted === 1 ? "1 passage" : `${result.upserted} passages`;
-      return `remembered: "${label}" — ${passages} now searchable via search_knowledge.`;
+      return `remembered: "${label}" — ${passages} now searchable via ${opts.searchToolName}.`;
     },
-    { name: "remember", description: DESCRIPTION, schema: rememberInputSchema },
+    {
+      name: "remember",
+      description: makeDescription(opts.searchToolName),
+      schema: rememberInputSchema,
+    },
   );
 }
