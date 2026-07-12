@@ -71,6 +71,23 @@ describe("searchKnowledgeTool name/description overrides", () => {
     expect(out).toContain("Paris");
   });
 
+  it("a corpus-index failure surfaced through a renamed tool never says search_knowledge", async () => {
+    const fs = await import("node:fs");
+    const os = await import("node:os");
+    const path = await import("node:path");
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "skn-"));
+    fs.writeFileSync(path.join(root, "a.md"), "# heading\n\nsome text\n");
+
+    const underReturning = {
+      embedDocuments: async () => [] as number[][],
+      embedQuery: async () => [1, 0, 0],
+    };
+    const t = searchKnowledgeTool({ root, embeddings: underReturning, name: "search_docs" });
+    const out = (await t.invoke({ query: "q" })) as string;
+    expect(out).toMatch(/^search_docs:/);
+    expect(out).not.toContain("search_knowledge");
+  });
+
   it("no root AND no store throws at construction", () => {
     expect(() => searchKnowledgeTool({ embeddings: new MockEmbeddings() })).toThrow(/root/);
   });

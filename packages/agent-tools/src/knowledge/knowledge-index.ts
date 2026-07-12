@@ -203,8 +203,10 @@ export async function syncIndex(args: {
     }
     const vectors = await args.embeddings.embedDocuments(chunks.map(embeddingTextFor));
     if (vectors.length !== chunks.length) {
+      // No tool-name prefix: this surfaces through the calling tool's
+      // "<name>: retrieval failed (…)" wrapper, which carries the real name.
       throw new Error(
-        `search_knowledge: embedder returned ${vectors.length} vectors for ` +
+        `embedder returned ${vectors.length} vectors for ` +
           `${chunks.length} chunks in "${name}" — embedDocuments must return one ` +
           "vector per input text.",
       );
