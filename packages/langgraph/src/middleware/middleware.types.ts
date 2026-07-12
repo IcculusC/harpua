@@ -22,6 +22,11 @@ export interface MiddlewareContext<S> {
  * the model. `messages` and `model` are plain mutable properties so a
  * middleware can rewrite them directly; `withModel` is a convenience helper
  * for swapping the model without touching the rest of the request.
+ *
+ * Under composition this is the request as mutated by every middleware
+ * OUTSIDE this one, not the pristine per-turn request — see the
+ * `LangGraphMiddleware` contract doc for the tail-gating footgun that
+ * follows from this.
  */
 export interface ModelRequest<S> {
   messages: BaseMessage[];

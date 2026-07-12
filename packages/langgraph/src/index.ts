@@ -126,6 +126,7 @@ export type {
   ModelNext,
   ToolNext,
 } from "./middleware/middleware.types";
+export { lastNonSystemIsHuman } from "./middleware/turn-start";
 
 // Reserved persisted loop state the agent loop and its middleware share.
 export { withAgentLoop, AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./middleware/loop-state";
