@@ -160,4 +160,62 @@ describe("makeCallModelNode", () => {
     // never sees a nonzero count and can never fire.
     expect(result.loop!.toolCalls).toBe(1);
   });
+
+  it("reconstruction keeps response_metadata, additional_kwargs, invalid_tool_calls, and name", async () => {
+    // response_metadata carries the FALLBACK token counts the compaction
+    // signal reads when a provider omits usage_metadata (walkie report 007);
+    // dropping it in reconstruction would kill that fallback for every
+    // chunk/foreign-copy reply. additional_kwargs carries provider extras
+    // (legacy function_call, reasoning traces) with the same stakes. The
+    // fixture is a duck-typed plain object — the dual-package hazard case
+    // (a reply from a different @langchain/core copy fails instanceof) —
+    // because a real AIMessageChunk constructor discards a directly-passed
+    // invalid_tool_calls (chunks derive it from tool_call_chunks).
+    const foreignReply = {
+      content: "y",
+      name: "assistant-a",
+      response_metadata: {
+        tokenUsage: { prompt_tokens: 131935, completion_tokens: 121, total_tokens: 132056 },
+        finish_reason: "stop",
+      },
+      additional_kwargs: { reasoning: "because" },
+      invalid_tool_calls: [
+        { name: "x", args: "{broken", id: "bad1", error: "parse", type: "invalid_tool_call" },
+      ],
+    };
+    expect(foreignReply instanceof AIMessage).toBe(false);
+
+    const fakeModel = { invoke: async () => foreignReply };
+    const recordingMw = new RecordingMw();
+    const stubModuleRef = {
+      get(token: unknown) {
+        if (token === MODEL_TOKEN) return fakeModel;
+        if (token === RecordingMw) return recordingMw;
+        throw new Error(`unexpected token: ${String(token)}`);
+      },
+    };
+
+    const CallModelNode = makeCallModelNode({
+      modelToken: MODEL_TOKEN,
+      wrapMiddleware: [RecordingMw],
+    });
+    const node = new CallModelNode(stubModuleRef as any);
+
+    const result = await node.run(
+      { messages: [new HumanMessage("q")], loop: AGENT_LOOP_DEFAULT },
+      {} as any,
+    );
+
+    const reply = result.messages![0] as AIMessage;
+    expect(isAIMessage(reply)).toBe(true);
+    expect(reply.response_metadata).toEqual({
+      tokenUsage: { prompt_tokens: 131935, completion_tokens: 121, total_tokens: 132056 },
+      finish_reason: "stop",
+    });
+    expect(reply.additional_kwargs).toEqual({ reasoning: "because" });
+    expect(reply.invalid_tool_calls).toEqual([
+      { name: "x", args: "{broken", id: "bad1", error: "parse", type: "invalid_tool_call" },
+    ]);
+    expect(reply.name).toBe("assistant-a");
+  });
 });

@@ -53,12 +53,20 @@ export function makeCallModelNode(
 
       const invoke = async (req: ModelRequest<any>): Promise<AIMessage> => {
         const out = await req.model.invoke(req.messages, config);
+        // Reconstruction must be lossless for every field a consumer reads
+        // off the CHECKPOINTED message: response_metadata carries the
+        // compaction signal's fallback token counts (a provider may omit
+        // usage_metadata), additional_kwargs carries provider extras.
         return out instanceof AIMessage
           ? out
           : new AIMessage({
               content: (out as any).content ?? "",
               tool_calls: (out as any).tool_calls,
+              invalid_tool_calls: (out as any).invalid_tool_calls,
               usage_metadata: (out as any).usage_metadata,
+              response_metadata: (out as any).response_metadata,
+              additional_kwargs: (out as any).additional_kwargs,
+              name: (out as any).name,
               id: (out as any).id,
             });
       };
