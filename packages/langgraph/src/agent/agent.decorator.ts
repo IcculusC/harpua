@@ -8,6 +8,7 @@ import { needsCompactionState, withCompactionState } from "../middleware/compact
 import { normalizeMiddleware, type MiddlewareEntry } from "../middleware/middleware.decorator";
 import type { ToolEntry } from "../interfaces";
 import type { SystemPromptSource } from "./system-prompt-middleware";
+import type { ResponseFormatOptions } from "./structured-response-node";
 import { buildAgentGraph, type AgentBuild } from "./agent-compiler";
 
 /** Options for the {@link LangGraphAgent} preset decorator. */
@@ -32,6 +33,11 @@ export interface LangGraphAgentOptions {
   systemPrompt?: string | InjectionToken | SystemPromptSource;
   /** When set, a `StructuredResponseNode` coerces the final answer to this schema. */
   responseFormat?: unknown;
+  /** Opens the structured turn-ending call's fixed choices: route it to a
+   *  different model token, retry provider-roulette failures, select its
+   *  input messages, or replace the coercion instruction. Every default
+   *  preserves the no-options behavior. */
+  responseFormatOptions?: ResponseFormatOptions;
   /** Default recursion limit merged into every invoke/stream call. */
   recursionLimit?: number;
 }

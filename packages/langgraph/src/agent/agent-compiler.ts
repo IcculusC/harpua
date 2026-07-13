@@ -7,7 +7,7 @@ import { defineEdges, route } from "../edges";
 import { normalizeMiddleware } from "../middleware/middleware.decorator";
 import type { NodeHookName } from "../middleware/middleware.interface";
 import { makeCallModelNode } from "./call-model-node";
-import { makeStructuredResponseNode } from "./structured-response-node";
+import { makeStructuredResponseNode, ResponseFormatOptions } from "./structured-response-node";
 import { makeHookNode } from "./hook-node";
 import { makeSystemPromptMiddleware } from "./system-prompt-middleware";
 import { provideGraphBoundModel } from "../graph-tools";
@@ -128,10 +128,34 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
   setStableName(callModelNode, `${options.name}$CallModel`);
 
   let structuredResponseNode: Type<any> | undefined;
+  if (options.responseFormat === undefined && options.responseFormatOptions !== undefined) {
+    // Silently ignoring the options would be the worst outcome: a consumer
+    // sets retries and believes the finish line is guarded.
+    throw new Error(
+      `Agent "${options.name}": responseFormatOptions requires responseFormat — ` +
+        `the options configure the structured turn-ending call that only a ` +
+        `responseFormat schema creates.`,
+    );
+  }
   if (options.responseFormat !== undefined) {
+    let parsedOptions;
+    if (options.responseFormatOptions !== undefined) {
+      // Parsed here (not in the node) so junk options fail at decorator eval —
+      // wrapped so a multi-agent module's error names the offender.
+      try {
+        parsedOptions = ResponseFormatOptions.parse(options.responseFormatOptions);
+      } catch (err) {
+        throw new Error(
+          `Agent "${options.name}": invalid responseFormatOptions — ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      }
+    }
     structuredResponseNode = makeStructuredResponseNode({
       modelToken: options.model,
       schema: options.responseFormat,
+      options: parsedOptions,
     });
     setStableName(structuredResponseNode, `${options.name}$StructuredResponse`);
   }
