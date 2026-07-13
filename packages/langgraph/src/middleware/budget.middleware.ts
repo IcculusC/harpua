@@ -18,7 +18,10 @@ export const BudgetOptions = z.object({
    *  nothing to compare, so it is not part of the required set. */
   maxCost: z.number().positive().optional(),
   reset: z.enum(["invoke", "thread"]).default("invoke"),
-});
+  // `.strict()`: `maxCost` is the first OPTIONAL cap — a typo'd key
+  // (`maxCosts`) stripped by a loose schema would silently leave real spend
+  // unguarded. Unknown keys fail at boot instead.
+}).strict();
 // INPUT type (not `z.infer`/output): `reset` has a `.default(...)`, so the
 // output type would make it required — but callers pass options WITHOUT
 // `reset` (the default fills it at `.parse()` time). Using `z.input` keeps
@@ -47,7 +50,10 @@ export class BudgetMiddleware implements LangGraphMiddlewareContract {
   }
 
   async beforeModel(ctx: MiddlewareContext<any>): Promise<Partial<any> | void> {
-    const { iteration, toolCalls, tokens, cost, startedAt } = ctx.loop;
+    // `cost = 0` default: a pre-cost checkpointed loop read under
+    // reset:"thread" reaches here unparsed and without the field —
+    // `undefined >= maxCost` would silently skip the check; 0 is honest.
+    const { iteration, toolCalls, tokens, cost = 0, startedAt } = ctx.loop;
     // `startedAt` is anchored by `CallModelNode` on the FIRST model turn (and
     // by a `beforeAgent` hook earlier still, if the agent has one) — so from
     // the second `beforeModel` onward it holds a real clock reading and the

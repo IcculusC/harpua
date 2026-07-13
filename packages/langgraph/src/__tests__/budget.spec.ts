@@ -375,6 +375,20 @@ describe("BudgetMiddleware", () => {
     expect(() => provideBudget({ ...base, maxCost: -1 } as any)).toThrow();
   });
 
+  it("provideBudget throws on unknown keys — a typo'd optional cap must not silently vanish", () => {
+    // `maxCost` is the first OPTIONAL cap: with a non-strict schema,
+    // `maxCosts: 5` parses clean, gets stripped, and the spend cap the app
+    // believes it configured simply doesn't exist. Loud at boot instead.
+    const base = {
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    };
+
+    expect(() => provideBudget({ ...base, maxCosts: 5 } as any)).toThrow();
+  });
+
   it("provideBudget returns an array with the symbol provider and middleware class", () => {
     const opts: BudgetOptions = {
       maxCycles: 3,
