@@ -6,6 +6,28 @@ go real** (one key, every model). Install: `pnpm add @harpua/models`, then add
 only the arm you use (`@langchain/openrouter` recommended, or `@langchain/ollama`
 / `@langchain/openai`).
 
+## GO-LIVE CHECKLIST — mock is a boot convenience, NOT a finished setup
+
+If you are the agent standing up this app: the mock arm makes everything boot
+and answer on empty env, which means "it runs" proves NOTHING about being
+live. A setup is not complete until a REAL provider answered. Before you
+report setup done:
+
+1. **Ask the human for their OpenRouter key** (openrouter.ai/keys — one key,
+   every model). NEVER invent, hardcode, or commit a key; it goes in the
+   app's untracked env (`.env`, shell profile — whatever this app uses).
+2. Set the go-live env (see the next section for the exact vars):
+   `MODEL_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`.
+3. Boot and drive ONE real completion end-to-end (the app's chat endpoint or
+   CLI). The boot log prints the active arm per model — `model "default" ->
+   openrouter (…)`. If it says `mock`, you are not live.
+4. Confirm the reply is a real completion, not the built-in echo mock
+   parroting the input back.
+
+If the human has no key yet, say so explicitly in your handoff — "boots on
+the mock arm; NOT live until OPENROUTER_API_KEY is set" — instead of letting
+a green boot imply a finished setup.
+
 ## Register + inject
 
 ```ts

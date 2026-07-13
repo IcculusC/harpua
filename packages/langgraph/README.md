@@ -464,7 +464,10 @@ constructor(
 The `model` token can be any `BaseChatModel` provider — including
 [`@harpua/models`](https://www.npmjs.com/package/@harpua/models)' env-driven
 `CHAT_MODEL`, which stays mock-by-default and flips to a real provider with one
-env var:
+env var. **Mock answers are not a live setup** — before calling a new app done,
+follow the go-live checklist at the top of the `models` skill reference
+(`skills/graph-operations/references/models.md`): key from the human,
+`MODEL_PROVIDER=openrouter`, and one REAL completion verified end-to-end.
 
 ```ts
 import { CHAT_MODEL, ChatModelModule } from "@harpua/models";
