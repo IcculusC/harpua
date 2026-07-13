@@ -435,11 +435,27 @@ export function buildGraphTools(
   // through the Proxy and never calls `invoke`.
   const agentOptions = getAgentMetadata(graphDef);
   if (agentOptions) {
-    const wrapToolMiddleware = lowerAgent(graphDef).wrapToolMiddleware;
+    const lowered = lowerAgent(graphDef);
+    const wrapToolMiddleware = lowered.wrapToolMiddleware;
     if (wrapToolMiddleware.length > 0) {
-      const resolvedWrapToolMiddleware = wrapToolMiddleware.map((c) =>
-        moduleRef.get(c, { strict: false }),
-      );
+      // `moduleRef` here is the registry's ROOT-scoped ref, so a direct class
+      // lookup is flat and cross-contaminates sibling graphs (report 015).
+      // The agent's feature module registered its own ModuleRef under a
+      // per-agent token (see agentProviders) — resolve THAT (unique token,
+      // collision-free), then resolve middleware within the owning scope.
+      let ownerRef: ModuleRef = moduleRef;
+      try {
+        ownerRef = moduleRef.get<ModuleRef>(lowered.ownerRefToken, { strict: false });
+      } catch {
+        /* pre-ownerRef metadata: keep the root ref (legacy flat behavior) */
+      }
+      const resolvedWrapToolMiddleware = wrapToolMiddleware.map((c) => {
+        try {
+          return ownerRef.get(c);
+        } catch {
+          return moduleRef.get(c, { strict: false });
+        }
+      });
       const stateOf = (_config: unknown): Readonly<Record<string, never>> => ({});
       return tools.map((t) =>
         composeToolWrap(t, resolvedWrapToolMiddleware, stateOf),

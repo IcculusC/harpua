@@ -41,7 +41,18 @@ export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
       state: any,
       config?: LangGraphRunnableConfig,
     ): Promise<Partial<any>> {
-      const mw = this.moduleRef.get(cfg.middlewareClass, { strict: false });
+      // Module-scoped FIRST: this node is a provider of the agent's own
+      // feature module (agentProviders), which also registers the middleware
+      // class — so the host-module lookup finds THIS graph's instance, bound
+      // to THIS scope's options. A flat lookup here let a sibling graph's
+      // instance win when two graphs named the same middleware class (report
+      // 015). Flat remains the fallback for middleware provided elsewhere.
+      let mw: any;
+      try {
+        mw = this.moduleRef.get(cfg.middlewareClass);
+      } catch {
+        mw = this.moduleRef.get(cfg.middlewareClass, { strict: false });
+      }
       const clock = cfg.clockToken
         ? this.moduleRef.get<() => number>(cfg.clockToken, { strict: false })
         : () => Date.now();
