@@ -54,9 +54,16 @@ export function makeCallModelNode(
       const clock = cfg.clockToken
         ? this.moduleRef.get<() => number>(cfg.clockToken, { strict: false })
         : () => Date.now();
-      const mws = cfg.wrapMiddleware.map((c) =>
-        this.moduleRef.get(c, { strict: false }),
-      );
+      // Module-scoped first, flat fallback — same contract as makeHookNode
+      // (report 015: flat-by-class resolution cross-contaminated per-graph
+      // middleware config between sibling feature modules).
+      const mws = cfg.wrapMiddleware.map((c) => {
+        try {
+          return this.moduleRef.get(c);
+        } catch {
+          return this.moduleRef.get(c, { strict: false });
+        }
+      });
       const messages: BaseMessage[] = state.messages ?? [];
 
       const invoke = async (req: ModelRequest<any>): Promise<AIMessage> => {

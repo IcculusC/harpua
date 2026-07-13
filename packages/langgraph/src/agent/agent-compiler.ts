@@ -1,4 +1,5 @@
 import type { InjectionToken, Provider, Type } from "@nestjs/common";
+import { ModuleRef } from "@nestjs/core";
 import { START, END } from "@langchain/langgraph";
 import { isAIMessage } from "@langchain/core/messages";
 
@@ -21,6 +22,10 @@ export interface LoweredAgent {
   generatedNodes: Type<any>[];
   /** The internal bound-model token nodes resolve (see `provideGraphBoundModel`). */
   modelToken: InjectionToken;
+  /** Per-agent token resolving the OWNING feature module's `ModuleRef` (see
+   *  `agentProviders`) — how root-scoped assembly (graph-tools' ToolNode wrap)
+   *  resolves middleware from the right scope instead of a flat lookup. */
+  ownerRefToken: InjectionToken;
   /** `wrapModelCall` middleware classes, in onion order (first = outermost). */
   wrapModelMiddleware: Type<any>[];
   /** `wrapToolCall` middleware classes, in onion order (first = outermost). */
@@ -30,6 +35,7 @@ export interface LoweredAgent {
 /** The fully lowered graph an agent's `@LangGraph` is assembled from. */
 export interface AgentBuild {
   modelToken: InjectionToken;
+  ownerRefToken: InjectionToken;
   edges: GraphEdge<any>[];
   callModelNode: Type<any>;
   structuredResponseNode?: Type<any>;
@@ -71,6 +77,7 @@ function setStableName(cls: Type<any>, name: string): void {
  */
 export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
   const modelToken: InjectionToken = Symbol(`${options.name}$BoundModel`);
+  const ownerRefToken: InjectionToken = Symbol(`${options.name}$OwnerModuleRef`);
   const usesTools = (options.tools?.length ?? 0) > 0;
 
   // Partition middleware. A class may fall into several buckets (it is only a
@@ -251,6 +258,7 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
 
   return {
     modelToken,
+    ownerRefToken,
     edges: defineEdges<any>(edges),
     callModelNode,
     structuredResponseNode,
@@ -290,6 +298,7 @@ export function lowerAgent(def: Type<any>): LoweredAgent {
   return {
     generatedNodes,
     modelToken: b.modelToken,
+    ownerRefToken: b.ownerRefToken,
     wrapModelMiddleware: b.wrapModelMiddleware,
     wrapToolMiddleware: b.wrapToolMiddleware,
   };
@@ -321,6 +330,17 @@ export function agentProviders(def: Type<any>): Provider[] {
   return [
     ...lowered.generatedNodes,
     ...allMw,
+    // The owning feature module's ModuleRef under a per-agent token: a
+    // module-scoped useFactory's injected ModuleRef IS that module's ref, so
+    // root-scoped assembly (graph-tools' ToolNode wrap composition) can
+    // resolve THIS graph's middleware from THIS scope instead of a flat
+    // whole-container lookup (report 015 — two graphs naming one middleware
+    // class shared a single instance/config).
+    {
+      provide: lowered.ownerRefToken,
+      useFactory: (ref: ModuleRef) => ref,
+      inject: [ModuleRef],
+    },
     provideGraphBoundModel({
       provide: lowered.modelToken,
       graph: def,
