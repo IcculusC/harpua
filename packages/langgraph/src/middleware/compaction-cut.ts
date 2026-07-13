@@ -27,6 +27,18 @@ export function computeFold(
   for (let i = naiveCut; i < n; i++) {
     if (isHumanMessage(messages[i]!)) { cut = i; break; }
   }
+  if (cut < 0) {
+    // Mid-turn: the protected tail is all ai/tool (a long tool loop), so no
+    // boundary exists at/after the naive cut — but one may sit BEHIND it:
+    // the running turn's own HumanMessage. Cutting there keeps MORE than
+    // keepRecent (always safe) and the retained history still opens on a
+    // human. Without this fallback exactly the turns that need relief get
+    // none — the trigger fires every cycle and the fold nulls every cycle
+    // while context rides at peak.
+    for (let i = naiveCut - 1; i > headIndex + 1; i--) {
+      if (isHumanMessage(messages[i]!)) { cut = i; break; }
+    }
+  }
   if (cut < 0 || cut <= headIndex + 1) return null; // nothing to fold safely
 
   const foldedSpan = messages.slice(headIndex + 1, cut);
