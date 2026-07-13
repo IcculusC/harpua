@@ -124,6 +124,7 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
   const callModelNode = makeCallModelNode({
     modelToken,
     wrapMiddleware: effectiveWrapModel,
+    costOf: options.costOf,
   });
   setStableName(callModelNode, `${options.name}$CallModel`);
 

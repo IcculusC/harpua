@@ -16,6 +16,14 @@ export interface CallModelNodeConfig {
   wrapMiddleware: Type<any>[];
   /** DI token resolving the clock (`() => number`); defaults to `Date.now`. */
   clockToken?: InjectionToken;
+  /**
+   * Per-reply spend, accumulated into `loop.cost` (the input to
+   * `BudgetOptions.maxCost`). Receives the NORMALIZED reply — reconstruction
+   * has already run, so `response_metadata` is readable on every reply shape
+   * (chunks, foreign copies). Unit is the app's own (dollars recommended);
+   * unset = `loop.cost` stays 0 and no cost is tracked.
+   */
+  costOf?: (reply: AIMessage) => number;
 }
 
 /**
@@ -82,6 +90,26 @@ export function makeCallModelNode(
       };
       const reply = await chain(req);
 
+      // costOf reads the LIVE normalized reply on purpose: usage fields do
+      // not reliably survive a checkpoint round-trip (observed: OpenRouter
+      // usage_metadata lost in serialization, response_metadata kept), so
+      // the accumulator here is the only durable record of spend — a design
+      // that recomputes cost from checkpointed messages undercounts, and
+      // compaction folding messages away makes recomputation doubly wrong.
+      let costDelta = 0;
+      if (cfg.costOf !== undefined) {
+        costDelta = cfg.costOf(reply);
+        if (!Number.isFinite(costDelta)) {
+          // NaN would poison the accumulator silently (NaN >= maxCost is
+          // false forever), permanently disarming the cap the app set.
+          throw new Error(
+            `costOf returned a non-finite number (${String(costDelta)}) — ` +
+              `the cost budget would be silently disarmed. Fix the cost ` +
+              `model to return a finite number for every reply.`,
+          );
+        }
+      }
+
       const prev: LoopInfo = state.loop ?? AGENT_LOOP_DEFAULT;
       const loop: LoopInfo = {
         ...prev,
@@ -89,6 +117,9 @@ export function makeCallModelNode(
         modelCalls: prev.modelCalls + 1,
         toolCalls: prev.toolCalls + (reply.tool_calls?.length ?? 0),
         tokens: prev.tokens + (reply.usage_metadata?.total_tokens ?? 0),
+        // `?? 0`: a loop checkpointed before `cost` existed resumes without
+        // the field — `undefined + delta` is NaN and NaN never un-poisons.
+        cost: (prev.cost ?? 0) + costDelta,
         startedAt: prev.startedAt || clock(),
       };
 

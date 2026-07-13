@@ -15,7 +15,7 @@ describe("loop-state", () => {
     );
     // default value flows through a compiled read (smoke): the loop field exists
     expect(AGENT_LOOP_DEFAULT).toEqual({
-      iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, startedAt: 0,
+      iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, cost: 0, startedAt: 0,
     });
     expect(AGENT_EXIT_DEFAULT).toEqual({ requested: false });
   });
