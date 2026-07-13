@@ -277,6 +277,73 @@ const toolNode = new ToolNode([
 ]);
 ```
 
+#### Bulk ingest — chunking controls on `ingest()`
+
+`ingest(documents, options)` is the source-agnostic write path behind
+`syncCorpus` and `remember`: chunk → sanitize → junk-filter → embed
+(batched) → upsert (batched). Beyond `embeddings`, `store`, and
+`maxChunkChars` it takes four knobs, all optional:
+
+- **`sanitize?: (text: string) => string`** — applied to each chunk's text
+  before everything else (the junk floor, the embedder, and the stored text
+  all see its output). Default: strip C0/C1 control characters, keeping `\t`
+  and `\n`. Scraped PDFs routinely carry `0x01`–`0x05`/`0x0E`; those bytes
+  are pure embedding noise and have broken the postgres wire protocol on
+  insert. Pass your own function to add trimming/normalization, or
+  `(t) => t` to opt out.
+- **`minAlnumChars?: number`** (default `0` = off) — drop chunks whose
+  **alphanumeric** character count (letters + digits, not raw length) is
+  below the floor. Calibration: a sparse-but-real table row like
+  `| 200-400mA | 5V |` carries 10 alnum chars and survives a floor of 8,
+  while `---` separators and heading-only stubs carry 0–6 and only poison
+  the vector space. Field data: a floor of 8 took junk chunks in a scraped
+  hardware corpus from 11% to 0.
+- **`embedHeadingTrail?: boolean`** (default `false`) — when true, the text
+  sent to the embedder becomes `"<headingTrail joined with ' > '>: <chunk
+  text>"` (e.g. `"Power > Limits: The regulator caps at 5V."`); chunks with
+  no trail embed as raw text. The **stored** text stays the raw chunk text
+  either way. The default keeps the legacy embedding input (heading trail +
+  body joined by newlines), so existing indexes stay valid.
+- **`batchSize?: number`** (default `64`) — max records per
+  `embeddings.embedDocuments` call **and** per `store.upsert` call. A 1.9MB
+  document at small chunk sizes is ~6k chunks; one giant embed call plus one
+  giant insert has crashed node natively in the field.
+
+Options are zod-validated at call time — a negative floor, fractional batch
+size, non-function sanitizer, or unknown key throws before any embedding
+work.
+
+Every stored record also carries **`metadata.chunkIndex`**: sequential per
+document and **dense after the junk filter** (0, 1, 2, … with no gaps).
+That's the handle for window expansion at retrieval time:
+
+#### Window-expansion retrieval (recipe)
+
+Chunks sized for embedding precision are often too small to answer from.
+The fix is consumer-side: store `chunkIndex` in a real `chunk_index` column
+in your `VectorStore` adapter, then widen each hit into its neighborhood at
+query time —
+
+1. Vector-search as usual; collect the top-K hits.
+2. For each hit, fetch its neighbors with **one indexed range query** per
+   window: `WHERE document_key = $1 AND chunk_index BETWEEN $2 - w AND $2 + w`
+   (index `(document_key, chunk_index)`).
+3. Within a document, **stitch consecutive runs** of chunk indexes back into
+   passages (indexes are dense, so `n, n+1, n+2` means adjacent text).
+4. **Merge overlapping windows** from multiple hits in the same document into
+   one passage; the passage's **score is its best hit's score**.
+
+Two warnings from the field, both load-bearing:
+
+- **Coerce `chunk_index` to a number at the query boundary.** Several pg
+  drivers return integer columns as **strings**, and `"5941" + 2` in JS
+  CONCATENATES to `"59412"` — a window of `[5941, 59412]` swallows an entire
+  document (a live result once weighed 1.2MB). `Number(row.chunk_index)`
+  before any arithmetic.
+- **Hard-cap every stitched passage** (~8KB is a sane ceiling) so no future
+  bug — a bad window bound, a runaway merge — can blow a model context
+  through the retrieval path.
+
 ### Runtime skills — `use_skill` + `read_skill_file`
 
 Skills for the **app's own agent at runtime** — the counterpart to linking
