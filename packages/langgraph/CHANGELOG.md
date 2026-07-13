@@ -1,5 +1,59 @@
 # @harpua/langgraph
 
+## 0.4.0
+
+### Minor Changes
+
+- 3ece1c2: Fix: a budget exit persisted on a thread no longer permanently exits it. The
+  agent loop's beforeAgent segment now chains unconditionally, with the exit
+  check on its last node's outbound edge — previously every hook node routed on
+  `exit.requested`, so a thread's PERSISTED exit from the previous turn
+  short-circuited the next invoke to the exit path before `BudgetMiddleware`'s
+  per-invoke reset (`reset: "invoke"`, the default) could run, whenever any
+  `beforeAgent` middleware was listed before Budget. Every subsequent turn then
+  re-reported the stale `budget:<cap>` doing zero work, and `loop.startedAt`
+  never re-anchored. Human-in-the-loop agents hit this easily: `maxWallMs`
+  counts time suspended at an `interrupt()` approval, so one slow approval
+  walled the turn and the ordering bug made it permanent.
+
+  Semantic corollary of the fix (documented): all `beforeAgent` hooks now run
+  before the exit flag routes, so a fresh `ctx.exit()` from a `beforeAgent`
+  hook no longer skips later beforeAgent siblings — and a reset-style hook that
+  runs after it would clear it. If one of your `beforeAgent` hooks exits, list
+  `BudgetMiddleware` first. `beforeModel`/`afterModel`/`afterAgent` routing is
+  unchanged, as are `reset: "thread"` semantics.
+
+- 0e1d0b3: New `ProviderGuardrailMiddleware` (`provideProviderGuardrail({ on?, retries?, note?, reasonOf? })`): neutralizes provider-side blocks before they poison history. A guardrail hit (`finish_reason: "content_filter"` by default) arrives as a normal-looking assistant message carrying the provider's canned refusal — checkpointed as-is, the next turn reads it back as the assistant's own words, concludes it refused, and redoes tool work that already succeeded. The middleware swaps the boilerplate for a note aimed at the model's next turn (marker `[[provider-guardrail:<reason>]]` for client rendering), keeps the evidence (`response_metadata`, zero-token usage, id) on the message, and can re-ask up to `retries` times first (worth 1 on stochastic multi-upstream routers). `reasonOf` bridges non-OpenAI reason keys (Google `finishReason`, Anthropic `stop_reason`). Also fixed alongside: `ContextWindowMiddleware` no longer writes its assembled view back onto the shared request — under any outer re-asker (this middleware's retries, RetryMiddleware's error path) the write-back re-assembled over its own output, duplicating the compaction summary per attempt.
+- ce76f7e: `responseFormatOptions` opens the structured turn-ending call's four fixed choices, all defaults preserving today's behavior: `model` routes the envelope call to any injection token (a smart arm, or a facade provider encoding a fallback policy — this call sits outside `wrapModelCall`, so a token is its only routing seam), `retries` re-asks on thrown failures (provider roulette at the finish line lands after every tool call already succeeded), `messages` selects the envelope's input (a full-history resend prices like a second model call on long turns), and `instruction` replaces the fixed coercion system message.
+- d3b6d25: `maxWallMs` now guards UNATTENDED runaway instead of raw wall-clock: when a
+  `Command({ resume })` arrives for a thread suspended at an `interrupt()`, the
+  graph facade shifts the reserved `loop.startedAt` anchor forward by the time
+  the run spent suspended (measured from the halted checkpoint's timestamp), so
+  a human deliberating at an approval prompt no longer burns the wall budget —
+  previously one slow approval exited the resumed turn `budget:wall`. An active
+  overrun (a tool or model genuinely consuming wall time) still trips the cap.
+  The credit is applied per resume, accumulates across multiple approvals on a
+  thread, and is skipped entirely — falling back to plain wall-clock — for
+  non-`Command` input, a `resume` of `null`/`undefined` (LangGraph's own resume
+  predicate), resumes pinned to an explicit `checkpoint_id`, graphs without the
+  agent `loop` channel, threads with no pending interrupt, and threads the app
+  edited via `updateState` while paused. It applies in `reset: "thread"` mode
+  too: the lifetime wall now also measures unattended time.
+
+### Patch Changes
+
+- 1e65ab3: `provideGraphBoundModel` now throws a named error when the `model` token
+  resolves to null ("model token <X> resolved to null — check the token's
+  provider registration") instead of crashing with an anonymous
+  `Cannot read properties of null (reading 'bindTools')` at first use. Also
+  adds a per-call model routing recipe to the models skill reference:
+  `provideGraphBoundModel({ model: getChatModelToken("smart") })` in the
+  graph's `forFeature` scope + a `wrapModelCall` that swaps via
+  `req.withModel` — the documented seam for "strong arm for one call, cheap
+  arm for the loop".
+- 302acda: `computeFold` can now fold mid-turn: when the protected tail is all ai/tool messages (a long tool loop) and no HumanMessage exists at/after the naive cut, the cut falls back to the LAST HumanMessage before it — keeping more than `keepRecent` (always safe) with the retained history still opening on a human. Previously the forward-only scan returned null every cycle exactly when relief was needed, so a token trigger fired forever while the whole tool loop rode at peak context.
+- 5301d08: Token-based compaction triggers no longer go silently dead when a provider reports usage only via `response_metadata` (#61). `buildCompactionSignal` now falls back through `response_metadata.tokenUsage.prompt_tokens`/`promptTokens` and `response_metadata.usage.input_tokens`/`prompt_tokens` when `usage_metadata` is absent, and the agent preset's reply normalization is lossless — `response_metadata`, `additional_kwargs`, `invalid_tool_calls`, and `name` now survive to the checkpointed message for chunk and foreign-copy replies.
+
 ## 0.3.0
 
 ### Minor Changes
