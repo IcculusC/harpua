@@ -6,6 +6,16 @@ export const LoopInfo = z.object({
   modelCalls: z.number(),
   toolCalls: z.number(),
   tokens: z.number(),
+  /** App-defined spend accumulated by the agent's `costOf` (0 when unused).
+   *  The unit is whatever `costOf` returns — dollars, cache-weighted tokens —
+   *  and `BudgetOptions.maxCost` is compared in that same unit. Kept separate
+   *  from `tokens` so face-value token counts stay honest for gauges.
+   *  Property-level `.default(0)` on purpose: LangGraph validates every node/
+   *  updateState write against this schema, and a `loop` spread from a
+   *  checkpoint written BEFORE `cost` existed (wall-credit resume, beforeAgent
+   *  writes under reset:"thread") arrives without the key — required would
+   *  hard-crash the resume of every pre-cost thread; the default heals it. */
+  cost: z.number().default(0),
   startedAt: z.number(),
 });
 export type LoopInfo = z.infer<typeof LoopInfo>;
@@ -15,6 +25,7 @@ export const AGENT_LOOP_DEFAULT: LoopInfo = {
   modelCalls: 0,
   toolCalls: 0,
   tokens: 0,
+  cost: 0,
   startedAt: 0,
 };
 

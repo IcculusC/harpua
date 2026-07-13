@@ -61,7 +61,13 @@ export function makeHookNode(cfg: HookNodeConfig): Type<NodeHandler<any>> {
         const merged = { ...prev, ...(patch as any).loop };
         return {
           ...patch,
-          loop: { ...merged, startedAt: merged.startedAt || clock() },
+          // `cost ?? 0`: `prev` may be a pre-cost checkpointed loop (the
+          // schema default also heals this at validation — belt and braces).
+          loop: {
+            ...merged,
+            cost: merged.cost ?? 0,
+            startedAt: merged.startedAt || clock(),
+          },
         };
       }
 

@@ -26,7 +26,23 @@ Inject the compiled runnable with `@InjectLangGraphRunnable(SupportAgent)`. See 
 
 ## Cap turns / avoid `GraphRecursionError`, and retry model calls — use the shipped middleware
 Don't count `AIMessage`s yourself and don't wrap `invoke` in try/catch. Use:
-- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, reset })`** — a graceful guard that ends the loop at the canonical exit when any cap is hit, instead of throwing `GraphRecursionError`. `reset` defaults to `"invoke"` (caps are per-invoke); pass `reset: "thread"` for a lifetime ceiling — see [Semantics](#semantics-loopexit-reset-per-invoke-by-default). `maxWallMs` measures UNATTENDED time: suspension at an `interrupt()` is credited back on `Command` resume (the facade shifts `loop.startedAt`), so a slow human approval never trips the wall — an actively-running overrun still does.
+- **`provideBudget({ maxCycles, maxToolCalls, maxTokens, maxWallMs, maxCost?, reset })`** — a graceful guard that ends the loop at the canonical exit when any cap is hit, instead of throwing `GraphRecursionError`. `reset` defaults to `"invoke"` (caps are per-invoke); pass `reset: "thread"` for a lifetime ceiling — see [Semantics](#semantics-loopexit-reset-per-invoke-by-default). `maxWallMs` measures UNATTENDED time: suspension at an `interrupt()` is credited back on `Command` resume (the facade shifts `loop.startedAt`), so a slow human approval never trips the wall — an actively-running overrun still does.
+  - **Size `maxCycles`/`maxTokens` as runaway backstops, not workflow limits — cap real spend with `maxCost`.** A cycle is not a unit of cost (field data: ~50x spread per model call), and `maxTokens` counts face-value `total_tokens` — under a compaction-managed window the ~constant, mostly-cached prefix is re-counted every cycle, so the cap trips at many times the real spend, exactly on the long legitimate turns that need the room. `maxCost` caps `loop.cost`, which the agent's `costOf` accumulates (below); the unit is whatever `costOf` returns — dollars recommended.
+  - **`costOf` (a `@LangGraphAgent` option, not a Budget option)** runs after every model call on the normalized reply. On OpenRouter the exact dollar figure is already on the reply; elsewhere, compute cache-weighted tokens:
+    ```ts
+    @LangGraphAgent({
+      // OpenRouter reports real dollars per call — read them directly:
+      costOf: (reply) => Number(reply.response_metadata?.tokenUsage?.cost ?? 0),
+      // No provider cost field? Weight cache reads at your provider's discount:
+      // costOf: (r) => {
+      //   const u = r.usage_metadata; if (!u) return 0;
+      //   const cached = u.input_token_details?.cache_read ?? 0;
+      //   return (u.input_tokens - cached) + u.output_tokens + cached / 10;
+      // },
+      /* … */
+    })
+    ```
+    Return a finite number for EVERY reply — a `NaN` would silently disarm the cap, so the node throws on non-finite returns (if your provider can emit junk in `cost`, guard with `Number.isFinite` before returning). `costOf` runs once per loop cycle on the FINAL reply, so `provideRetry`/guardrail re-asks spend real money `loop.cost` never sees — same blind spot as the token counters. `costOf` must read the live reply (that is why it is a seam on the agent, where accumulation happens): usage fields do not reliably survive checkpoint serialization, and compaction folds messages away, so recomputing spend from state undercounts.
 - **`provideRetry({ maxRetries, retryable, backoff })`** — retries the model AND tool calls with a shared, injectable backoff (inject a no-op backoff in tests).
 - **`provideProviderGuardrail({ on?, retries?, note?, reasonOf? })`** — neutralizes provider-side blocks (`finish_reason: "content_filter"` by default) BEFORE they enter history. A blocked completion arrives as a normal-looking assistant message carrying the provider's canned refusal; checkpointed as-is, the next turn reads it back as the assistant's own refusal and redoes work that already succeeded. The swap keeps the evidence (`response_metadata`, `additional_kwargs`, zero-token usage) and writes a note aimed at the model's next turn. Set `retries: 1` on multi-upstream routers (OpenRouter re-routes stochastically, so a re-ask often lands past the filter). Two caveats: retry attempts are extra real model calls whose token spend `provideBudget`'s counters do NOT see (the loop books only the final reply) — keep `retries` small; and the default reason extractor reads the OpenAI-shaped `response_metadata.finish_reason` — Google (`finishReason`) and Anthropic (`stop_reason`) arms need `reasonOf: (reply) => reply.response_metadata?.stop_reason`-style bridging or the guardrail is silently inert there.
 

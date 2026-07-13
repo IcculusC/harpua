@@ -258,6 +258,137 @@ describe("BudgetMiddleware", () => {
     expect(result).toBeUndefined();
   });
 
+  it("returns exit patch when the cost cap is hit", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+      maxCost: 1.5,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, cost: 1.5, startedAt: 0 },
+      config: {},
+      now: () => 500,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toEqual({ exit: { requested: true, meta: { reason: "budget:cost" } } });
+  });
+
+  it("falls through when cost is below the cap", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+      maxCost: 1.5,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, cost: 1.49, startedAt: 0 },
+      config: {},
+      now: () => 500,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("never trips on cost when maxCost is unset, however large the accumulated cost", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    });
+
+    const ctx: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, cost: 1e9, startedAt: 0 },
+      config: {},
+      now: () => 500,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+
+    const result = await mw.beforeModel(ctx);
+
+    expect(result).toBeUndefined();
+  });
+
+  it("checks cost after tokens and before wall in the precedence order", async () => {
+    const mw = new BudgetMiddleware({
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+      maxCost: 1.5,
+    });
+
+    // tokens and cost and wall all over budget: tokens wins (earlier in order).
+    const overTokens: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 100, cost: 99, startedAt: 500 },
+      config: {},
+      now: () => 5000,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+    expect(await mw.beforeModel(overTokens)).toEqual({
+      exit: { requested: true, meta: { reason: "budget:tokens" } },
+    });
+
+    // cost and wall over budget, tokens under: cost wins over wall.
+    const overCost: MiddlewareContext<any> = {
+      state: {},
+      loop: { iteration: 0, modelCalls: 0, toolCalls: 0, tokens: 0, cost: 99, startedAt: 500 },
+      config: {},
+      now: () => 5000,
+      interrupt: () => undefined,
+      exit: (meta) => ({ exit: { requested: true, meta } }),
+    };
+    expect(await mw.beforeModel(overCost)).toEqual({
+      exit: { requested: true, meta: { reason: "budget:cost" } },
+    });
+  });
+
+  it("provideBudget accepts maxCost and throws when it is not positive", () => {
+    const base = {
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    };
+
+    expect(() => provideBudget({ ...base, maxCost: 2.5 })).not.toThrow();
+    expect(() => provideBudget({ ...base, maxCost: 0 } as any)).toThrow();
+    expect(() => provideBudget({ ...base, maxCost: -1 } as any)).toThrow();
+  });
+
+  it("provideBudget throws on unknown keys — a typo'd optional cap must not silently vanish", () => {
+    // `maxCost` is the first OPTIONAL cap: with a non-strict schema,
+    // `maxCosts: 5` parses clean, gets stripped, and the spend cap the app
+    // believes it configured simply doesn't exist. Loud at boot instead.
+    const base = {
+      maxCycles: 3,
+      maxToolCalls: 5,
+      maxTokens: 100,
+      maxWallMs: 1000,
+    };
+
+    expect(() => provideBudget({ ...base, maxCosts: 5 } as any)).toThrow();
+  });
+
   it("provideBudget returns an array with the symbol provider and middleware class", () => {
     const opts: BudgetOptions = {
       maxCycles: 3,

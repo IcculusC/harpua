@@ -10,8 +10,18 @@ export const BudgetOptions = z.object({
   maxToolCalls: z.number().int().positive(),
   maxTokens: z.number().int().positive(),
   maxWallMs: z.number().int().positive(),
+  /** Cap on `loop.cost`, the app-defined spend the agent's `costOf`
+   *  accumulates (same unit `costOf` returns — dollars recommended). Unlike
+   *  the proxy caps above, this one measures real spend: cycles vary ~50x in
+   *  cost and face-value tokens re-count cached prefixes every cycle under a
+   *  compaction-managed window. Optional — without a `costOf` there is
+   *  nothing to compare, so it is not part of the required set. */
+  maxCost: z.number().positive().optional(),
   reset: z.enum(["invoke", "thread"]).default("invoke"),
-});
+  // `.strict()`: `maxCost` is the first OPTIONAL cap — a typo'd key
+  // (`maxCosts`) stripped by a loose schema would silently leave real spend
+  // unguarded. Unknown keys fail at boot instead.
+}).strict();
 // INPUT type (not `z.infer`/output): `reset` has a `.default(...)`, so the
 // output type would make it required — but callers pass options WITHOUT
 // `reset` (the default fills it at `.parse()` time). Using `z.input` keeps
@@ -40,7 +50,10 @@ export class BudgetMiddleware implements LangGraphMiddlewareContract {
   }
 
   async beforeModel(ctx: MiddlewareContext<any>): Promise<Partial<any> | void> {
-    const { iteration, toolCalls, tokens, startedAt } = ctx.loop;
+    // `cost = 0` default: a pre-cost checkpointed loop read under
+    // reset:"thread" reaches here unparsed and without the field —
+    // `undefined >= maxCost` would silently skip the check; 0 is honest.
+    const { iteration, toolCalls, tokens, cost = 0, startedAt } = ctx.loop;
     // `startedAt` is anchored by `CallModelNode` on the FIRST model turn (and
     // by a `beforeAgent` hook earlier still, if the agent has one) — so from
     // the second `beforeModel` onward it holds a real clock reading and the
@@ -63,6 +76,9 @@ export class BudgetMiddleware implements LangGraphMiddlewareContract {
     }
     if (tokens >= this.opts.maxTokens) {
       return ctx.exit({ reason: "budget:tokens" });
+    }
+    if (this.opts.maxCost !== undefined && cost >= this.opts.maxCost) {
+      return ctx.exit({ reason: "budget:cost" });
     }
     if (wallExceeded) {
       return ctx.exit({ reason: "budget:wall" });

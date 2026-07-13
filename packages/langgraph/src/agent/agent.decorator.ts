@@ -1,5 +1,6 @@
 import type { InjectionToken } from "@nestjs/common";
 import { StateSchema } from "@langchain/langgraph";
+import type { AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { AGENT_METADATA } from "../constants";
 import { LangGraph } from "../decorators";
@@ -31,6 +32,16 @@ export interface LangGraphAgentOptions {
    * token; any other function is treated as a source.
    */
   systemPrompt?: string | InjectionToken | SystemPromptSource;
+  /**
+   * Per-reply spend accumulated into `loop.cost`, the number
+   * `BudgetOptions.maxCost` caps. Receives the normalized reply after every
+   * model call; return the cycle's cost in a unit of your choice (dollars
+   * recommended — e.g. OpenRouter's `response_metadata.tokenUsage.cost`).
+   * Unset = `loop.cost` stays 0. Cycle counts and face-value token counts
+   * are poor cost proxies (cached prefixes re-count every cycle); this seam
+   * is how a budget measures what it actually guards.
+   */
+  costOf?: (reply: AIMessage) => number;
   /** When set, a `StructuredResponseNode` coerces the final answer to this schema. */
   responseFormat?: unknown;
   /** Opens the structured turn-ending call's fixed choices: route it to a
