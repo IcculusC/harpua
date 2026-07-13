@@ -121,7 +121,14 @@ This turn-ending call sits OUTSIDE `wrapModelCall` (middleware can't reach it) a
 responseFormatOptions: {
   model: SMART_MODEL,                 // route the envelope to any token — incl. a facade provider encoding a fallback policy
   retries: 1,                         // beat provider roulette at the finish line (a failure here lands AFTER all tool calls succeeded)
-  messages: (msgs) => msgs.slice(-8), // envelope input selector — a full-history resend prices like a second model call on long turns
+  messages: (msgs) => {          // envelope input selector — a full-history resend prices like a second model call on long turns
+    const tail = msgs.slice(-8);
+    // Trim leading tool results: a bare slice can land mid-tool-round and
+    // open on ToolMessages whose AI call fell outside the window — OpenAI-
+    // shaped providers reject those as orphans (field-reported).
+    while (tail.length > 0 && isToolMessage(tail[0])) tail.shift();
+    return tail;
+  },
   instruction: "Emit the outcome envelope only.", // replaces the default coercion system message
 }
 ```
