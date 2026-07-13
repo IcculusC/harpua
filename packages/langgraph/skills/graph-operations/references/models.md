@@ -79,7 +79,10 @@ defaults: {
 ```
 
 `modelKwargs: { ... }` is the generic escape hatch for OpenRouter request
-params the schema doesn't name (`reasoning` wins on key collision).
+params the schema doesn't name (`reasoning` wins on key collision). Reserved
+keys that would shadow first-class params (`model`, `tools`, `tool_choice`,
+`provider`, `models`) are rejected at boot — the lib spreads modelKwargs last,
+so they'd silently win otherwise.
 
 ```bash
 FAST_MODEL_PROVIDER=openrouter   # flips "fast" real; model preset; shares OPENROUTER_API_KEY

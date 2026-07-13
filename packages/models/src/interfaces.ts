@@ -49,8 +49,26 @@ export const OpenRouterDefaultsSchema = z
     reasoning: z.record(z.string(), z.unknown()).optional(),
     /** Extra request-body fields merged verbatim (ChatOpenRouter modelKwargs)
      *  — the escape hatch for OpenRouter params this schema doesn't name.
-     *  `reasoning` above wins on key collision. */
-    modelKwargs: z.record(z.string(), z.unknown()).optional(),
+     *  `reasoning` above wins on key collision. The lib spreads modelKwargs
+     *  LAST into the request body, so keys shadowing first-class params
+     *  (`model` reroutes every call past the boot log, `tools` disarms the
+     *  agent, `provider`/`models` invert the named fields' precedence) are
+     *  rejected at parse time instead of silently winning. */
+    modelKwargs: z
+      .record(z.string(), z.unknown())
+      .refine(
+        (v) =>
+          !["model", "tools", "tool_choice", "provider", "models"].some((k) =>
+            Object.prototype.hasOwnProperty.call(v, k),
+          ),
+        {
+          message:
+            "modelKwargs must not set reserved request params " +
+            "(model, tools, tool_choice, provider, models) — use the " +
+            "first-class option, or the env var, instead",
+        },
+      )
+      .optional(),
   })
   .strict();
 export type OpenRouterDefaults = z.infer<typeof OpenRouterDefaultsSchema>;

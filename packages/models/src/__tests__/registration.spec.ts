@@ -45,6 +45,26 @@ describe("registration bootstrap invariants", () => {
     ).not.toThrow();
   });
 
+  it("rejects modelKwargs reserved keys that would clobber first-class request params", () => {
+    // ChatOpenRouter spreads modelKwargs LAST into the request body: a
+    // `model` there silently reroutes every call past the boot log, `tools`
+    // disarms the agent, `provider`/`models` invert the named fields'
+    // precedence. Loud at boot instead.
+    for (const key of ["model", "tools", "tool_choice", "provider", "models"]) {
+      expect(() =>
+        ChatModelModule.forRoot({
+          defaults: {
+            provider: "openrouter",
+            openrouter: {
+              model: "deepseek/deepseek-v4-flash",
+              modelKwargs: { [key]: "x" },
+            },
+          },
+        }),
+      ).toThrow(/modelKwargs/);
+    }
+  });
+
   it("duplicate names throw a bootstrap error", () => {
     ChatModelModule.forRoot();
     ChatModelModule.register({ name: "fast" });
