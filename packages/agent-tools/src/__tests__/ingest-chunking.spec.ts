@@ -298,3 +298,66 @@ describe("ingest option surface", () => {
     ).rejects.toThrow();
   });
 });
+
+
+describe("review-pinned edges", () => {
+  const mkDoc = (n: number) => ({
+    id: "doc",
+    text: Array.from({ length: n }, (_, i) => `Paragraph number ${i} with unique content ${i}.`).join("\n\n"),
+  });
+
+  it("embed<->record pairing survives batch boundaries (each record carries ITS text's vector)", async () => {
+    // A reorder/interleave bug across batches silently mis-embeds every chunk
+    // after the first batch; length-only assertions can't see it.
+    const embeddings = {
+      embedQuery: async () => [0],
+      embedDocuments: async (texts: string[]) => texts.map((t) => [t.length, t.charCodeAt(t.length - 2)]),
+    };
+    const upserted: any[] = [];
+    const store = {
+      upsert: async (recs: any[]) => { upserted.push(...recs); },
+      query: async () => [],
+      deleteByDocumentKey: async () => {},
+    };
+    await ingest([mkDoc(150)], { embeddings: embeddings as any, store: store as any, maxChunkChars: 60 });
+    expect(upserted.length).toBeGreaterThan(64); // spans a batch boundary
+    for (const rec of upserted) {
+      // Trail is empty for plain paragraphs, so the default embedding input
+      // (embeddingTextFor = trail+text) IS the stored text.
+      expect(rec.vector).toEqual([rec.text.length, rec.text.charCodeAt(rec.text.length - 2)]);
+    }
+  });
+
+  it("a provider returning short vectors fails loudly instead of silently shifting the pairing", async () => {
+    const embeddings = {
+      embedQuery: async () => [0],
+      embedDocuments: async (texts: string[]) => texts.slice(1).map(() => [1]), // one short
+    };
+    const store = { upsert: async () => {}, query: async () => [], deleteByDocumentKey: async () => {} };
+    await expect(
+      ingest([mkDoc(3)], { embeddings: embeddings as any, store: store as any, maxChunkChars: 60 }),
+    ).rejects.toThrow(/embedDocuments|vector/i);
+  });
+
+  it("the sanitizer reaches the heading trail (embedded input AND stored metadata)", async () => {
+    const captured: any[] = [];
+    const embeddedTexts: string[] = [];
+    const embeddings = {
+      embedQuery: async () => [0],
+      embedDocuments: async (texts: string[]) => { embeddedTexts.push(...texts); return texts.map(() => [1]); },
+    };
+    const store = {
+      upsert: async (recs: any[]) => { captured.push(...recs); },
+      query: async () => [],
+      deleteByDocumentKey: async () => {},
+    };
+    await ingest(
+      [{ id: "d", text: "# Dirty\u0001 Heading\n\nSome real prose content here." }],
+      { embeddings: embeddings as any, store: store as any },
+    );
+    expect(embeddedTexts.join("\n")).not.toContain("\u0001");
+    for (const rec of captured) {
+      expect(JSON.stringify(rec.metadata.headingTrail)).not.toContain("\\u0001");
+    }
+  });
+});

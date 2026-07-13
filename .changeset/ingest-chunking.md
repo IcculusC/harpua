@@ -31,4 +31,4 @@ overlaps, score = best hit; coerce `chunk_index` at the pg driver boundary
 and hard-cap stitched passages).
 
 `ingest` options are now validated strictly: unknown keys throw at call time
-instead of being silently ignored.
+instead of being silently ignored. Note: batched upserts mean a store failure mid-ingest can leave earlier batches committed (embed failures still precede any store mutation); and re-ingesting the same id-less text with different chunking options appends under new content-hash positions rather than replacing — give documents explicit ids when you expect to re-ingest with evolving options.

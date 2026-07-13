@@ -93,7 +93,18 @@ async function embedInBatches(
 ): Promise<number[][]> {
   const vectors: number[][] = [];
   for (let i = 0; i < texts.length; i += batchSize) {
-    vectors.push(...(await embeddings.embedDocuments(texts.slice(i, i + batchSize))));
+    const slice = texts.slice(i, i + batchSize);
+    const batch = await embeddings.embedDocuments(slice);
+    if (batch.length !== slice.length) {
+      // A short batch would silently shift the embed<->record pairing for
+      // every chunk after it — fail loudly instead (same guard style as
+      // knowledge-index).
+      throw new Error(
+        `ingest: embedDocuments returned ${batch.length} vectors for ` +
+          `${slice.length} texts — provider/batch mismatch.`,
+      );
+    }
+    vectors.push(...batch);
   }
   return vectors;
 }
@@ -132,7 +143,14 @@ export async function ingest(
     // re-ingesting a doc as empty should clear its prior records.
     if (doc.id !== undefined) explicitIds.add(doc.id);
     const chunks = chunkMarkdown(doc.text, { maxChunkChars: cap })
-      .map((chunk) => ({ ...chunk, text: sanitize(chunk.text) }))
+      // The trail is sanitized too: it reaches the embedder (both modes) and
+      // the stored metadata — a dirty scraped heading would otherwise
+      // re-introduce exactly the bytes the sanitizer exists to remove.
+      .map((chunk) => ({
+        ...chunk,
+        text: sanitize(chunk.text),
+        headingTrail: chunk.headingTrail.map(sanitize),
+      }))
       .filter((chunk) => countAlnum(chunk.text) >= minAlnumChars);
     if (chunks.length === 0) continue;
     const baseId = doc.id ?? contentHash(doc.text);
