@@ -114,6 +114,17 @@ This composes by design, not by accident: `systemPrompt` itself lowers to the **
 ## `responseFormat` → typed `outcome`
 Set `responseFormat: <zod schema>` and a `StructuredResponseNode` coerces the final answer into `state.outcome` (a typed channel an outer graph can `route()` on). A `Budget`-forced stop routes through the same node, so even a graceful give-up yields a typed outcome.
 
+This turn-ending call sits OUTSIDE `wrapModelCall` (middleware can't reach it) and defaults to one shot on the graph's bound model over the full history. Open any of those with `responseFormatOptions` — all defaults preserve the plain behavior:
+
+```ts
+responseFormatOptions: {
+  model: SMART_MODEL,                 // route the envelope to any token — incl. a facade provider encoding a fallback policy
+  retries: 1,                         // beat provider roulette at the finish line (a failure here lands AFTER all tool calls succeeded)
+  messages: (msgs) => msgs.slice(-8), // envelope input selector — a full-history resend prices like a second model call on long turns
+  instruction: "Emit the outcome envelope only.", // replaces the default coercion system message
+}
+```
+
 ## Semantics: `loop`/`exit` reset per invoke by default
 The reserved `loop` counters and the `exit` flag are **persisted** (LastValue), so nothing resets them on its own — something has to, and `BudgetMiddleware` is what does.
 

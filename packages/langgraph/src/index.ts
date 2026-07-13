@@ -97,6 +97,8 @@ export type { LangGraphRunnableConfig } from "@langchain/langgraph";
 export { LangGraphAgent, getAgentMetadata } from "./agent/agent.decorator";
 export type { LangGraphAgentOptions } from "./agent/agent.decorator";
 export type { SystemPromptSource } from "./agent/system-prompt-middleware";
+// Both a zod schema (value) and its input type (merged declaration).
+export { ResponseFormatOptions } from "./agent/structured-response-node";
 
 // Middleware: DI-provider classes implementing node hooks
 // (beforeAgent/beforeModel/afterModel/afterAgent) and/or callable-wrap hooks
