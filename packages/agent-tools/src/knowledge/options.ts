@@ -11,6 +11,12 @@ export const DEFAULT_TOP_K = 5;
 export const TOP_K_CEILING = 20;
 /** Sane default size cap that oversized sections are split down to. */
 export const DEFAULT_MAX_CHUNK_CHARS = 1200;
+/**
+ * Default max records per `embedDocuments` / `upsert` call during ingest. A
+ * large document at small chunk sizes yields thousands of chunks; one
+ * unbatched embed + one giant insert has crashed node natively in the field.
+ */
+export const DEFAULT_INGEST_BATCH_SIZE = 64;
 
 /** Resolves the corpus directory at call time (receives the run config). */
 export type KnowledgeRootResolver = (config?: RunnableConfig) => string;
