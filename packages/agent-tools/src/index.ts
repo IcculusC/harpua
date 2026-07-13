@@ -72,3 +72,15 @@ export type {
   ResolvedSearchKnowledgeToolOptions,
   KnowledgeRootResolver,
 } from "./knowledge/options";
+
+// Runtime skills family: the app's OWN agent discovers, loads, and follows
+// skills at runtime (the counterpart to dev-time skill linking). Registry +
+// two tools; the live-menu system-prompt middleware stays a documented
+// recipe in the consuming framework (see README) so this package keeps its
+// LCD dependency surface.
+export { SkillRegistry } from "./skills/skill-registry";
+export type { Skill, SkillRef, SkillRescanResult, SkillRegistryOptions } from "./skills/skill-registry";
+export { renderSkillMenu } from "./skills/render-skill-menu";
+export { useSkillTool } from "./skills/use-skill";
+export { readSkillFileTool } from "./skills/read-skill-file";
+export type { SkillToolOptions } from "./skills/options";

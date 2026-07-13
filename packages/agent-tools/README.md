@@ -14,6 +14,7 @@ LangChain / LangGraph TypeScript app — a `ToolNode`, `createReactAgent`,
   - [Web research — `web_search` + `fetch_url`](#web-research--web_search--fetch_url)
   - [`fetchPdfTool(options)` — opt-in PDF fetching](#fetchpdftooloptions--opt-in-pdf-fetching)
   - [Knowledge — `search_knowledge`](#knowledge--search_knowledge)
+  - [Runtime skills — `use_skill` + `read_skill_file`](#runtime-skills--use_skill--read_skill_file)
 - [Using with `@harpua/langgraph`](#using-with-harpualanggraph)
 
 ## Install
@@ -275,6 +276,42 @@ const toolNode = new ToolNode([
   rememberTool({ store, embeddings, searchToolName: "search_memory" }),
 ]);
 ```
+
+### Runtime skills — `use_skill` + `read_skill_file`
+
+Skills for the **app's own agent at runtime** — the counterpart to linking
+skills into `.claude/skills` for a developer's coding agent. The agent sees a
+menu of procedures, loads one when it applies, and reads its reference files
+on demand at a stated cost.
+
+```ts
+import { SkillRegistry, useSkillTool, readSkillFileTool } from "@harpua/agent-tools";
+
+const registry = new SkillRegistry(".agents/skills"); // <skill>/SKILL.md per skill
+const tools = [useSkillTool({ registry }), readSkillFileTool({ registry })];
+```
+
+- **`SkillRegistry(dir, { onWarn? })`** scans `<skill>/SKILL.md` files
+  (frontmatter `name` + `description`; `name` must match the directory).
+  Malformed, symlinked, or oversized entries are skipped with a warning —
+  never a crash. `rescan()` picks up skills installed mid-session and reports
+  `{ count, names, skipped, changed }`, where `changed` compares rendered menu
+  bytes (a `true` means the next call's system prompt moves and the provider's
+  prefix cache resets).
+- **`use_skill(name)`** returns the skill body **as a tool result** — a skill
+  is a procedure that must persist through the tool loop, and an ephemeral
+  prompt injection hands the model a checklist that vanishes before cycle 2.
+  References are LISTED with line counts, never read. Unknown name → the menu.
+- **`read_skill_file(skill, path, startLine?, endLine?)`** reads out of a
+  **per-skill jail** (the skill's own directory is the sandbox root, so
+  `../other-skill/…` cannot resolve, symlinks included) with hard caps per
+  read — progressive disclosure enforced structurally, not by asking nicely.
+- **`renderSkillMenu(registry.menu())`** renders the system-prompt TOC (`""`
+  when empty). Putting the LIVE menu in the system prompt is a ~12-line
+  `wrapModelCall` middleware in your framework — with `@harpua/langgraph`,
+  follow the "Composing the system prompt" recipe in its
+  `agents-and-middleware` skill reference (append to the leading
+  SystemMessage; byte-stable output keeps the prompt cache warm).
 
 ## Using with `@harpua/langgraph`
 
