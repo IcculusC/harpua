@@ -27,9 +27,11 @@ import { z } from "zod";
  *
  * These tests boot TWO feature modules that both name the same middleware
  * classes with different scope-level options, and assert each graph is
- * governed by ITS OWN scope. The tight/tagged-B module is registered FIRST
- * so that, under flat resolution, its instances deterministically win and
- * the assertions fail — a stable RED, not instantiation-order roulette.
+ * governed by ITS OWN scope. Nest's flat lookup returns the LAST-registered
+ * module's instance, so with tight/B registered first the wide/A instances
+ * won under the old code — a stable, deterministic RED on the tight/B
+ * assertions (tight ran to 8 cycles; B's replies carried A's tag), not
+ * instantiation-order roulette.
  *
  * All three resolution paths are pinned:
  *  - node-hook middleware (Budget's beforeAgent/beforeModel) — hook-node
@@ -221,9 +223,10 @@ describe("middleware scope isolation across feature modules (report 015)", () =>
     const moduleRef = await Test.createTestingModule({
       imports: [
         LangGraphModule.forRoot({}),
-        // The TIGHT/B scopes come FIRST: under flat-by-class resolution their
-        // middleware instances win for every graph, so the wide/A assertions
-        // below fail deterministically instead of by instantiation-order luck.
+        // The TIGHT/B scopes come FIRST. Nest's flat lookup returns the
+        // LAST-registered instance, so under the old flat-by-class
+        // resolution the wide/A instances governed every graph and the
+        // tight/B assertions below failed deterministically.
         LangGraphModule.forFeature([ScopeTightAgent], {
           providers: [
             ...provideBudget({
@@ -290,25 +293,29 @@ describe("middleware scope isolation across feature modules (report 015)", () =>
     expect(tightModel.generateCalls).toBe(4);
   });
 
-  it("each graph's wrapModelCall AND wrapToolCall middleware carry ITS OWN scope's options (call-model-node + graph-tools paths)", async () => {
-    // ONE invoke per agent: the scripted models are stateful (call 1 = tool
-    // call, call 2 = "done"), so both wrap paths are asserted off the same
-    // run — the final reply carries the model tag, the ToolMessage the tool
-    // tag, each from the invoking graph's own scope.
-    const a = app.get<LangGraphRunnable>(getGraphFacadeToken({ name: "tagAgentA" }));
-    const b = app.get<LangGraphRunnable>(getGraphFacadeToken({ name: "tagAgentB" }));
+  describe("wrap middleware scoping (one invoke per agent — the scripted models are stateful)", () => {
+    let resA: any;
+    let resB: any;
 
-    const resA: any = await a.invoke({ messages: [new HumanMessage("go")] });
-    const resB: any = await b.invoke({ messages: [new HumanMessage("go")] });
+    beforeAll(async () => {
+      const a = app.get<LangGraphRunnable>(getGraphFacadeToken({ name: "tagAgentA" }));
+      const b = app.get<LangGraphRunnable>(getGraphFacadeToken({ name: "tagAgentB" }));
+      resA = await a.invoke({ messages: [new HumanMessage("go")] });
+      resB = await b.invoke({ messages: [new HumanMessage("go")] });
+    });
 
-    const lastA = resA.messages[resA.messages.length - 1];
-    const lastB = resB.messages[resB.messages.length - 1];
-    expect(String(lastA.content)).toBe("done[A]");
-    expect(String(lastB.content)).toBe("done[B]");
+    it("each graph's wrapModelCall middleware carries ITS OWN scope's options (call-model-node path)", () => {
+      const lastA = resA.messages[resA.messages.length - 1];
+      const lastB = resB.messages[resB.messages.length - 1];
+      expect(String(lastA.content)).toBe("done[A]");
+      expect(String(lastB.content)).toBe("done[B]");
+    });
 
-    const toolA = resA.messages.filter((m: unknown) => isToolMessage(m as any)).pop();
-    const toolB = resB.messages.filter((m: unknown) => isToolMessage(m as any)).pop();
-    expect(String(toolA.content)).toContain("echo:x[A]");
-    expect(String(toolB.content)).toContain("echo:x[B]");
+    it("each graph's wrapToolCall middleware carries ITS OWN scope's options (graph-tools path)", () => {
+      const toolA = resA.messages.filter((m: unknown) => isToolMessage(m as any)).pop();
+      const toolB = resB.messages.filter((m: unknown) => isToolMessage(m as any)).pop();
+      expect(String(toolA.content)).toContain("echo:x[A]");
+      expect(String(toolB.content)).toContain("echo:x[B]");
+    });
   });
 });

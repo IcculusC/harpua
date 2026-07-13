@@ -445,9 +445,18 @@ export function buildGraphTools(
       // collision-free), then resolve middleware within the owning scope.
       let ownerRef: ModuleRef = moduleRef;
       try {
-        ownerRef = moduleRef.get<ModuleRef>(lowered.ownerRefToken, { strict: false });
+        // During DI-time instantiation (provideGraphBoundModel's factory also
+        // calls buildGraphTools) a flat get returns the wrapper's instance
+        // WITHOUT forcing instantiation — the factory may not have run yet
+        // and this can be undefined. That copy's tools never execute (only
+        // name/schema are read), so falling back to the root ref is safe;
+        // the executing ToolNode is built at bootstrap when all providers
+        // exist and the owner ref resolves.
+        ownerRef =
+          moduleRef.get<ModuleRef>(lowered.ownerRefToken, { strict: false }) ??
+          moduleRef;
       } catch {
-        /* pre-ownerRef metadata: keep the root ref (legacy flat behavior) */
+        /* pre-ownerRef metadata / direct callers: keep the root ref */
       }
       const resolvedWrapToolMiddleware = wrapToolMiddleware.map((c) => {
         try {
