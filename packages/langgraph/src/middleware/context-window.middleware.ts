@@ -33,8 +33,12 @@ export class ContextWindowMiddleware implements LangGraphMiddlewareContract {
       const llmType = (req.model as any)?._llmType?.() ?? "unknown";
       messages = translateCacheMarkers(messages, llmType);
     }
-    req.messages = messages;
-    return next(req);
+    // Forward a COPY, never write back: an outer middleware that re-invokes
+    // next(req) (ProviderGuardrail's retry, RetryMiddleware's error path)
+    // must not find this middleware's assembled view on the shared request —
+    // a write-back made the second pass re-assemble over its own output
+    // (duplicate summary per re-ask).
+    return next({ ...req, messages });
   }
 }
 
