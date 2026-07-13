@@ -39,6 +39,18 @@ export const OpenRouterDefaultsSchema = z
     provider: z.record(z.string(), z.unknown()).optional(),
     /** Fallback model list for OpenRouter routing. */
     models: z.array(z.string()).optional(),
+    /** OpenRouter's unified `reasoning` request param ({ effort | max_tokens |
+     *  enabled, exclude }), passed through verbatim in the request body.
+     *  `{ enabled: true, exclude: true }` makes every upstream serve the
+     *  reasoning channel without returning it — the fix for multi-upstream
+     *  roulette leaking thinking into `content`. Loose record on purpose:
+     *  OpenRouter owns the shape, and this package takes no type dependency
+     *  on the optional peer (same posture as `provider`). */
+    reasoning: z.record(z.string(), z.unknown()).optional(),
+    /** Extra request-body fields merged verbatim (ChatOpenRouter modelKwargs)
+     *  — the escape hatch for OpenRouter params this schema doesn't name.
+     *  `reasoning` above wins on key collision. */
+    modelKwargs: z.record(z.string(), z.unknown()).optional(),
   })
   .strict();
 export type OpenRouterDefaults = z.infer<typeof OpenRouterDefaultsSchema>;

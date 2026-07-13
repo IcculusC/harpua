@@ -76,6 +76,16 @@ export function buildChatModel(
       // model guaranteed present by superRefine (env or arm-scoped default).
       const model = parsed.OPENROUTER_MODEL ?? or.model;
       const apiKey = parsed.OPENROUTER_API_KEY ?? or.apiKey;
+      // `reasoning` rides modelKwargs (ChatOpenRouter has no first-class
+      // field; modelKwargs spreads into the request body). Named key wins
+      // over a duplicate inside a caller's own modelKwargs.
+      const modelKwargs =
+        or.modelKwargs !== undefined || or.reasoning !== undefined
+          ? {
+              ...(or.modelKwargs ?? {}),
+              ...(or.reasoning !== undefined ? { reasoning: or.reasoning } : {}),
+            }
+          : undefined;
       announce(reg.name, "openrouter", model ?? "unknown");
       return new ChatOpenRouter({
         model,
@@ -89,6 +99,7 @@ export function buildChatModel(
         ...(or.siteName !== undefined ? { siteName: or.siteName } : {}),
         ...(or.provider !== undefined ? { provider: or.provider } : {}),
         ...(or.models !== undefined ? { models: or.models } : {}),
+        ...(modelKwargs !== undefined ? { modelKwargs } : {}),
       });
     }
 

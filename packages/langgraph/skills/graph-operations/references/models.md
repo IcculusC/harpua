@@ -57,6 +57,30 @@ imports: [
 ],
 ```
 
+### Multi-upstream roulette: pin the reasoning channel (and the upstreams)
+
+OpenRouter routes one model id across upstream instances that do NOT agree
+about the reasoning channel. When a call lands on one serving it without the
+channel, the model thinks IN CONTENT — 11KB think-vomit replies, foreign-
+language filler, empty finals, even raw DSML tool-call markup rendered to the
+user. Two levers, both arm-scoped defaults:
+
+```ts
+defaults: {
+  openrouter: {
+    model: "deepseek/deepseek-v4-flash",
+    // Every upstream serves the reasoning channel; exclude keeps it off the
+    // wire coming back (don't pay for/see it). Rides the request body.
+    reasoning: { enabled: true, exclude: true },
+    // And/or pin the routing itself — allow/deny/order specific upstreams:
+    provider: { order: ["deepseek"], allow_fallbacks: false },
+  },
+},
+```
+
+`modelKwargs: { ... }` is the generic escape hatch for OpenRouter request
+params the schema doesn't name (`reasoning` wins on key collision).
+
 ```bash
 FAST_MODEL_PROVIDER=openrouter   # flips "fast" real; model preset; shares OPENROUTER_API_KEY
 ```

@@ -46,6 +46,56 @@ describe("openrouter arm", () => {
     expect(model.temperature).toBe(0.4);
   });
 
+  it("maps defaults.openrouter.reasoning into modelKwargs (request-body passthrough)", () => {
+    // OpenRouter's unified `reasoning` request param makes every upstream
+    // serve the reasoning channel — without it, multi-upstream routing lands
+    // ~25% of calls on instances that leak thinking (or raw DSML tool markup)
+    // straight into `content` (field report 014). ChatOpenRouter has no
+    // first-class field for it; `modelKwargs` spreads into the request body.
+    const model: any = buildChatModel(
+      defaultReg({
+        openrouter: { reasoning: { enabled: true, exclude: true } },
+      }),
+      {
+        MODEL_PROVIDER: "openrouter",
+        OPENROUTER_MODEL: "deepseek/deepseek-v4-flash",
+        OPENROUTER_API_KEY: "sk-or-test",
+      },
+    );
+    expect(model.modelKwargs).toEqual({
+      reasoning: { enabled: true, exclude: true },
+    });
+  });
+
+  it("passes defaults.openrouter.modelKwargs through verbatim, reasoning merged on top", () => {
+    const model: any = buildChatModel(
+      defaultReg({
+        openrouter: {
+          modelKwargs: { transforms: ["middle-out"] },
+          reasoning: { effort: "low" },
+        },
+      }),
+      {
+        MODEL_PROVIDER: "openrouter",
+        OPENROUTER_MODEL: "deepseek/deepseek-v4-flash",
+        OPENROUTER_API_KEY: "sk-or-test",
+      },
+    );
+    expect(model.modelKwargs).toEqual({
+      transforms: ["middle-out"],
+      reasoning: { effort: "low" },
+    });
+  });
+
+  it("leaves modelKwargs undefined when neither reasoning nor modelKwargs is configured", () => {
+    const model: any = buildChatModel(defaultReg({ openrouter: {} }), {
+      MODEL_PROVIDER: "openrouter",
+      OPENROUTER_MODEL: "deepseek/deepseek-v4-flash",
+      OPENROUTER_API_KEY: "sk-or-test",
+    });
+    expect(model.modelKwargs).toBeUndefined();
+  });
+
   it("passes sessionId through — env beats the arm-scoped default", () => {
     const fromArm: any = buildChatModel(
       defaultReg({ openrouter: { sessionId: "arm-session" } }),
