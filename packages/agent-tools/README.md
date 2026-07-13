@@ -317,7 +317,7 @@ Every stored record also carries **`metadata.chunkIndex`**: sequential per
 document and **dense after the junk filter** (0, 1, 2, … with no gaps).
 That's the handle for window expansion at retrieval time:
 
-#> **Two operational notes.** Upserts are batched: a store failure mid-ingest
+> **Two operational notes.** Upserts are batched: a store failure mid-ingest
 > can leave earlier batches committed (embedding failures still happen before
 > any store write). And id-less documents are keyed by a content hash of the
 > raw text — re-ingesting the same text with different chunking options
