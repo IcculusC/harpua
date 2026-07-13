@@ -39,6 +39,36 @@ export const OpenRouterDefaultsSchema = z
     provider: z.record(z.string(), z.unknown()).optional(),
     /** Fallback model list for OpenRouter routing. */
     models: z.array(z.string()).optional(),
+    /** OpenRouter's unified `reasoning` request param ({ effort | max_tokens |
+     *  enabled, exclude }), passed through verbatim in the request body.
+     *  `{ enabled: true, exclude: true }` makes every upstream serve the
+     *  reasoning channel without returning it — the fix for multi-upstream
+     *  roulette leaking thinking into `content`. Loose record on purpose:
+     *  OpenRouter owns the shape, and this package takes no type dependency
+     *  on the optional peer (same posture as `provider`). */
+    reasoning: z.record(z.string(), z.unknown()).optional(),
+    /** Extra request-body fields merged verbatim (ChatOpenRouter modelKwargs)
+     *  — the escape hatch for OpenRouter params this schema doesn't name.
+     *  `reasoning` above wins on key collision. The lib spreads modelKwargs
+     *  LAST into the request body, so keys shadowing first-class params
+     *  (`model` reroutes every call past the boot log, `tools` disarms the
+     *  agent, `provider`/`models` invert the named fields' precedence) are
+     *  rejected at parse time instead of silently winning. */
+    modelKwargs: z
+      .record(z.string(), z.unknown())
+      .refine(
+        (v) =>
+          !["model", "tools", "tool_choice", "provider", "models"].some((k) =>
+            Object.prototype.hasOwnProperty.call(v, k),
+          ),
+        {
+          message:
+            "modelKwargs must not set reserved request params " +
+            "(model, tools, tool_choice, provider, models) — use the " +
+            "first-class option, or the env var, instead",
+        },
+      )
+      .optional(),
   })
   .strict();
 export type OpenRouterDefaults = z.infer<typeof OpenRouterDefaultsSchema>;

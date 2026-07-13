@@ -27,6 +27,44 @@ describe("registration bootstrap invariants", () => {
     expect(() => ChatModelModule.register({ name: "fast" })).not.toThrow();
   });
 
+  it("forRoot accepts openrouter reasoning + modelKwargs defaults (strict schema gate)", () => {
+    // The defaults schema is .strict(): before these keys existed, a
+    // reasoning passthrough was rejected at boot — the app-side dead end
+    // field report 014 hit.
+    expect(() =>
+      ChatModelModule.forRoot({
+        defaults: {
+          provider: "openrouter",
+          openrouter: {
+            model: "deepseek/deepseek-v4-flash",
+            reasoning: { enabled: true, exclude: true },
+            modelKwargs: { transforms: ["middle-out"] },
+          },
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects modelKwargs reserved keys that would clobber first-class request params", () => {
+    // ChatOpenRouter spreads modelKwargs LAST into the request body: a
+    // `model` there silently reroutes every call past the boot log, `tools`
+    // disarms the agent, `provider`/`models` invert the named fields'
+    // precedence. Loud at boot instead.
+    for (const key of ["model", "tools", "tool_choice", "provider", "models"]) {
+      expect(() =>
+        ChatModelModule.forRoot({
+          defaults: {
+            provider: "openrouter",
+            openrouter: {
+              model: "deepseek/deepseek-v4-flash",
+              modelKwargs: { [key]: "x" },
+            },
+          },
+        }),
+      ).toThrow(/modelKwargs/);
+    }
+  });
+
   it("duplicate names throw a bootstrap error", () => {
     ChatModelModule.forRoot();
     ChatModelModule.register({ name: "fast" });
