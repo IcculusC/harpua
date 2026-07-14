@@ -974,7 +974,12 @@ view that renders what the model sees this turn, and a bundle over both:
   results always follow their `tool_calls` parent, so an AI-opening retained
   span never strands one). That last cut folds the running turn's own ask
   into the summary, so `drop` folds never take it: with no summary standing
-  in, the model would lose its current instruction mid-task.
+  in, the model would lose its current instruction mid-task. For the same
+  reason it requires a registered `ContextWindowMiddleware` to render that
+  summary — standalone `provideCompaction` + summarize disables it (with a
+  one-time warning); use `provideManagedContext`. After 3 consecutive
+  summarize failures on such folds, a thread stops attempting them (each
+  attempt sends the whole peak-context span to the summarizer).
 - **`provideContextWindow({ cacheHints?, evictToolOutputs?, evictBeyond?, pin? })`
   → `ContextWindowMiddleware`** — the view. A `wrapModelCall` hook that
   assembles `[pinned head · summary · tail]` for this turn, stamps

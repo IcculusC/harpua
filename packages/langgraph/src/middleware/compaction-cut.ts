@@ -26,10 +26,16 @@ export function computeFold(
     /** Last-resort mega-turn cut: when BOTH human scans fail (a single turn
      *  that outgrew the trigger on its own has no human boundary anywhere in
      *  the foldable region), cut at the newest AIMessage at/before the naive
-     *  cut. Safe on the wire — ToolMessages immediately follow their
-     *  tool_calls parent, so a retained span opening on an AI never strands
-     *  one, and the pinned head still opens the history. Opt-in because this
-     *  is the only cut that severs the RUNNING turn's own ask and work:
+     *  cut. Wire-safe for linear tool-loop histories (the agent preset's
+     *  shape), where ToolMessages immediately follow their tool_calls parent:
+     *  a retained span opening on an AI never strands one, and the pinned
+     *  head still opens the history. Two shapes fall outside that guarantee:
+     *  histories interleaving several tool_calls AIMessages before their
+     *  ToolMessages (parallel model nodes writing one messages channel), and
+     *  a custom `pin` matching a tool_calls AIMessage — both can retain a
+     *  ToolMessage whose parent folded (the same hazard the human cuts have
+     *  in those shapes; `pin` should match a HumanMessage). Opt-in because
+     *  this is the only cut that severs the RUNNING turn's own ask and work:
      *  callers must have a summary standing in for the folded span
      *  (summarize-strategy folds pass true; drop folds must not — the model
      *  would lose its current instruction mid-task with no record). */
