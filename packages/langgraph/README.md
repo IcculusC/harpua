@@ -966,7 +966,20 @@ view that renders what the model sees this turn, and a bundle over both:
   `triggerAt` fires, keeping only a pinned head and a recent tail of
   `keepRecent` messages. Hysteresis snaps the cut forward to the next
   `HumanMessage`, so a retained history never opens on an orphaned
-  `ToolMessage`.
+  `ToolMessage`; when the protected tail is all ai/tool (a long tool loop),
+  it falls back to the running turn's own human behind the window. When even
+  that fails — a single turn that outgrew the trigger **on its own** has no
+  human boundary anywhere in the foldable region — `summarize`-strategy folds
+  cut at the newest `AIMessage` before the window (safe on the wire: tool
+  results always follow their `tool_calls` parent, so an AI-opening retained
+  span never strands one). That last cut folds the running turn's own ask
+  into the summary, so `drop` folds never take it: with no summary standing
+  in, the model would lose its current instruction mid-task. For the same
+  reason it requires a registered `ContextWindowMiddleware` to render that
+  summary — standalone `provideCompaction` + summarize disables it (with a
+  one-time warning); use `provideManagedContext`. After 3 consecutive
+  summarize failures on such folds, a thread stops attempting them (each
+  attempt sends the whole peak-context span to the summarizer).
 - **`provideContextWindow({ cacheHints?, evictToolOutputs?, evictBeyond?, pin? })`
   → `ContextWindowMiddleware`** — the view. A `wrapModelCall` hook that
   assembles `[pinned head · summary · tail]` for this turn, stamps

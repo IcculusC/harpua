@@ -34,6 +34,23 @@ describe("CompactionMiddleware (drop)", () => {
     expect(patch.summary).toBeUndefined(); // drop never writes a summary
   });
 
+  it("never folds a mega-turn — the AI-boundary cut is summarize-only", async () => {
+    // Humans only at the head and the running turn's own message, then one
+    // long tool loop over the trigger. A drop fold here would erase the
+    // model's current ask and work with no record; drop stays conservative
+    // and declines (walkie 016).
+    const msgs: any[] = [
+      new HumanMessage({ id: "h1", content: "goal" }),
+      new HumanMessage({ id: "h2", content: "the one big ask" }),
+    ];
+    for (let i = 0; i < 5; i++) {
+      msgs.push(new AIMessage({ id: `la${i}`, content: "", tool_calls: [{ name: "t", args: {}, id: `c${i}`, type: "tool_call" }] }));
+      msgs.push(new ToolMessage({ id: `lt${i}`, content: "r", tool_call_id: `c${i}` }));
+    }
+    const mw = new CompactionMiddleware(opts, {} as any);
+    expect(await mw.beforeModel(ctx(msgs))).toBeUndefined();
+  });
+
   it("no-ops when under the trigger", async () => {
     const mw = new CompactionMiddleware(opts, {} as any);
     const patch = await mw.beforeModel(ctx(convo().slice(0, 4)));
