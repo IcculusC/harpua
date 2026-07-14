@@ -1,6 +1,6 @@
 {
   "name": "@harpua/langgraph",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "license": "MIT",
   "description": "Idiomatic NestJS integration for LangGraph: nodes as providers, typed edge lists, checkpointers, streaming, interrupts, and OpenTelemetry tracing",
   "repository": {
