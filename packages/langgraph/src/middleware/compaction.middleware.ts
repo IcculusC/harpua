@@ -15,7 +15,9 @@ import { summarizeSpan } from "./summarize";
 const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 
 /** The fold: a beforeModel node hook that durably compacts `messages` with
- *  RemoveMessage + hysteresis, cutting only at HumanMessage boundaries. */
+ *  RemoveMessage + hysteresis, cutting at HumanMessage boundaries — plus, for
+ *  summarize folds only, a last-resort AIMessage boundary when a single turn
+ *  outgrew the trigger on its own (walkie 016). */
 @LangGraphMiddleware()
 export class CompactionMiddleware implements LangGraphMiddlewareContract {
   static readonly [COMPACTION_STATE] = true;
@@ -32,7 +34,13 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
     if (!resolveTrigger(this.opts.triggerAt)(signal)) return;
 
     const pin = this.opts.pin ?? defaultPin;
-    const plan = computeFold(signal.messages, { keepRecent: this.opts.keepRecent, pin });
+    const plan = computeFold(signal.messages, {
+      keepRecent: this.opts.keepRecent,
+      pin,
+      // Mega-turn AI-boundary cuts fold the running turn's own ask — only a
+      // summarize fold may do that (the summary stands in for the span).
+      aiFallback: this.opts.strategy !== "drop",
+    });
     if (!plan) return;
 
     const removals = plan.removeIds.map((id) => new RemoveMessage({ id }));
@@ -46,9 +54,17 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
       const summary = await summarizeSpan(model, this.opts.strategy.schema, prior, plan.foldedSpan);
       return { messages: removals, summary };
     } catch (err) {
-      this.logger.warn(
-        `compaction: summarize failed, falling back to drop: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const reason = err instanceof Error ? err.message : String(err);
+      if (plan.boundary === "ai") {
+        // The folded span contains the running turn's own ask; dropping it
+        // without a summary would erase the model's current instruction with
+        // no record. Decline the fold — the trigger re-fires next cycle.
+        this.logger.warn(
+          `compaction: summarize failed on a mid-turn (AI-boundary) fold, declining the fold: ${reason}`,
+        );
+        return;
+      }
+      this.logger.warn(`compaction: summarize failed, falling back to drop: ${reason}`);
       return { messages: removals };
     }
   }

@@ -1,10 +1,15 @@
-import { isHumanMessage, type BaseMessage } from "@langchain/core/messages";
+import { isAIMessage, isHumanMessage, type BaseMessage } from "@langchain/core/messages";
 
 export interface FoldPlan {
   /** Message ids to delete via RemoveMessage (only messages that have ids). */
   removeIds: string[];
   /** The messages being folded away, in order — input to a summarizer. */
   foldedSpan: BaseMessage[];
+  /** Which boundary kind the cut landed on. "ai" only ever comes from the
+   *  opt-in mega-turn fallback and means the folded span contains the running
+   *  turn's own ask — consumers must not apply such a plan without a summary
+   *  standing in for the span (see `aiFallback`). */
+  boundary: "human" | "ai";
 }
 
 /**
@@ -15,7 +20,21 @@ export interface FoldPlan {
  */
 export function computeFold(
   messages: BaseMessage[],
-  opts: { keepRecent: number; pin: (m: BaseMessage) => boolean },
+  opts: {
+    keepRecent: number;
+    pin: (m: BaseMessage) => boolean;
+    /** Last-resort mega-turn cut: when BOTH human scans fail (a single turn
+     *  that outgrew the trigger on its own has no human boundary anywhere in
+     *  the foldable region), cut at the newest AIMessage at/before the naive
+     *  cut. Safe on the wire — ToolMessages immediately follow their
+     *  tool_calls parent, so a retained span opening on an AI never strands
+     *  one, and the pinned head still opens the history. Opt-in because this
+     *  is the only cut that severs the RUNNING turn's own ask and work:
+     *  callers must have a summary standing in for the folded span
+     *  (summarize-strategy folds pass true; drop folds must not — the model
+     *  would lose its current instruction mid-task with no record). */
+    aiFallback?: boolean;
+  },
 ): FoldPlan | null {
   const n = messages.length;
   const headIndex = messages.findIndex(opts.pin);
@@ -39,6 +58,19 @@ export function computeFold(
       if (isHumanMessage(messages[i]!)) { cut = i; break; }
     }
   }
+  let boundary: FoldPlan["boundary"] = "human";
+  if (cut < 0 && opts.aiFallback) {
+    // Mega-turn (walkie 016): humans exist only at the head and the running
+    // turn's own message — one turn outgrew the trigger by itself, both human
+    // scans fail, and without this the trigger fires every cycle while the
+    // fold nulls every cycle. Cut at the newest AI at/before the naive cut
+    // (scanning from naiveCut itself: when the naive cut lands on a
+    // ToolMessage this retreats to the tool group's parent, keeping at most
+    // a group more than keepRecent — always safe).
+    for (let i = Math.min(naiveCut, n - 1); i > headIndex + 1; i--) {
+      if (isAIMessage(messages[i]!)) { cut = i; boundary = "ai"; break; }
+    }
+  }
   if (cut < 0 || cut <= headIndex + 1) return null; // nothing to fold safely
 
   const foldedSpan = messages.slice(headIndex + 1, cut);
@@ -47,5 +79,5 @@ export function computeFold(
     .filter((id): id is string => typeof id === "string" && id.length > 0);
   if (removeIds.length === 0) return null;
 
-  return { removeIds, foldedSpan };
+  return { removeIds, foldedSpan, boundary };
 }

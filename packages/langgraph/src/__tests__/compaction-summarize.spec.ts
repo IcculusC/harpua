@@ -20,6 +20,17 @@ function convo() {
     new AIMessage({ id: "a3", content: "s" }),
   ];
 }
+function megaTurn(pairs: number) {
+  const msgs: any[] = [
+    new HumanMessage({ id: "h1", content: "goal" }),
+    new HumanMessage({ id: "h2", content: "the one big ask" }),
+  ];
+  for (let i = 0; i < pairs; i++) {
+    msgs.push(new AIMessage({ id: `la${i}`, content: "", tool_calls: [{ name: "t", args: {}, id: `c${i}`, type: "tool_call" }] }));
+    msgs.push(new ToolMessage({ id: `lt${i}`, content: "r", tool_call_id: `c${i}` }));
+  }
+  return msgs;
+}
 const SUMMARY = { goal: "g", keyDecisions: ["d"], openQuestions: [], artifacts: ["f"], currentState: "c" };
 
 /**
@@ -57,6 +68,33 @@ describe("CompactionMiddleware (summarize)", () => {
     const patch: any = await mw.beforeModel(ctx(convo()));
     expect(patch.summary).toBeUndefined();
     expect(patch.messages.every((m: any) => m instanceof RemoveMessage)).toBe(true);
+  });
+
+  it("folds a mega-turn (no human boundary in the foldable region) at an AI boundary", async () => {
+    // One turn outgrew the trigger on its own: humans only at the pinned head
+    // and the running turn's own message, then a long tool loop. Summarize
+    // folds may sever the running turn — the summary carries the ask.
+    const mw = new CompactionMiddleware(opts, moduleRefReturning(new FakeStructuredModel()));
+    const patch: any = await mw.beforeModel(ctx(megaTurn(5)));
+    expect(patch.summary).toEqual(SUMMARY);
+    expect(patch.messages.length).toBeGreaterThan(0);
+    expect(patch.messages.every((m: any) => m instanceof RemoveMessage)).toBe(true);
+  });
+
+  it("declines a mega-turn fold entirely when the summarizer throws — never a bare drop of the running turn", async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    try {
+      const throwing = { withStructuredOutput: () => ({ invoke: async () => { throw new Error("boom"); } }) };
+      const mw = new CompactionMiddleware(opts, moduleRefReturning(throwing));
+      const patch: any = await mw.beforeModel(ctx(megaTurn(5)));
+      // The human-boundary drop fallback preserves the running turn; an
+      // AI-boundary drop would erase the model's current ask with no record.
+      // Decline and retry next cycle instead.
+      expect(patch).toBeUndefined();
+      expect(warnSpy.mock.calls[0]?.[0]).toEqual(expect.stringContaining("declining"));
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   it("logs a warning (with the error message) when the summarizer throws, and still falls back to drop", async () => {
