@@ -1,15 +1,11 @@
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import { z } from "zod";
-import { chunkMarkdown, type MarkdownChunk } from "./chunk-markdown";
 import { contentHash } from "./content-hash";
-import { embeddingTextFor } from "./knowledge-index";
-import {
-  DEFAULT_INGEST_BATCH_SIZE,
-  DEFAULT_MAX_CHUNK_CHARS,
-  embeddingsSchema,
-  vectorStoreSchema,
-} from "./options";
-import { stripControlChars } from "./sanitize-chunk-text";
+import { DEFAULT_INGEST_BATCH_SIZE, embeddingsSchema, vectorStoreSchema } from "./options";
+// INTERNAL: already-validated-options entry point (see prepare-chunks.ts) —
+// avoids re-running prepareChunksOptionsSchema.parse() once per document
+// below, when ingestOptionsSchema already validated these knobs once above.
+import { prepareChunksFromResolvedOptions, prepareChunksOptionsSchema } from "./prepare-chunks";
 import type { VectorRecord } from "./vector-store";
 
 /** A retrievable unit from any source. Omit `id` and ingest derives a
@@ -21,44 +17,22 @@ export const documentSchema = z.object({
 });
 export type Document = z.infer<typeof documentSchema>;
 
-export const ingestOptionsSchema = z
-  .object({
+/**
+ * `ingest`'s options are `prepareChunks`'s chunking knobs (maxChunkChars,
+ * minAlnumChars, embedHeadingTrail, sanitize) plus the embed/upsert half:
+ * `embeddings`, `store`, `batchSize`. One schema, one source of truth for
+ * the chunking defaults shared by both entry points.
+ */
+export const ingestOptionsSchema = prepareChunksOptionsSchema
+  .extend({
     embeddings: embeddingsSchema,
     store: vectorStoreSchema,
-    /** Chunk size cap; defaults to DEFAULT_MAX_CHUNK_CHARS (1200). */
-    maxChunkChars: z.number().int().positive().optional(),
-    /**
-     * Junk floor: drop chunks with fewer ALPHANUMERIC characters (letters +
-     * digits, not raw length) than this. `0` (default) keeps everything.
-     * Calibration: "| 200-400mA | 5V |" carries 10 alnum chars and survives a
-     * floor of 8; "---" and heading-only stubs carry 0-6 and are embedding junk.
-     */
-    minAlnumChars: z.number().int().nonnegative().default(0),
-    /**
-     * When true, the EMBEDDED text becomes
-     * `"<headingTrail joined with ' > '>: <chunk text>"` (raw chunk text when
-     * the trail is empty); the STORED text stays the raw chunk text either
-     * way. Default false keeps the legacy embedding input: heading trail +
-     * body joined by newlines ({@link embeddingTextFor}).
-     */
-    embedHeadingTrail: z.boolean().default(false),
     /**
      * Max records per `embedDocuments` and per `upsert` call. Defaults to
      * DEFAULT_INGEST_BATCH_SIZE (64) — one giant call for thousands of chunks
      * has crashed node natively in the field.
      */
     batchSize: z.number().int().positive().default(DEFAULT_INGEST_BATCH_SIZE),
-    /**
-     * Applied to each chunk's text before everything else (junk floor,
-     * embedding, storage). Defaults to {@link stripControlChars}: C0/C1
-     * control characters removed, `\t` and `\n` kept.
-     */
-    sanitize: z
-      .custom<(text: string) => string>(
-        (v) => typeof v === "function",
-        "sanitize must be a function (text: string) => string",
-      )
-      .default(() => stripControlChars),
   })
   .strict();
 /** Caller-facing options: everything beyond embeddings + store is defaulted. */
@@ -67,22 +41,6 @@ export type IngestOptions = z.input<typeof ingestOptionsSchema>;
 export interface IngestResult {
   /** Total chunk-records upserted across all documents. */
   upserted: number;
-}
-
-/** Alphanumeric (letter/digit) count — the junk-floor metric. */
-function countAlnum(text: string): number {
-  return text.match(/[\p{L}\p{N}]/gu)?.length ?? 0;
-}
-
-/**
- * What the embedder sees for one chunk. Legacy default: heading trail + body
- * joined by newlines. With `embedHeadingTrail`: `"Trail > Path: body"` —
- * a compact single-line context prefix; trail-less chunks embed as-is.
- */
-function embeddingInputFor(chunk: MarkdownChunk, embedHeadingTrail: boolean): string {
-  if (!embedHeadingTrail) return embeddingTextFor(chunk);
-  if (chunk.headingTrail.length === 0) return chunk.text;
-  return `${chunk.headingTrail.join(" > ")}: ${chunk.text}`;
 }
 
 /** Embed `texts` in slices of at most `batchSize` per provider call. */
@@ -110,15 +68,15 @@ async function embedInBatches(
 }
 
 /**
- * Source-agnostic RAG ingest: chunk each document, sanitize + junk-filter the
- * chunks, embed them (batched), and upsert the records (batched) into the
- * caller's VectorStore. Sources are plain data — a markdown folder, a web
- * excerpt, a notebook cell — with no disk round-trip. Push-only (upsert); a
- * document with no id is keyed by a content hash. Inputs are zod-validated at
- * the boundary before any embedding work. Every record carries
- * `metadata.chunkIndex`, sequential per document and DENSE after the junk
- * filter (0,1,2,… with no gaps) — the handle for retrieval-time window
- * expansion (see the README recipe).
+ * Source-agnostic RAG ingest: composes {@link prepareChunks} (chunk →
+ * sanitize → junk-filter → embed-text formatting) with embed (batched) and
+ * upsert (batched) into the caller's VectorStore. Sources are plain data — a
+ * markdown folder, a web excerpt, a notebook cell — with no disk round-trip.
+ * Push-only (upsert); a document with no id is keyed by a content hash.
+ * Inputs are zod-validated at the boundary before any embedding work. Every
+ * record carries `metadata.chunkIndex`, sequential per document and DENSE
+ * after the junk filter (0,1,2,… with no gaps) — the handle for
+ * retrieval-time window expansion (see the README recipe).
  */
 export async function ingest(
   documents: Document[],
@@ -134,7 +92,6 @@ export async function ingest(
     batchSize,
     sanitize,
   } = ingestOptionsSchema.parse(opts);
-  const cap = maxChunkChars ?? DEFAULT_MAX_CHUNK_CHARS;
   const records: VectorRecord[] = [];
   const explicitIds = new Set<string>();
 
@@ -142,35 +99,31 @@ export async function ingest(
     // Mark every explicit-id doc for cleanup, even if it produces no chunks —
     // re-ingesting a doc as empty should clear its prior records.
     if (doc.id !== undefined) explicitIds.add(doc.id);
-    const chunks = chunkMarkdown(doc.text, { maxChunkChars: cap })
-      // The trail is sanitized too: it reaches the embedder (both modes) and
-      // the stored metadata — a dirty scraped heading would otherwise
-      // re-introduce exactly the bytes the sanitizer exists to remove.
-      .map((chunk) => ({
-        ...chunk,
-        text: sanitize(chunk.text),
-        headingTrail: chunk.headingTrail.map(sanitize),
-      }))
-      .filter((chunk) => countAlnum(chunk.text) >= minAlnumChars);
+    const chunks = prepareChunksFromResolvedOptions(doc.text, {
+      maxChunkChars,
+      minAlnumChars,
+      embedHeadingTrail,
+      sanitize,
+    });
     if (chunks.length === 0) continue;
     const baseId = doc.id ?? contentHash(doc.text);
     const vectors = await embedInBatches(
       embeddings,
-      chunks.map((chunk) => embeddingInputFor(chunk, embedHeadingTrail)),
+      chunks.map((chunk) => chunk.embedText),
       batchSize,
     );
-    chunks.forEach((chunk, i) => {
+    chunks.forEach((chunk) => {
       records.push({
-        id: `${baseId}:${i}`,
+        id: `${baseId}:${chunk.chunkIndex}`,
         documentKey: baseId,
-        vector: vectors[i]!,
+        vector: vectors[chunk.chunkIndex]!,
         text: chunk.text,
         metadata: {
           ...doc.metadata,
           startLine: chunk.startLine,
           endLine: chunk.endLine,
           headingTrail: chunk.headingTrail,
-          chunkIndex: i,
+          chunkIndex: chunk.chunkIndex,
         },
       });
     });
