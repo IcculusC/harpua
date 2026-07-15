@@ -65,6 +65,20 @@ describe("SkillRegistry", () => {
     expect(result.skippedSkills).toEqual([]);
   });
 
+  it("a secret-path directory with no SKILL.md emits NO warning, not a skip", () => {
+    // Create a .ssh directory (secret path) with a file but no SKILL.md
+    fs.mkdirSync(path.join(root, ".ssh"), { recursive: true });
+    writeFile(root, ".ssh/config", "host example.com\n");
+    writeFile(root, "alpha/SKILL.md", SKILL("alpha", "Fine"));
+    const reg = new SkillRegistry(root, { onWarn });
+
+    expect(reg.menu().map((s) => s.name)).toEqual(["alpha"]);
+    expect(warnings).toEqual([]); // NO warning for .ssh
+    const result = reg.rescan();
+    expect(result.skipped).toBe(0);
+    expect(result.skippedSkills).toEqual([]);
+  });
+
   it("rescan() reports structured skip reasons, sans the `skills: ` prefix, one per skip", () => {
     writeFile(root, "good/SKILL.md", SKILL("good", "Fine"));
     writeFile(root, "nofront/SKILL.md", "# just markdown\n");
@@ -95,6 +109,28 @@ describe("SkillRegistry", () => {
       `mismatch/SKILL.md declares name "other-name" but lives in "mismatch" — skipped`,
     );
     expect(byName.huge).toContain("over 16384 bytes");
+  });
+
+  it("invalid name vs empty description have distinct structured reasons", () => {
+    writeFile(root, "badname/SKILL.md", "---\nname: Bad Name!\ndescription: Valid\n---\nbody\n");
+    writeFile(root, "nodesc/SKILL.md", "---\nname: nodesc\ndescription: \"\"\n---\nbody\n");
+    const reg = new SkillRegistry(root, { onWarn });
+
+    const result = reg.rescan();
+    expect(result.skipped).toBe(2);
+    
+    const byName = Object.fromEntries(result.skippedSkills.map((s) => [s.name, s.reason]));
+    
+    // Both should have "no valid frontmatter" in their reasons
+    expect(byName.badname).toContain("no valid frontmatter");
+    expect(byName.nodesc).toContain("no valid frontmatter");
+    
+    // But the reasons must be different from each other
+    expect(byName.badname).not.toBe(byName.nodesc);
+    
+    // Each should contain its specific zod issue detail
+    expect(byName.badname).toContain("name"); // invalid name issue
+    expect(byName.nodesc).toContain("description"); // empty description issue
   });
 
   it("a symlinked SKILL.md never leaks its target", () => {

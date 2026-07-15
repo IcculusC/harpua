@@ -195,6 +195,8 @@ export class SkillRegistry {
         // A plain directory with no SKILL.md is not a skill — not a skip
         // either (nothing was ever a skill candidate), but worth a warning:
         // a misnamed `skill.md` has cost a consumer real debugging time.
+        // Secret paths (e.g. .ssh) are never emitted so their existence isn't leaked.
+        if (isSecretPath(dirName, DEFAULT_SECRET_PATTERNS)) continue;
         this.warn(`${dirName} has no SKILL.md — not a skill (misnamed skill.md?)`);
         continue;
       }
