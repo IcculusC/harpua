@@ -44,6 +44,14 @@ export type {
   RequireApprovalOptions,
 } from "./graph-tools";
 
+// ask_user: the model-callable sibling of the approval gate (`requireApproval`)
+// — the model calls ask_user with typed questions instead of a gated action;
+// the host renders them and the answers return as the tool result.
+export { askUserTool } from "./tools/ask-user/ask-user";
+export { askUserQuestionPresetSchema } from "./tools/ask-user/schemas";
+export type { AskUserRequest, AskUserQuestionPreset } from "./tools/ask-user/schemas";
+export type { AskUserToolOptions } from "./tools/ask-user/options";
+
 // Streaming helpers.
 export { getStreamedInterrupts, INTERRUPT_KEY } from "./stream-utils";
 
