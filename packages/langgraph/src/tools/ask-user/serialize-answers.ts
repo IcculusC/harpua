@@ -10,8 +10,8 @@ export interface SerializableAskUserQuestion {
 }
 
 /** Renders one positional answer the way the default serializer's lines read it. */
-function renderAskUserAnswer(value: AskUserAnswerValue): string {
-  if (value === null) return "(no answer)";
+function renderAskUserAnswer(value: AskUserAnswerValue | undefined): string {
+  if (value === null || value === undefined) return "(no answer)";
   if (typeof value === "boolean") return value ? "yes" : "no";
   if (Array.isArray(value)) return value.join(", ");
   return value;
