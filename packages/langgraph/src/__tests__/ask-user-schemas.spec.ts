@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import {
   askUserQuestionPresetSchema,
   normalizeAskUserPreset,
@@ -167,7 +168,7 @@ describe("askUserRequestSchema", () => {
         type: "tool_approval_request",
         questions: [],
       }),
-    ).toThrow();
+    ).toThrow(ZodError);
   });
 });
 
@@ -192,7 +193,7 @@ describe("askUserResumeSchema", () => {
   });
 
   it("rejects a garbage shape (neither answers nor dismissed)", () => {
-    expect(() => askUserResumeSchema.parse({ foo: "bar" })).toThrow();
+    expect(() => askUserResumeSchema.parse({ foo: "bar" })).toThrow(ZodError);
   });
 });
 
