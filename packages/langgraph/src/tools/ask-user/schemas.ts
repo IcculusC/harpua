@@ -120,13 +120,13 @@ const askUserAnswerValueSchema = z.union([
 /** Resume value: positional answers, index-aligned to the paused `questions`. */
 export const askUserAnswersResumeSchema = z.object({
   answers: z.array(askUserAnswerValueSchema),
-});
+}).strict();
 
 /** Resume value: the host dismissed the questions instead of answering them. */
 export const askUserDismissedResumeSchema = z.object({
   dismissed: z.literal(true),
   reason: z.string().optional(),
-});
+}).strict();
 
 /** Either shape a host may resume an `ask_user` interrupt with. */
 export const askUserResumeSchema = z.union([

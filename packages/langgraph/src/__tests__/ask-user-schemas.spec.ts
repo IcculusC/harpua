@@ -229,4 +229,10 @@ describe("resolveAskUserResume", () => {
         "answer(s) (one per question), received 1.",
     );
   });
+
+  it("throws the actionable error for an ambiguous resume carrying BOTH answers and dismissed", () => {
+    expect(() =>
+      resolveAskUserResume("ask_user", 1, { answers: ["Blue"], dismissed: true }),
+    ).toThrow("Invalid resume value for ask_user tool 'ask_user'");
+  });
 });
