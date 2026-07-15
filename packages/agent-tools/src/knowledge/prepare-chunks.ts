@@ -54,6 +54,8 @@ export const prepareChunksOptionsSchema = z
   .strict();
 /** Caller-facing options: everything is defaulted. */
 export type PrepareChunksOptions = z.input<typeof prepareChunksOptionsSchema>;
+/** Fully-resolved options with all defaults applied. */
+export type ResolvedPrepareChunksOptions = z.output<typeof prepareChunksOptionsSchema>;
 
 /** Alphanumeric (letter/digit) count — the junk-floor metric. */
 function countAlnum(text: string): number {
@@ -84,8 +86,27 @@ export function prepareChunks(
   markdown: string,
   options?: PrepareChunksOptions,
 ): PreparedChunk[] {
-  const { maxChunkChars, minAlnumChars, embedHeadingTrail, sanitize } =
-    prepareChunksOptionsSchema.parse(options ?? {});
+  return prepareChunksFromResolvedOptions(
+    markdown,
+    prepareChunksOptionsSchema.parse(options ?? {}),
+  );
+}
+
+/**
+ * INTERNAL — same pipeline as {@link prepareChunks} but skips the
+ * `prepareChunksOptionsSchema.parse()` call, taking already-resolved options
+ * instead. `ingest()` validates its full option surface (chunking knobs +
+ * embed/upsert knobs) exactly once via `ingestOptionsSchema` before its
+ * per-document loop; calling the public `prepareChunks` from inside that
+ * loop would re-parse the same four already-validated knobs once per
+ * document. Not exported from the package index — `ingest.ts` is the only
+ * caller.
+ */
+export function prepareChunksFromResolvedOptions(
+  markdown: string,
+  options: ResolvedPrepareChunksOptions,
+): PreparedChunk[] {
+  const { maxChunkChars, minAlnumChars, embedHeadingTrail, sanitize } = options;
   const cap = maxChunkChars ?? DEFAULT_MAX_CHUNK_CHARS;
   return chunkMarkdown(markdown, { maxChunkChars: cap })
     // The trail is sanitized too: it reaches the embedder (both modes) and

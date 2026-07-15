@@ -2,7 +2,10 @@ import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import { z } from "zod";
 import { contentHash } from "./content-hash";
 import { DEFAULT_INGEST_BATCH_SIZE, embeddingsSchema, vectorStoreSchema } from "./options";
-import { prepareChunks, prepareChunksOptionsSchema } from "./prepare-chunks";
+// INTERNAL: already-validated-options entry point (see prepare-chunks.ts) —
+// avoids re-running prepareChunksOptionsSchema.parse() once per document
+// below, when ingestOptionsSchema already validated these knobs once above.
+import { prepareChunksFromResolvedOptions, prepareChunksOptionsSchema } from "./prepare-chunks";
 import type { VectorRecord } from "./vector-store";
 
 /** A retrievable unit from any source. Omit `id` and ingest derives a
@@ -96,7 +99,7 @@ export async function ingest(
     // Mark every explicit-id doc for cleanup, even if it produces no chunks —
     // re-ingesting a doc as empty should clear its prior records.
     if (doc.id !== undefined) explicitIds.add(doc.id);
-    const chunks = prepareChunks(doc.text, {
+    const chunks = prepareChunksFromResolvedOptions(doc.text, {
       maxChunkChars,
       minAlnumChars,
       embedHeadingTrail,

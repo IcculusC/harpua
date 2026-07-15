@@ -33,6 +33,16 @@ describe("prepareChunks defaults", () => {
     const small = prepareChunks(text, { maxChunkChars: 40 });
     expect(small.length).toBeGreaterThan(big.length);
   });
+
+  it("embedText equals text exactly when there are no headings (default embedHeadingTrail:false)", () => {
+    const [chunk] = prepareChunks("Just plain text with no headings.");
+    expect(chunk!.text).toBe("Just plain text with no headings.");
+    expect(chunk!.embedText).toBe("Just plain text with no headings.");
+  });
+
+  it("returns no chunks for headings-only markdown (heading followed by heading, no body)", () => {
+    expect(prepareChunks("# Alpha\n\n# Beta\n")).toEqual([]);
+  });
 });
 
 describe("prepareChunks minAlnumChars (junk floor)", () => {
@@ -53,6 +63,10 @@ describe("prepareChunks minAlnumChars (junk floor)", () => {
   it("rejects a negative or fractional floor at call time", () => {
     expect(() => prepareChunks("hi", { minAlnumChars: -1 } as unknown as PrepareChunksOptions)).toThrow();
     expect(() => prepareChunks("hi", { minAlnumChars: 1.5 } as unknown as PrepareChunksOptions)).toThrow();
+  });
+
+  it("floors every chunk when minAlnumChars exceeds all chunks' alnum counts", () => {
+    expect(prepareChunks(THREE_SECTIONS, { minAlnumChars: 1000 })).toEqual([]);
   });
 });
 
