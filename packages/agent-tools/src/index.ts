@@ -55,6 +55,11 @@ export type { RememberToolOptions } from "./knowledge/remember";
 export { MockEmbeddings, MOCK_EMBEDDING_DIMENSION } from "./knowledge/mock-embeddings";
 export { chunkMarkdown } from "./knowledge/chunk-markdown";
 export type { MarkdownChunk } from "./knowledge/chunk-markdown";
+// Pure chunk-prep half of ingest() — chunk/sanitize/junk-filter/embed-text
+// formatting with no embedding or storage. For a consumer running its own
+// embed/upsert path into a separate collection; ingest() composes over it.
+export { prepareChunks } from "./knowledge/prepare-chunks";
+export type { PreparedChunk, PrepareChunksOptions } from "./knowledge/prepare-chunks";
 // Pluggable vector store (BYO). The built-in corpus retrieval (queryCorpus)
 // stays internal — it is the default path, not a public store.
 export { InMemoryVectorStore } from "./knowledge/in-memory-vector-store";

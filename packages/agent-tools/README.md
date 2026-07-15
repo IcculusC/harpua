@@ -324,6 +324,38 @@ That's the handle for window expansion at retrieval time:
 > (floor, cap) writes under new positions instead of replacing, stranding the
 > old records; give documents explicit `id`s when options may evolve.
 
+#### `prepareChunks(markdown, options?)` — the pure chunk-prep half
+
+`ingest()` is chunk → sanitize → junk-filter → embed-text-formatting → embed
+→ upsert; the first four steps need no embedder or store, so they're
+exported standalone. A consumer running its own embed/upsert into a separate
+collection calls `prepareChunks` directly instead of re-deriving the alnum
+junk floor and heading-trail formatting from `chunkMarkdown` by hand (field
+report #18):
+
+```ts
+import { prepareChunks } from "@harpua/agent-tools";
+
+const chunks = prepareChunks(markdown, { minAlnumChars: 8, embedHeadingTrail: true });
+// [{ text, embedText, chunkIndex, startLine, endLine, headingTrail }, ...]
+await myEmbeddings.embedDocuments(chunks.map((c) => c.embedText));
+```
+
+`options` takes the same four knobs as `ingest()` — `maxChunkChars`,
+`minAlnumChars`, `embedHeadingTrail`, `sanitize` — with identical defaults
+and the same strict zod validation (unknown keys throw). Each chunk carries:
+
+- **`text`** — sanitized, junk-filtered chunk text; what `ingest()` stores.
+- **`embedText`** — what `ingest()` sends to `embedDocuments` (heading trail
+  + body by default, or the `embedHeadingTrail` prefix form).
+- **`chunkIndex`** — sequential per call and dense after the junk filter,
+  the same numbering `ingest()` stamps into `metadata.chunkIndex`.
+- **`startLine`**, **`endLine`**, **`headingTrail`** — the same provenance
+  `chunkMarkdown` produces.
+
+`ingest()` itself is a thin composition over `prepareChunks` — same
+chunking, same defaults, zero drift between the two paths.
+
 ### Window-expansion retrieval (recipe)
 
 Chunks sized for embedding precision are often too small to answer from.
