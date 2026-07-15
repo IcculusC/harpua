@@ -35,6 +35,7 @@ describe("SkillRegistry", () => {
   it("a missing skills dir yields an empty registry, never a crash", () => {
     const reg = new SkillRegistry(path.join(root, "does-not-exist"), { onWarn });
     expect(reg.menu()).toEqual([]);
+    expect(warnings).toEqual([]); // the root itself never gets a "no SKILL.md" warning
   });
 
   it("skips malformed entries with a warning: no frontmatter, name/dir mismatch, empty description, oversized body", () => {
@@ -47,6 +48,89 @@ describe("SkillRegistry", () => {
 
     expect(reg.menu().map((s) => s.name)).toEqual(["good"]);
     expect(warnings.length).toBe(4);
+  });
+
+  it("a directory with no SKILL.md warns but is NOT a skip — it was never a skill", () => {
+    fs.mkdirSync(path.join(root, "not-a-skill"), { recursive: true });
+    writeFile(root, "alpha/SKILL.md", SKILL("alpha", "Fine"));
+    const reg = new SkillRegistry(root, { onWarn });
+
+    expect(reg.menu().map((s) => s.name)).toEqual(["alpha"]);
+    expect(warnings).toEqual([
+      "skills: not-a-skill has no SKILL.md — not a skill (misnamed skill.md?)",
+    ]);
+
+    const result = reg.rescan();
+    expect(result.skipped).toBe(0);
+    expect(result.skippedSkills).toEqual([]);
+  });
+
+  it("a secret-path directory with no SKILL.md emits NO warning, not a skip", () => {
+    // Create a .ssh directory (secret path) with a file but no SKILL.md
+    fs.mkdirSync(path.join(root, ".ssh"), { recursive: true });
+    writeFile(root, ".ssh/config", "host example.com\n");
+    writeFile(root, "alpha/SKILL.md", SKILL("alpha", "Fine"));
+    const reg = new SkillRegistry(root, { onWarn });
+
+    expect(reg.menu().map((s) => s.name)).toEqual(["alpha"]);
+    expect(warnings).toEqual([]); // NO warning for .ssh
+    const result = reg.rescan();
+    expect(result.skipped).toBe(0);
+    expect(result.skippedSkills).toEqual([]);
+  });
+
+  it("rescan() reports structured skip reasons, sans the `skills: ` prefix, one per skip", () => {
+    writeFile(root, "good/SKILL.md", SKILL("good", "Fine"));
+    writeFile(root, "nofront/SKILL.md", "# just markdown\n");
+    writeFile(root, "mismatch/SKILL.md", SKILL("other-name", "Desc"));
+    writeFile(root, "nodesc/SKILL.md", "---\nname: nodesc\ndescription:\n---\nbody\n");
+    writeFile(root, "huge/SKILL.md", SKILL("huge", "Big", "x".repeat(20_000)));
+    const reg = new SkillRegistry(root, { onWarn });
+
+    const result = reg.rescan();
+    expect(result.skipped).toBe(4);
+    expect(result.skippedSkills).toHaveLength(4);
+    expect(result.skippedSkills.length).toBe(result.skipped);
+
+    const byName = Object.fromEntries(result.skippedSkills.map((s) => [s.name, s.reason]));
+    expect(Object.keys(byName).sort()).toEqual(["huge", "mismatch", "nodesc", "nofront"]);
+    for (const reason of Object.values(byName)) expect(reason.startsWith("skills: ")).toBe(false);
+
+    // distinct frontmatter failures get distinct structured reasons (the first
+    // zod issue folded in) even though the onWarn text stays generic for both.
+    expect(byName.nofront).toContain("no valid frontmatter");
+    expect(byName.nodesc).toContain("no valid frontmatter");
+    expect(byName.nofront).not.toBe(byName.nodesc);
+    expect(byName.nodesc).toContain("description");
+
+    // non-frontmatter skips are unchanged: the reason equals the warn text
+    // (minus the `skills: ` prefix).
+    expect(byName.mismatch).toBe(
+      `mismatch/SKILL.md declares name "other-name" but lives in "mismatch" — skipped`,
+    );
+    expect(byName.huge).toContain("over 16384 bytes");
+  });
+
+  it("invalid name vs empty description have distinct structured reasons", () => {
+    writeFile(root, "badname/SKILL.md", "---\nname: Bad Name!\ndescription: Valid\n---\nbody\n");
+    writeFile(root, "nodesc/SKILL.md", "---\nname: nodesc\ndescription: \"\"\n---\nbody\n");
+    const reg = new SkillRegistry(root, { onWarn });
+
+    const result = reg.rescan();
+    expect(result.skipped).toBe(2);
+    
+    const byName = Object.fromEntries(result.skippedSkills.map((s) => [s.name, s.reason]));
+    
+    // Both should have "no valid frontmatter" in their reasons
+    expect(byName.badname).toContain("no valid frontmatter");
+    expect(byName.nodesc).toContain("no valid frontmatter");
+    
+    // But the reasons must be different from each other
+    expect(byName.badname).not.toBe(byName.nodesc);
+    
+    // Each should contain its specific zod issue detail
+    expect(byName.badname).toContain("name"); // invalid name issue
+    expect(byName.nodesc).toContain("description"); // empty description issue
   });
 
   it("a symlinked SKILL.md never leaks its target", () => {
@@ -80,13 +164,25 @@ describe("SkillRegistry", () => {
     expect(reg.menu()).toHaveLength(1);
 
     // No change on disk -> changed: false.
-    expect(reg.rescan()).toEqual({ count: 1, names: ["alpha"], skipped: 0, changed: false });
+    expect(reg.rescan()).toEqual({
+      count: 1,
+      names: ["alpha"],
+      skipped: 0,
+      skippedSkills: [],
+      changed: false,
+    });
 
     // A new skill lands mid-session (npx skills add) -> visible after rescan.
     writeFile(root, "beta/SKILL.md", SKILL("beta", "Second"));
     writeFile(root, "broken/SKILL.md", "no frontmatter");
     const result = reg.rescan();
-    expect(result).toEqual({ count: 2, names: ["alpha", "beta"], skipped: 1, changed: true });
+    expect(result.count).toBe(2);
+    expect(result.names).toEqual(["alpha", "beta"]);
+    expect(result.skipped).toBe(1);
+    expect(result.changed).toBe(true);
+    expect(result.skippedSkills).toEqual([
+      { name: "broken", reason: expect.stringContaining("no valid frontmatter") },
+    ]);
     expect(reg.has("beta")).toBe(true);
   });
 });
@@ -102,6 +198,22 @@ describe("renderSkillMenu", () => {
     expect(menu).toContain("use_skill");
     expect(menu).toContain("- kicad: Board design");
     expect(menu).toContain("- zeta: Last");
+  });
+
+  it("accepts a custom header; omitting it (or passing {}) keeps the default byte-identical", () => {
+    const skills = [{ name: "kicad", description: "Board design", dir: "/x" }];
+    const defaultMenu = renderSkillMenu(skills);
+    expect(renderSkillMenu(skills, {})).toBe(defaultMenu);
+    expect(renderSkillMenu(skills, { header: undefined })).toBe(defaultMenu);
+
+    const custom = renderSkillMenu(skills, { header: "CUSTOM HEADER" });
+    expect(custom.startsWith("CUSTOM HEADER\n")).toBe(true);
+    expect(custom).toContain("- kicad: Board design");
+    expect(custom).not.toContain("SKILLS — procedures");
+  });
+
+  it("an empty registry still renders \"\" regardless of a custom header", () => {
+    expect(renderSkillMenu([], { header: "CUSTOM" })).toBe("");
   });
 });
 

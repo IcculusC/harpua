@@ -398,12 +398,20 @@ const tools = [useSkillTool({ registry }), readSkillFileTool({ registry })];
 ```
 
 - **`SkillRegistry(dir, { onWarn? })`** scans `<skill>/SKILL.md` files
-  (frontmatter `name` + `description`; `name` must match the directory).
-  Malformed, symlinked, or oversized entries are skipped with a warning —
-  never a crash. `rescan()` picks up skills installed mid-session and reports
-  `{ count, names, skipped, changed }`, where `changed` compares rendered menu
-  bytes (a `true` means the next call's system prompt moves and the provider's
-  prefix cache resets).
+  (frontmatter `name` + `description`; `name` must match the directory). A
+  directory with no `SKILL.md` at all gets one `onWarn` line (a misnamed
+  `skill.md` is a real failure mode) but is never counted as skipped — it
+  was never a skill candidate. Malformed, symlinked, or oversized entries
+  ARE skipped, with a warning — never a crash. `rescan()` picks up skills
+  installed mid-session and reports `{ count, names, skipped, skippedSkills,
+  changed }`: `skippedSkills` is `{ name, reason }[]`, one entry per skip,
+  `reason` being the same detail sent to `onWarn` minus the `skills: `
+  prefix (distinct frontmatter failures — a bad name vs. an empty
+  description — get distinct reasons). Skips are data a caller can act on,
+  not just a log line — a consumer once burned an hour chasing a silently
+  skipped skill before realizing it had tripped the 16KB body cap. `changed`
+  compares rendered menu bytes (a `true` means the next call's system prompt
+  moves and the provider's prefix cache resets).
 - **`use_skill(name)`** returns the skill body **as a tool result** — a skill
   is a procedure that must persist through the tool loop, and an ephemeral
   prompt injection hands the model a checklist that vanishes before cycle 2.
@@ -412,11 +420,13 @@ const tools = [useSkillTool({ registry }), readSkillFileTool({ registry })];
   **per-skill jail** (the skill's own directory is the sandbox root, so
   `../other-skill/…` cannot resolve, symlinks included) with hard caps per
   read — progressive disclosure enforced structurally, not by asking nicely.
-- **`renderSkillMenu(registry.menu())`** renders the system-prompt TOC (`""`
-  when empty). Putting the LIVE menu in the system prompt is a ~12-line
-  `wrapModelCall` middleware in your framework — with `@harpua/langgraph`,
-  follow the "Composing the system prompt" recipe in its
-  `agents-and-middleware` skill reference (append to the leading
+- **`renderSkillMenu(registry.menu(), opts?)`** renders the system-prompt TOC
+  (`""` when empty, regardless of `opts`). `opts.header` overrides the
+  leading line for a caller that wants different wording; omit it (or pass
+  `{}`) for the exact byte-identical default. Putting the LIVE menu in the
+  system prompt is a ~12-line `wrapModelCall` middleware in your framework —
+  with `@harpua/langgraph`, follow the "Composing the system prompt" recipe
+  in its `agents-and-middleware` skill reference (append to the leading
   SystemMessage; byte-stable output keeps the prompt cache warm).
 
 ## Using with `@harpua/langgraph`

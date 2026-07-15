@@ -26,6 +26,12 @@ export interface SkillRescanResult {
   count: number;
   names: string[];
   skipped: number;
+  /** One entry per skipped dir: `name` is the skill dir name, `reason` is the
+   *  same detail sent to `onWarn` minus the `skills: ` prefix (distinct
+   *  frontmatter failures — bad name vs empty description — get distinct
+   *  reasons via the underlying zod issue). Skips are data a caller can act
+   *  on, not just a log line; `skippedSkills.length === skipped` always. */
+  skippedSkills: ReadonlyArray<{ name: string; reason: string }>;
   /** Whether the RENDERED menu bytes changed — a `true` here means the next
    *  model call's system prompt moves and the provider's prefix cache resets. */
   changed: boolean;
@@ -79,6 +85,7 @@ export class SkillRegistry {
   private skills: Skill[] = [];
   private bodies = new Map<string, string>();
   private lastSkipped = 0;
+  private lastSkippedSkills: ReadonlyArray<{ name: string; reason: string }> = [];
 
   constructor(
     private readonly dir: string,
@@ -145,6 +152,7 @@ export class SkillRegistry {
       count: this.skills.length,
       names: this.skills.map((s) => s.name),
       skipped: this.lastSkipped,
+      skippedSkills: this.lastSkippedSkills,
       changed: renderSkillMenu(this.skills) !== before,
     };
   }
@@ -156,9 +164,12 @@ export class SkillRegistry {
   private scan(): void {
     const skills: Skill[] = [];
     const bodies = new Map<string, string>();
-    let skipped = 0;
-    const skip = (why: string): void => {
-      skipped++;
+    const skippedSkills: { name: string; reason: string }[] = [];
+    // `reason` defaults to `why` (the onWarn text minus the `skills: ` prefix
+    // `warn()` adds); callers that want the structured reason to carry more
+    // detail than the warn line pass a distinct third argument.
+    const skip = (dirName: string, why: string, reason: string = why): void => {
+      skippedSkills.push({ name: dirName, reason });
       this.warn(why);
     };
 
@@ -181,10 +192,16 @@ export class SkillRegistry {
       try {
         stat = fs.lstatSync(skillMd);
       } catch {
-        continue; // a plain directory with no SKILL.md is not a skill — silent
+        // A plain directory with no SKILL.md is not a skill — not a skip
+        // either (nothing was ever a skill candidate), but worth a warning:
+        // a misnamed `skill.md` has cost a consumer real debugging time.
+        // Secret paths (e.g. .ssh) are never emitted so their existence isn't leaked.
+        if (isSecretPath(dirName, DEFAULT_SECRET_PATTERNS)) continue;
+        this.warn(`${dirName} has no SKILL.md — not a skill (misnamed skill.md?)`);
+        continue;
       }
       if (!stat.isFile()) {
-        skip(`${dirName}/SKILL.md is not a regular file (symlink?) — skipped`);
+        skip(dirName, `${dirName}/SKILL.md is not a regular file (symlink?) — skipped`);
         continue;
       }
 
@@ -192,22 +209,30 @@ export class SkillRegistry {
       try {
         text = fs.readFileSync(skillMd, "utf8");
       } catch {
-        skip(`${dirName}/SKILL.md is unreadable — skipped`);
+        skip(dirName, `${dirName}/SKILL.md is unreadable — skipped`);
         continue;
       }
       if (Buffer.byteLength(text) > SKILL_BODY_CAP_BYTES) {
-        skip(`${dirName}/SKILL.md is over ${SKILL_BODY_CAP_BYTES} bytes — skipped (a skill body is a procedure, not a doc dump; move detail into reference files)`);
+        skip(dirName, `${dirName}/SKILL.md is over ${SKILL_BODY_CAP_BYTES} bytes — skipped (a skill body is a procedure, not a doc dump; move detail into reference files)`);
         continue;
       }
 
       const raw = parseFrontmatter(text);
       const parsed = SkillFrontmatter.safeParse(raw);
       if (raw === null || !parsed.success) {
-        skip(`${dirName}/SKILL.md has no valid frontmatter (need name + description) — skipped`);
+        const why = `${dirName}/SKILL.md has no valid frontmatter (need name + description) — skipped`;
+        // The onWarn text stays generic (consumers parse it today), but the
+        // structured reason folds in the first zod issue so a bad name and
+        // an empty description are distinguishable without re-parsing.
+        const issue = parsed.success ? undefined : parsed.error.issues[0];
+        const reason = issue
+          ? `${why} (${issue.path.join(".") || "<root>"}: ${issue.message})`
+          : why;
+        skip(dirName, why, reason);
         continue;
       }
       if (parsed.data.name !== dirName) {
-        skip(`${dirName}/SKILL.md declares name "${parsed.data.name}" but lives in "${dirName}" — skipped`);
+        skip(dirName, `${dirName}/SKILL.md declares name "${parsed.data.name}" but lives in "${dirName}" — skipped`);
         continue;
       }
 
@@ -218,6 +243,7 @@ export class SkillRegistry {
     skills.sort((a, b) => a.name.localeCompare(b.name));
     this.skills = skills;
     this.bodies = bodies;
-    this.lastSkipped = skipped;
+    this.lastSkipped = skippedSkills.length;
+    this.lastSkippedSkills = skippedSkills;
   }
 }
