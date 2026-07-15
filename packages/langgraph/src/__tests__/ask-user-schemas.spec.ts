@@ -2,6 +2,9 @@ import {
   askUserQuestionPresetSchema,
   normalizeAskUserPreset,
   buildAskUserEnvelopeSchema,
+  askUserRequestSchema,
+  askUserResumeSchema,
+  resolveAskUserResume,
   type AskUserQuestionPreset,
 } from "../tools/ask-user/schemas";
 
@@ -136,5 +139,93 @@ describe("buildAskUserEnvelopeSchema", () => {
         extra: true,
       }),
     ).toThrow();
+  });
+});
+
+describe("askUserRequestSchema", () => {
+  it("accepts the discriminated ask_user_request payload", () => {
+    const parsed = askUserRequestSchema.parse({
+      type: "ask_user_request",
+      intro: "Before we continue:",
+      questions: [{ prompt: "Continue?", inputType: "boolean" }],
+    });
+    expect(parsed.type).toBe("ask_user_request");
+  });
+
+  it("accepts a payload with no intro", () => {
+    expect(() =>
+      askUserRequestSchema.parse({
+        type: "ask_user_request",
+        questions: [{ prompt: "Continue?", inputType: "boolean" }],
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects any type other than the literal 'ask_user_request'", () => {
+    expect(() =>
+      askUserRequestSchema.parse({
+        type: "tool_approval_request",
+        questions: [],
+      }),
+    ).toThrow();
+  });
+});
+
+describe("askUserResumeSchema", () => {
+  it("accepts a positional answers resume", () => {
+    const parsed = askUserResumeSchema.parse({
+      answers: ["Blue", true, null, ["a", "b"]],
+    });
+    expect(parsed).toEqual({ answers: ["Blue", true, null, ["a", "b"]] });
+  });
+
+  it("accepts a dismissed resume with a reason", () => {
+    const parsed = askUserResumeSchema.parse({
+      dismissed: true,
+      reason: "no user available",
+    });
+    expect(parsed).toEqual({ dismissed: true, reason: "no user available" });
+  });
+
+  it("accepts a dismissed resume with no reason", () => {
+    expect(() => askUserResumeSchema.parse({ dismissed: true })).not.toThrow();
+  });
+
+  it("rejects a garbage shape (neither answers nor dismissed)", () => {
+    expect(() => askUserResumeSchema.parse({ foo: "bar" })).toThrow();
+  });
+});
+
+describe("resolveAskUserResume", () => {
+  it("returns valid positional answers unchanged", () => {
+    const resume = resolveAskUserResume("ask_user", 2, {
+      answers: ["Blue", true],
+    });
+    expect(resume).toEqual({ answers: ["Blue", true] });
+  });
+
+  it("returns a valid dismissal unchanged", () => {
+    const resume = resolveAskUserResume("ask_user", 2, {
+      dismissed: true,
+      reason: "afk",
+    });
+    expect(resume).toEqual({ dismissed: true, reason: "afk" });
+  });
+
+  it("throws a clear, actionable error for a garbage resume shape", () => {
+    expect(() => resolveAskUserResume("ask_user", 2, { foo: "bar" })).toThrow(
+      "Invalid resume value for ask_user tool 'ask_user': expected " +
+        "{ answers: Array<string | string[] | boolean | null> } or " +
+        '{ dismissed: true, reason?: string }, received {"foo":"bar"}.',
+    );
+  });
+
+  it("throws when answers.length does not match questionCount", () => {
+    expect(() =>
+      resolveAskUserResume("ask_user", 2, { answers: ["only one"] }),
+    ).toThrow(
+      "Invalid resume value for ask_user tool 'ask_user': expected 2 " +
+        "answer(s) (one per question), received 1.",
+    );
   });
 });
