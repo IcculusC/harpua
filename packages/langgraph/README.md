@@ -382,6 +382,66 @@ can never set a mock-only side-channel field, so gating on the tool call is what
 works with a live LLM. See [Interrupts and `resume`](#interrupts-and-resume) and
 the `human-in-the-loop` skill for surfacing over HTTP/SSE/CLI.
 
+#### Asking the user questions (`askUserTool`)
+
+The model-callable sibling of the approval gate: instead of gating a tool's
+*execution*, the model calls `ask_user` directly with typed questions, the
+host renders them, and the answers return as the tool result mid-turn — no
+second model reconstructing "was that a question?" from prose.
+
+```ts
+import { LangGraph, askUserTool } from "@harpua/langgraph";
+
+@LangGraph({ name: "agent", state: AgentStateSchema, tools: [askUserTool()] })
+export class AgentGraph { /* … */ }
+```
+
+The model calls it with one or more questions in a single batch (the tool's
+description hammers this — never call it twice in one turn):
+
+```ts
+ask_user({
+  intro: "Before I continue:",
+  questions: [
+    { prompt: "Should I proceed?", inputType: "boolean" },
+    { prompt: "Pick a color", inputType: "select", options: ["Red", "Blue"] },
+  ],
+});
+```
+
+The run pauses with `{ type: "ask_user_request", intro?, questions }`; resume
+with the user's answers, index-aligned to `questions`:
+
+```ts
+await graph.resume(threadId, { answers: [true, "Blue"] });
+// -> tool result: "Should I proceed?: yes\nPick a color: Blue"
+```
+
+A headless host (no user available) resumes with a dismissal instead — the
+model gets a fixed message telling it to proceed on its own judgment:
+
+```ts
+await graph.resume(threadId, { dismissed: true, reason: "no user available" });
+// -> tool result: "(user dismissed the questions — proceed with your best
+//    judgment and record any assumptions)"
+```
+
+`options`:
+
+| Option | Default | Notes |
+|---|---|---|
+| `name` | `"ask_user"` | Tool name the model sees. |
+| `description` | (batches-everything wording) | Override to change the model-facing framing. |
+| `maxQuestions` | `8` | Cap on `questions.length`. |
+| `questionSchema` | the flat preset (`prompt`, `inputType`, `options?`) | Any zod schema whose inferred type extends `{ prompt: string }`. Bringing your own skips the preset's option normalization. |
+| `serializeAnswers` | one `prompt: answer` line per question | `(questions, answers) => string`; throwing propagates (its return IS the tool result). |
+| `dismissedMessage` | `"(user dismissed the questions — proceed with your best judgment and record any assumptions)"` | Returned verbatim on a `{ dismissed: true }` resume. |
+
+The default preset normalizes `select`/`multi_select` options before they
+reach the interrupt payload: trimmed, emptied entries dropped, deduped, and —
+if fewer than 2 choices survive — coerced to `free_text` (never a broken
+single-option widget).
+
 ### Give the model the graph's tools
 
 The `TOOLS` node **executes** tool calls — but a real chat model only emits a

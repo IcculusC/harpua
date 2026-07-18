@@ -45,3 +45,28 @@ describe("public exports (compaction family)", () => {
     }
   });
 });
+
+describe("public exports (ask_user tool family)", () => {
+  it("exports the factory and the preset schema", () => {
+    for (const name of ["askUserTool", "askUserQuestionPresetSchema"]) {
+      expect((pkg as any)[name]).toBeDefined();
+    }
+  });
+
+  it("does not leak internal ask_user helpers", () => {
+    for (const name of [
+      "normalizeAskUserPreset",
+      "resolveAskUserResume",
+      "defaultSerializeAnswers",
+      "buildAskUserEnvelopeSchema",
+      "askUserResumeSchema",
+      "askUserAnswersResumeSchema",
+      "askUserDismissedResumeSchema",
+      "askUserRequestSchema",
+      "askUserToolOptionsSchema",
+      "resolveAskUserToolOptions",
+    ]) {
+      expect((pkg as any)[name]).toBeUndefined();
+    }
+  });
+});
