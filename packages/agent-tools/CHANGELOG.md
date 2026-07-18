@@ -1,5 +1,43 @@
 # @harpua/agent-tools
 
+## 0.8.1
+
+### Patch Changes
+
+- 693f878: `prepareChunks(markdown, options?)` — export the pure chunk-prep half of
+  `ingest()` (field report #18): chunk → sanitize → junk-filter → embed-text
+  formatting, with no embedding or storage. A consumer running its own
+  embed/upsert path into a separate collection no longer needs a hand-rolled
+  duplicate of `embeddingInputFor` and the alnum junk floor just to keep chunk
+  geometry in sync with `ingest()` — they call `prepareChunks` directly and
+  get the same `{ text, embedText, chunkIndex, startLine, endLine,
+headingTrail }` per chunk that `ingest()` embeds and stores.
+
+  Options are the same four chunking knobs `ingest()` exposes
+  (`maxChunkChars`, `minAlnumChars`, `embedHeadingTrail`, `sanitize`), same
+  defaults, same strict zod validation (unknown keys throw). `ingest()` itself
+  now composes over `prepareChunks` — the embed/upsert half is all that's left
+  inline — so there is exactly one code path for chunk geometry and
+  embedding-input formatting; direct `prepareChunks` callers and `ingest()`
+  can never drift apart.
+
+- e3728ce: `SkillRegistry` skip visibility (field report #17): a consumer's skill silently
+  tripped the 16KB `SKILL.md` body cap and cost an hour of misdiagnosis because
+  the only trace was a generic `onWarn` string — skips were a log, not data.
+  `rescan()` now also returns `skippedSkills: { name, reason }[]` (one entry per
+  skip, `reason` the same detail sent to `onWarn` minus the `skills: ` prefix),
+  so a caller can actually act on a skip instead of grepping console output.
+  Frontmatter failures — a bad `name` vs. an empty `description` — previously
+  folded into one generic "no valid frontmatter" reason; the structured
+  `reason` (never the `onWarn` text, which stays byte-identical for existing
+  parsers) now folds in the first zod issue so the two are distinguishable.
+  Separately, a directory with no `SKILL.md` at all (a misnamed `skill.md`?)
+  now gets a single `onWarn` line instead of skipping silently — it still
+  isn't counted in `skipped`/`skippedSkills`, since it was never a skill
+  candidate. `renderSkillMenu` also grows an optional `opts.header` so a
+  caller can swap the leading TOC line; omitting it reproduces the exact
+  current bytes, keeping the prompt cache warm for everyone who doesn't need it.
+
 ## 0.8.0
 
 ### Minor Changes
