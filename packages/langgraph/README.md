@@ -1117,6 +1117,38 @@ model call and get nothing back for it). Whenever `strategy` is
 `"summarize"`, reach for `ManagedContextMiddleware`, or pair
 `CompactionMiddleware` with `ContextWindowMiddleware` explicitly.
 
+#### Seasoning the summary (`instructions`, `epilogue`)
+
+Both are optional; omitting them leaves the summarizer's system text and the
+rendered summary byte-identical to the defaults.
+
+```ts
+provideManagedContext({
+  triggerAt: { tokens: 120_000 },
+  keepRecent: 8,
+  strategy: {
+    kind: "summarize",
+    model: CHAT_MODEL,
+    instructions:
+      "PRESERVE NUMBERS: part numbers, chosen component values, every decision WITH the number that justified it.",
+    epilogue: "The transcript was compacted — your notes on disk were not. Check them before re-researching.",
+  },
+});
+```
+
+`instructions` is appended to the summarizer's system text, so domain detail
+that a generic summary would drop survives the fold.
+
+`epilogue` is appended to the **rendered** summary, not stored in it. That
+placement matters: a summary containing its own epilogue would be re-folded on
+the next compaction and the epilogue would accumulate. Because it is applied at
+render time it cannot, so no deduplication is needed.
+
+`epilogue` requires a `ContextWindowMiddleware` to render it —
+`provideManagedContext` includes one. With a standalone `provideCompaction` and
+no renderer registered, the epilogue is never applied and the middleware warns
+once.
+
 **Cache locality**: the byte-stable `[head · summary · tail]` layout is
 itself the whole optimization for providers that auto-cache off a stable
 prompt prefix (OpenAI, OpenRouter, DeepSeek) — no config needed. For
