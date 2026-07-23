@@ -61,6 +61,9 @@ describe("summarizeSpan instructions", () => {
         keepRecent: 3,
         strategy: { kind: "summarize", model: Symbol.for("m"), instructions: "" },
       }),
-    ).toThrow();
+    ).toThrow(/too_small/);
+    // NOT a bare .toThrow(): before `instructions` existed, `.strict()` rejected
+    // it as an unrecognized key, so a bare assertion passed without the feature.
+    // Pinning the length-rule issue code is what makes this test discriminating.
   });
 });
