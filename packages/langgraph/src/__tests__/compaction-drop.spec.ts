@@ -1,6 +1,7 @@
 import { HumanMessage, AIMessage, ToolMessage, RemoveMessage } from "@langchain/core/messages";
 import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware";
 import { COMPACTION_OPTS, CompactionOptions } from "../middleware/compaction.options";
+import { SUMMARY_EPILOGUE } from "../middleware/summary-epilogue.token";
 import { COMPACTION_STATE } from "../middleware/compaction-state";
 import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
 
@@ -57,9 +58,13 @@ describe("CompactionMiddleware (drop)", () => {
     expect(patch).toBeUndefined();
   });
 
-  it("provideCompaction returns [opts provider, class]", () => {
+  it("provideCompaction returns the opts provider, the epilogue token, and the class", () => {
     const providers = provideCompaction(opts);
-    expect(providers[0]).toEqual({ provide: COMPACTION_OPTS, useValue: opts });
-    expect(providers[1]).toBe(CompactionMiddleware);
+    expect(providers).toContainEqual({ provide: COMPACTION_OPTS, useValue: opts });
+    // Additive since the summary-epilogue feature. Asserted by content rather
+    // than position: the set of providers is the contract, their order is not.
+    // `null` here because this fixture uses the default "drop" strategy.
+    expect(providers).toContainEqual({ provide: SUMMARY_EPILOGUE, useValue: null });
+    expect(providers).toContain(CompactionMiddleware);
   });
 });
