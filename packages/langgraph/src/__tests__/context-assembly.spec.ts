@@ -46,4 +46,28 @@ describe("context-assembly", () => {
     assembleWindow(msgs, SUMMARY, { pin: (m) => (m as any).id === "h1", cacheHints: true });
     expect((msgs[0].additional_kwargs as any)[CACHE_BOUNDARY]).toBeUndefined();
   });
+
+  it("renders unchanged when no epilogue is given", () => {
+    expect(String(renderSummary(SUMMARY, null).content)).toBe(String(renderSummary(SUMMARY).content));
+  });
+
+  it("appends the epilogue as the final line of the rendered summary", () => {
+    const out = String(renderSummary(SUMMARY, "check the NOTEBOOK").content);
+    expect(out.split("\n").pop()).toBe("check the NOTEBOOK");
+    expect(out).toContain("Current state: mid");
+  });
+
+  it("ignores an empty epilogue", () => {
+    expect(String(renderSummary(SUMMARY, "").content)).toBe(String(renderSummary(SUMMARY).content));
+  });
+
+  it("renders the epilogue through assembleWindow", () => {
+    const msgs = [new HumanMessage({ id: "h1", content: "goal" })];
+    const out = assembleWindow(msgs, SUMMARY, {
+      pin: (m) => (m as any).id === "h1",
+      cacheHints: false,
+      summaryEpilogue: "check the NOTEBOOK",
+    });
+    expect(String(out[1].content)).toContain("check the NOTEBOOK");
+  });
 });

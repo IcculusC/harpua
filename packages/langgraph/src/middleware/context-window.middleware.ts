@@ -1,4 +1,4 @@
-import { Inject, type Provider } from "@nestjs/common";
+import { Inject, Optional, type Provider } from "@nestjs/common";
 import type { z } from "zod";
 import { isHumanMessage, type AIMessage, type BaseMessage } from "@langchain/core/messages";
 import { LangGraphMiddleware } from "./middleware.decorator";
@@ -8,6 +8,7 @@ import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./context-window.opti
 import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state";
 import { assembleWindow, evictOldToolOutputs } from "./context-assembly";
 import { translateCacheMarkers } from "./cache-markers";
+import { SUMMARY_EPILOGUE } from "./summary-epilogue.token";
 
 const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 
@@ -16,7 +17,10 @@ const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 export class ContextWindowMiddleware implements LangGraphMiddlewareContract {
   static readonly [COMPACTION_STATE] = true;
 
-  constructor(@Inject(CONTEXT_WINDOW_OPTS) private readonly opts: ContextWindowOptions) {}
+  constructor(
+    @Inject(CONTEXT_WINDOW_OPTS) private readonly opts: ContextWindowOptions,
+    @Optional() @Inject(SUMMARY_EPILOGUE) private readonly summaryEpilogue: string | null = null,
+  ) {}
 
   async wrapModelCall(req: ModelRequest<any>, next: ModelNext): Promise<AIMessage> {
     const pin = this.opts.pin ?? defaultPin;
@@ -25,6 +29,7 @@ export class ContextWindowMiddleware implements LangGraphMiddlewareContract {
     let messages: BaseMessage[] = assembleWindow(req.messages, summary, {
       pin,
       cacheHints: this.opts.cacheHints,
+      summaryEpilogue: this.summaryEpilogue,
     });
     if (this.opts.evictToolOutputs && this.opts.evictBeyond !== undefined) {
       messages = evictOldToolOutputs(messages, this.opts.evictBeyond);
