@@ -60,6 +60,25 @@ describe("summary epilogue wiring", () => {
     expect((parsed.strategy as any).epilogue).toBe(EPILOGUE);
   });
 
+  // `instructions` and `epilogue` landed in separate commits into the same
+  // .strict() object — this pins that they coexist rather than one shadowing
+  // the other. (Seam found by the whole-branch review.)
+  it("accepts instructions and epilogue together on one strategy", () => {
+    const parsed = CompactionOptions.parse({
+      triggerAt: { messages: 6 },
+      keepRecent: 3,
+      strategy: {
+        kind: "summarize" as const,
+        model: MODEL,
+        instructions: "PRESERVE NUMBERS",
+        epilogue: EPILOGUE,
+      },
+    });
+    expect((parsed.strategy as any).instructions).toBe("PRESERVE NUMBERS");
+    expect((parsed.strategy as any).epilogue).toBe(EPILOGUE);
+    expect(summaryEpilogueOf(parsed)).toBe(EPILOGUE);
+  });
+
   it("projects the epilogue out of parsed options, null for drop", () => {
     expect(summaryEpilogueOf(CompactionOptions.parse(optsWithEpilogue))).toBe(EPILOGUE);
     expect(
