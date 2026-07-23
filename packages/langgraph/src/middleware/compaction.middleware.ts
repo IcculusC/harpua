@@ -37,6 +37,8 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
   /** Lazily resolved: is a summary renderer registered alongside this
    *  middleware? (null = not checked yet.) */
   private rendererPresent: boolean | null = null;
+  private megaTurnWarned = false;
+  private epilogueWarned = false;
 
   /** Consecutive AI-boundary summarize failures, per thread. Entries are
    *  deleted on success; only failing threads ever occupy a slot. */
@@ -47,12 +49,8 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
     private readonly moduleRef: ModuleRef,
   ) {}
 
-  /** The AI-boundary fold's safety story is "the summary stands in for the
-   *  folded ask" — but the summary channel is only ever rendered into the
-   *  model's view by `ContextWindowMiddleware`. Standalone `provideCompaction`
-   *  + summarize writes it to a channel nothing reads, so folding the running
-   *  turn's ask there would erase the live instruction invisibly. */
-  private hasSummaryRenderer(): boolean {
+  /** DI presence lookup only — memoized, never warns. */
+  private rendererRegistered(): boolean {
     if (this.rendererPresent === null) {
       try {
         this.rendererPresent =
@@ -60,13 +58,37 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
       } catch {
         this.rendererPresent = false;
       }
-      if (!this.rendererPresent) {
-        this.logger.warn(
-          "compaction: summarize strategy without a ContextWindowMiddleware — the summary is written but never rendered, so mega-turn (AI-boundary) folds are disabled. Use provideManagedContext, or register provideContextWindow alongside.",
-        );
-      }
     }
     return this.rendererPresent;
+  }
+
+  /** The AI-boundary fold's safety story is "the summary stands in for the
+   *  folded ask" — but the summary channel is only ever rendered into the
+   *  model's view by `ContextWindowMiddleware`. Standalone `provideCompaction`
+   *  + summarize writes it to a channel nothing reads, so folding the running
+   *  turn's ask there would erase the live instruction invisibly. */
+  private hasSummaryRenderer(): boolean {
+    const present = this.rendererRegistered();
+    if (!present && !this.megaTurnWarned) {
+      this.megaTurnWarned = true;
+      this.logger.warn(
+        "compaction: summarize strategy without a ContextWindowMiddleware — the summary is written but never rendered, so mega-turn (AI-boundary) folds are disabled. Use provideManagedContext, or register provideContextWindow alongside.",
+      );
+    }
+    return present;
+  }
+
+  /** Safe but loud: an epilogue nothing can render never throws, but it must
+   *  not pass silently either. Warns once per middleware instance. */
+  private warnIfEpilogueUnrendered(): void {
+    if (this.epilogueWarned) return;
+    const strategy = this.opts.strategy;
+    if (strategy === "drop" || !strategy.epilogue) return;
+    if (this.rendererRegistered()) return;
+    this.epilogueWarned = true;
+    this.logger.warn(
+      "compaction: strategy.epilogue is set but no ContextWindowMiddleware is registered — the epilogue is never rendered. Use provideManagedContext, or register provideContextWindow alongside.",
+    );
   }
 
   private threadKey(ctx: MiddlewareContext<any>): string {
@@ -95,6 +117,7 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
     if (this.opts.strategy === "drop") {
       return { messages: removals };
     }
+    this.warnIfEpilogueUnrendered();
     // summarize: resolve the model token; on any failure fall back to drop.
     try {
       const model = this.moduleRef.get<BaseChatModel>(this.opts.strategy.model, { strict: false });

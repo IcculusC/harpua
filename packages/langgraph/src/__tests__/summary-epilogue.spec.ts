@@ -1,5 +1,6 @@
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { ModuleRef } from "@nestjs/core";
+import { Logger } from "@nestjs/common";
 import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware";
 import { provideManagedContext } from "../middleware/managed-context.middleware";
 import { CompactionOptions, summaryEpilogueOf } from "../middleware/compaction.options";
@@ -104,5 +105,67 @@ describe("summary epilogue wiring", () => {
     // never to a field of the summary object
     const custom = { goal: "x", keyDecisions: [], openQuestions: [], artifacts: [], currentState: "y" };
     expect(String(renderSummary(custom as any, EPILOGUE).content)).toContain(EPILOGUE);
+  });
+});
+
+describe("epilogue without a renderer", () => {
+  const modelOnly = {
+    get: (token: unknown) => {
+      if (token === MODEL) return new FakeStructuredModel();
+      throw new Error("nothing else registered");
+    },
+  } as unknown as ModuleRef;
+
+  it("warns once, does not throw, and still folds", async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    try {
+      const mw = new CompactionMiddleware(CompactionOptions.parse(optsWithEpilogue), modelOnly);
+      const first: any = await mw.beforeModel(ctx(convo()));
+      await mw.beforeModel(ctx(convo(), first.summary));
+      const epilogueWarns = warnSpy.mock.calls
+        .map((c) => String(c[0]))
+        .filter((m) => m.includes("strategy.epilogue"));
+      expect(epilogueWarns).toHaveLength(1);
+      expect(epilogueWarns[0]).toContain("ContextWindowMiddleware");
+      expect(first.summary).toEqual(SUMMARY);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("does not warn about the epilogue when a renderer is registered", async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    try {
+      const mw = new CompactionMiddleware(
+        CompactionOptions.parse(optsWithEpilogue),
+        moduleRefReturning(new FakeStructuredModel()),
+      );
+      await mw.beforeModel(ctx(convo()));
+      expect(
+        warnSpy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes("strategy.epilogue")),
+      ).toHaveLength(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  it("does not warn when no epilogue is configured", async () => {
+    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    try {
+      const mw = new CompactionMiddleware(
+        CompactionOptions.parse({
+          triggerAt: { messages: 6 },
+          keepRecent: 3,
+          strategy: { kind: "summarize", model: MODEL },
+        }),
+        modelOnly,
+      );
+      await mw.beforeModel(ctx(convo()));
+      expect(
+        warnSpy.mock.calls.map((c) => String(c[0])).filter((m) => m.includes("strategy.epilogue")),
+      ).toHaveLength(0);
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
