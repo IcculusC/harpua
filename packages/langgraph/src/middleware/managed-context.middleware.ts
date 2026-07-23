@@ -6,10 +6,11 @@ import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middl
 import type { MiddlewareContext, ModelRequest, ModelNext } from "./middleware.types";
 import { CompactionMiddleware } from "./compaction.middleware";
 import { ContextWindowMiddleware } from "./context-window.middleware";
-import { COMPACTION_OPTS, CompactionOptions } from "./compaction.options";
+import { COMPACTION_OPTS, CompactionOptions, summaryEpilogueOf } from "./compaction.options";
 import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./context-window.options";
 import { ManagedContextOptions } from "./managed-context.options";
 import { COMPACTION_STATE } from "./compaction-state";
+import { SUMMARY_EPILOGUE } from "./summary-epilogue.token";
 
 /** Batteries-included context management: one entry that delegates fold + view. */
 @LangGraphMiddleware()
@@ -39,6 +40,7 @@ export function provideManagedContext(opts: z.input<typeof ManagedContextOptions
   return [
     { provide: COMPACTION_OPTS, useValue: compactionOpts },
     { provide: CONTEXT_WINDOW_OPTS, useValue: windowOpts },
+    { provide: SUMMARY_EPILOGUE, useValue: summaryEpilogueOf(compactionOpts) },
     CompactionMiddleware,
     ContextWindowMiddleware,
     ManagedContextMiddleware,

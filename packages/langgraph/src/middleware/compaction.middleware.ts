@@ -6,11 +6,12 @@ import type { BaseChatModel } from "@langchain/core/language_models/chat_models"
 import { LangGraphMiddleware } from "./middleware.decorator";
 import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
 import type { MiddlewareContext } from "./middleware.types";
-import { COMPACTION_OPTS, CompactionOptions } from "./compaction.options";
+import { COMPACTION_OPTS, CompactionOptions, summaryEpilogueOf } from "./compaction.options";
 import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state";
 import { computeFold } from "./compaction-cut";
 import { buildCompactionSignal, resolveTrigger } from "./compaction-signal";
 import { summarizeSpan } from "./summarize";
+import { SUMMARY_EPILOGUE } from "./summary-epilogue.token";
 import { ContextWindowMiddleware } from "./context-window.middleware";
 
 const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
@@ -136,5 +137,9 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
  *  below fills defaults — callers pass partial literals. */
 export function provideCompaction(opts: z.input<typeof CompactionOptions>): Provider[] {
   const parsed = CompactionOptions.parse(opts);
-  return [{ provide: COMPACTION_OPTS, useValue: parsed }, CompactionMiddleware];
+  return [
+    { provide: COMPACTION_OPTS, useValue: parsed },
+    { provide: SUMMARY_EPILOGUE, useValue: summaryEpilogueOf(parsed) },
+    CompactionMiddleware,
+  ];
 }

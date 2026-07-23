@@ -27,6 +27,9 @@ const StrategySchema = z.union([
       schema: z.custom<ZodType>((v) => v instanceof z.ZodType).default(CompactionSummarySchema),
       /** Appended to the summarizer's system text. Domain seasoning; default = generic. */
       instructions: z.string().min(1).optional(),
+      /** Appended to the RENDERED summary, never stored in it — so repeated
+       *  folds cannot accumulate it. Requires a ContextWindowMiddleware. */
+      epilogue: z.string().min(1).optional(),
     })
     .strict(),
 ]);
@@ -41,3 +44,8 @@ export const CompactionOptions = z.object({
 export type CompactionOptions = z.infer<typeof CompactionOptions>;
 
 export { CompactionSummarySchema };
+
+/** The epilogue to hand the renderer, or null when there is none. */
+export function summaryEpilogueOf(opts: CompactionOptions): string | null {
+  return opts.strategy === "drop" ? null : (opts.strategy.epilogue ?? null);
+}
