@@ -98,7 +98,13 @@ export class CompactionMiddleware implements LangGraphMiddlewareContract {
     try {
       const model = this.moduleRef.get<BaseChatModel>(this.opts.strategy.model, { strict: false });
       const prior = (ctx.state?.summary ?? null) as CompactionSummary | null;
-      const summary = await summarizeSpan(model, this.opts.strategy.schema, prior, plan.foldedSpan);
+      const summary = await summarizeSpan(
+        model,
+        this.opts.strategy.schema,
+        prior,
+        plan.foldedSpan,
+        this.opts.strategy.instructions,
+      );
       if (plan.boundary === "ai") this.aiFoldFailures.delete(this.threadKey(ctx));
       return { messages: removals, summary };
     } catch (err) {

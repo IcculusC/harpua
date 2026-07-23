@@ -25,6 +25,8 @@ const StrategySchema = z.union([
       kind: z.literal("summarize"),
       model: z.custom<InjectionToken>((v) => v != null),
       schema: z.custom<ZodType>((v) => v instanceof z.ZodType).default(CompactionSummarySchema),
+      /** Appended to the summarizer's system text. Domain seasoning; default = generic. */
+      instructions: z.string().min(1).optional(),
     })
     .strict(),
 ]);
