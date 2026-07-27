@@ -44,6 +44,9 @@ export type {
   RequireApprovalOptions,
 } from "./graph-tools";
 
+// Lazy model binding: defer resolution to first use instead of feature-init.
+export { lazyModel, LazyModel, isLazyModel } from "./lazy-model";
+
 // ask_user: the model-callable sibling of the approval gate (`requireApproval`)
 // — the model calls ask_user with typed questions instead of a gated action;
 // the host renders them and the answers return as the tool result.
