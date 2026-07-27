@@ -839,6 +839,37 @@ channels, `loop` and `exit` (see [Semantics](#semantics-loop-and-exit-reset-per-
 below), so `res.loop` and `res.exit` are present on every invoke result
 alongside the fields you declared.
 
+#### Lazy model binding (`lazyModel`)
+
+`@LangGraphAgent({ model })` resolves its model token eagerly, at feature-init.
+That is a boot crash when the token is a NAMED arm registered by a later module
+(e.g. `ChatModel:fast` from `ChatModelModule.forRoot`) — the arm does not exist
+yet when the feature graph initializes.
+
+Wrap the token in `lazyModel(...)` to defer resolution to the graph's first
+model call, after all modules are up:
+
+```ts
+import { lazyModel } from "@harpua/langgraph";
+import { getChatModelToken } from "@harpua/models";
+
+@LangGraphAgent({
+  name: "researcher",
+  state,
+  model: lazyModel(getChatModelToken("fast")),
+  tools: [SearchTools],
+})
+class Researcher {}
+```
+
+A bare token keeps its exact current behavior (eager resolve, eager tool
+binding, and a loud throw if it resolves to null). `lazyModel(...)` binds the
+graph's tools and memoizes on the first call. If the arm is still unregistered
+at first use it throws — on every call, never silently — so a genuinely missing
+arm is loud rather than a hang. This is the static case: a graph whose model IS
+a named arm. For per-call dynamic routing between arms, use a `wrapModelCall`
+middleware instead.
+
 ### `@LangGraphMiddleware`
 
 A middleware is a `@LangGraphMiddleware()`-decorated, DI-injectable class
