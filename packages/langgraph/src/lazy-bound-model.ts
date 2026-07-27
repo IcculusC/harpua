@@ -1,9 +1,11 @@
 import type { GraphBoundModel } from "./graph-tools";
 
-/** Keys that must never trigger resolution: promise/thenable detection and
- *  runtime inspection. Returning `undefined` for these keeps the proxy from
- *  being mistaken for a thenable (which would make `await proxy` hang) and
- *  keeps loggers/DI inspection from resolving the model at bootstrap. */
+/** Keys that must never trigger resolution: promise/thenable detection,
+ *  runtime inspection, and Nest lifecycle hooks. Returning `undefined` for these
+ *  keeps the proxy from being mistaken for a thenable (which would make
+ *  `await proxy` hang), keeps loggers/DI inspection from resolving the model at
+ *  bootstrap, and prevents Nest's lifecycle hook machinery from triggering
+ *  resolution before first use. */
 const PASSTHROUGH_KEYS: ReadonlySet<PropertyKey> = new Set([
   "then",
   "catch",
@@ -11,6 +13,11 @@ const PASSTHROUGH_KEYS: ReadonlySet<PropertyKey> = new Set([
   "toJSON",
   "constructor",
   "$$typeof",
+  "onModuleInit",
+  "onApplicationBootstrap",
+  "onModuleDestroy",
+  "beforeApplicationShutdown",
+  "onApplicationShutdown",
 ]);
 
 /**
