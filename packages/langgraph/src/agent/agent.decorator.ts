@@ -1,5 +1,6 @@
 import type { InjectionToken } from "@nestjs/common";
 import { StateSchema } from "@langchain/langgraph";
+import type { LazyModel } from "../lazy-model";
 import type { AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 import { AGENT_METADATA } from "../constants";
@@ -18,8 +19,9 @@ export interface LangGraphAgentOptions {
   name: string;
   /** State definition — a `StateSchema` instance (merged with `loop`/`exit`). */
   state: unknown;
-  /** DI token resolving the app's base (unbound) chat model. */
-  model: InjectionToken;
+  /** DI token resolving the app's base (unbound) chat model, or a
+   *  `lazyModel(token)` marker to defer resolution to the first model call. */
+  model: InjectionToken | LazyModel;
   /** Tool providers/instances mounted into the loop's `ToolNode`. */
   tools?: ToolEntry[];
   /** Middleware entries partitioned into wrap hooks and node hooks. */

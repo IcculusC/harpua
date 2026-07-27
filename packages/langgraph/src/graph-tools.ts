@@ -19,6 +19,8 @@ import { instrumentRawTool, instrumentTool } from "./observability";
 import { getAgentMetadata } from "./agent/agent.decorator";
 import { lowerAgent } from "./agent/agent-compiler";
 import { composeToolWrap } from "./middleware/tool-wrap";
+import { isLazyModel, type LazyModel } from "./lazy-model";
+import { lazyBoundProxy } from "./lazy-bound-model";
 
 /** Logs a warning when a user-supplied approval/decline message builder throws. */
 const approvalLogger = new Logger("LangGraphApprovalGate");
@@ -522,10 +524,12 @@ export interface ProvideGraphBoundModelOptions {
   /** The `@LangGraph`-decorated graph whose tools the model should carry. */
   graph: Type<any>;
   /**
-   * Any token resolving to a `BaseChatModel` — a class, symbol, or string. This
-   * package stays model-agnostic: it never references a concrete model package.
+   * Any token resolving to a `BaseChatModel` — a class, symbol, or string —
+   * OR a `lazyModel(token)` marker to defer resolution to the first model call
+   * (for arms registered by a later module). This package stays model-agnostic:
+   * it never references a concrete model package.
    */
-  model: InjectionToken;
+  model: InjectionToken | LazyModel;
 }
 
 /**
@@ -558,6 +562,29 @@ export function provideGraphBoundModel(
   return {
     provide,
     useFactory: (moduleRef: ModuleRef): GraphBoundModel => {
+      if (isLazyModel(model)) {
+        const lazyToken = model.token;
+        return lazyBoundProxy(() => {
+          let chatModel: BaseChatModel | null = null;
+          try {
+            chatModel = moduleRef.get<BaseChatModel>(lazyToken, { strict: false });
+          } catch {
+            chatModel = null;
+          }
+          if (chatModel == null) {
+            throw new Error(
+              `provideGraphBoundModel: lazyModel token ${String(lazyToken)} resolved to ` +
+                "null at first use — check the token's provider registration (is the arm " +
+                "registered by the time the graph makes its first model call?).",
+            );
+          }
+          const tools = buildGraphTools(graph, moduleRef);
+          if (tools.length > 0 && typeof chatModel.bindTools === "function") {
+            return chatModel.bindTools(tools);
+          }
+          return chatModel;
+        });
+      }
       const chatModel = moduleRef.get<BaseChatModel>(model, { strict: false });
       if (chatModel == null) {
         // Without this, the guard below dereferences null and the crash names

@@ -70,3 +70,15 @@ describe("public exports (ask_user tool family)", () => {
     }
   });
 });
+
+describe("public exports (lazy model)", () => {
+  it("exports the lazy model marker helpers", () => {
+    for (const name of ["lazyModel", "LazyModel", "isLazyModel"]) {
+      expect((pkg as any)[name]).toBeDefined();
+    }
+  });
+
+  it("does not leak the internal lazy-bound proxy builder", () => {
+    expect((pkg as any).lazyBoundProxy).toBeUndefined();
+  });
+});
