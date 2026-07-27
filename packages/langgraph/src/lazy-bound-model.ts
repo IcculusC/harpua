@@ -30,12 +30,13 @@ export function lazyBoundProxy(resolve: () => GraphBoundModel): GraphBoundModel 
       }
       return (...args: unknown[]): unknown => {
         if (resolved === undefined) {
-          try {
-            resolved = resolve(); // throws propagate; success memoized below
-          } catch (error) {
-            // Convert sync throw to rejected promise for rejects.toThrow()
-            return Promise.reject(error);
-          }
+          // Throw SYNCHRONOUSLY on a failed resolve, not as a rejected promise:
+          // this wrapper is generic over sync methods (`withStructuredOutput`
+          // returns a Runnable synchronously) as well as async ones, and it
+          // mirrors the eager factory, which also throws synchronously. The
+          // throw propagates and `resolved` stays undefined, so the next call
+          // retries — a missing arm is loud on every call, never memoized.
+          resolved = resolve();
         }
         const member = (resolved as unknown as Record<PropertyKey, unknown>)[prop];
         if (typeof member !== "function") {

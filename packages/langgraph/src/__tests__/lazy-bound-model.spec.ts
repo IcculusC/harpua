@@ -37,13 +37,15 @@ describe("lazyBoundProxy", () => {
     expect(resolve).toHaveBeenCalledTimes(1);
   });
 
-  it("throws PER CALL when resolve throws — failure is not memoized", async () => {
+  it("throws PER CALL when resolve throws — synchronously, and not memoized", () => {
     const resolve = jest.fn(() => {
       throw new Error("arm not registered");
     });
     const proxy = lazyBoundProxy(resolve as any);
-    await expect((proxy as any).invoke("x")).rejects.toThrow("arm not registered");
-    await expect((proxy as any).invoke("y")).rejects.toThrow("arm not registered");
+    // SYNCHRONOUS throw (not a rejected promise): the wrapper is generic over
+    // sync methods like withStructuredOutput too, and mirrors the eager factory.
+    expect(() => (proxy as any).invoke("x")).toThrow("arm not registered");
+    expect(() => (proxy as any).invoke("y")).toThrow("arm not registered");
     expect(resolve).toHaveBeenCalledTimes(2); // retried, not cached
   });
 
