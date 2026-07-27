@@ -64,6 +64,25 @@ describe("lazyBoundProxy", () => {
     expect((proxy as any)[Symbol.toPrimitive]).toBeUndefined();
   });
 
+  // Nest probes every provider for these hooks at bootstrap/shutdown and CALLS
+  // any that are present. If the proxy returned a callable for them, Nest would
+  // invoke it and resolve the arm at boot — the exact crash this feature kills.
+  // They MUST stay undefined; dropping one silently reintroduces the boot crash.
+  it("returns undefined for every Nest lifecycle-hook name (no boot-time resolution)", () => {
+    const resolve = jest.fn(fakeModel);
+    const proxy = lazyBoundProxy(resolve as any);
+    for (const hook of [
+      "onModuleInit",
+      "onApplicationBootstrap",
+      "onModuleDestroy",
+      "beforeApplicationShutdown",
+      "onApplicationShutdown",
+    ]) {
+      expect((proxy as any)[hook]).toBeUndefined();
+    }
+    expect(resolve).toHaveBeenCalledTimes(0);
+  });
+
   it("delegates arbitrary Runnable methods (full-surface parity)", async () => {
     const model = fakeModel();
     const proxy = lazyBoundProxy((() => model) as any);

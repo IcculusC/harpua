@@ -109,21 +109,12 @@ describe("provideGraphBoundModel — lazy", () => {
     app = built.createNestApplication();
     await app.init();
     const bound = app.get<GraphBoundModel>(BOUND);
-    try {
-      await bound.invoke([new HumanMessage("x")] as BaseMessage[]);
-      fail("Should have thrown");
-    } catch (err) {
-      expect((err as Error).message).toMatch(
-        /lazyModel token .*MISSING_ARM.* null at first use/s,
-      );
-    }
-    try {
-      await bound.invoke([new HumanMessage("y")] as BaseMessage[]);
-      fail("Should have thrown");
-    } catch (err) {
-      expect((err as Error).message).toMatch(
-        /lazyModel token .*MISSING_ARM.* null at first use/s,
-      );
-    }
+    // The proxy resolves synchronously at the call, so the missing-arm guard
+    // throws synchronously — assert with expect(fn).toThrow, not `.rejects`
+    // (there is no promise; the throw escapes before one is created). Throwing
+    // on BOTH calls proves the failure is per-call, not memoized.
+    const pattern = /lazyModel token .*MISSING_ARM.* null at first use/s;
+    expect(() => bound.invoke([new HumanMessage("x")] as BaseMessage[])).toThrow(pattern);
+    expect(() => bound.invoke([new HumanMessage("y")] as BaseMessage[])).toThrow(pattern);
   });
 });
