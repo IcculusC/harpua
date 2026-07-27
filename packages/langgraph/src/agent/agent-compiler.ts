@@ -7,6 +7,7 @@ import { AGENT_METADATA, TOOLS } from "../constants";
 import { defineEdges, route } from "../edges";
 import { normalizeMiddleware } from "../middleware/middleware.decorator";
 import type { NodeHookName } from "../middleware/middleware.interface";
+import { isLazyModel } from "../lazy-model";
 import { makeCallModelNode } from "./call-model-node";
 import { makeStructuredResponseNode, ResponseFormatOptions } from "./structured-response-node";
 import { makeHookNode } from "./hook-node";
@@ -161,7 +162,11 @@ export function buildAgentGraph(options: LangGraphAgentOptions): AgentBuild {
       }
     }
     structuredResponseNode = makeStructuredResponseNode({
-      modelToken: options.model,
+      // Unwrap a lazyModel() to its underlying token: the structured-response
+      // node resolves its model via moduleRef.get at CALL time (not init), so a
+      // bare token already defers correctly — it needs no proxy, and the marker
+      // itself is not a resolvable DI token.
+      modelToken: isLazyModel(options.model) ? options.model.token : options.model,
       schema: options.responseFormat,
       options: parsedOptions,
     });
