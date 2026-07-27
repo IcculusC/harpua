@@ -1,5 +1,12 @@
 # @harpua/langgraph
 
+## 0.6.3
+
+### Patch Changes
+
+- ca3488e: `@LangGraphAgent({ model })` and `provideGraphBoundModel` accept a `lazyModel(token)` marker that defers model resolution from feature-init to the graph's first model call. This lets a graph bind a named model arm registered by a later module without a boot crash, replacing the placeholder-plus-middleware workaround. A bare token keeps its exact current behavior; a lazy arm that is still unregistered at first use throws loudly on every call rather than hanging.
+- 5ace7f4: The summarize compaction strategy accepts `instructions` (appended to the summarizer's system text) and `epilogue` (appended to the rendered summary). Both are optional and default to today's behavior. The epilogue is applied at render time rather than stored in the summary, so repeated folds cannot accumulate it; when no `ContextWindowMiddleware` is registered to render it, the middleware warns once instead of failing silently.
+
 ## 0.6.2
 
 ### Patch Changes
