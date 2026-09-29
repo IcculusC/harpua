@@ -1,5 +1,11 @@
 # @harpua/agent-tools
 
+## 0.8.2
+
+### Patch Changes
+
+- d2df889: Pin ml-distance to ~4.0.1: 4.1.0 shipped ESM-only in a minor and breaks CommonJS/Jest consumers.
+
 ## 0.8.1
 
 ### Patch Changes

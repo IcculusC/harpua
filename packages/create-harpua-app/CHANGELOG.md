@@ -1,5 +1,11 @@
 # create-harpua-app
 
+## 0.1.4
+
+### Patch Changes
+
+- d2df889: Scaffold current @harpua/\* versions (template ranges were stuck on 0.1.x).
+
 ## 0.1.3
 
 ### Patch Changes
