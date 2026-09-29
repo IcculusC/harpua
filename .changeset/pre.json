@@ -12,6 +12,10 @@
     "@harpua/typescript-config": "0.0.0"
   },
   "changesets": [
+    "esm-agent-tools",
+    "esm-langgraph-testing",
+    "esm-langgraph",
+    "esm-models",
     "nest-12-create-harpua-app",
     "nest-12-harpua-langgraph-testing",
     "nest-12-harpua-langgraph",
