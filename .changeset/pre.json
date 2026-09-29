@@ -11,5 +11,11 @@
     "@harpua/models": "0.2.0",
     "@harpua/typescript-config": "0.0.0"
   },
-  "changesets": []
+  "changesets": [
+    "nest-12-create-harpua-app",
+    "nest-12-harpua-langgraph-testing",
+    "nest-12-harpua-langgraph",
+    "nest-12-harpua-models",
+    "scaffold-vitest"
+  ]
 }

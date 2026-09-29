@@ -1,6 +1,6 @@
 {
   "name": "@harpua/langgraph-testing",
-  "version": "0.3.0",
+  "version": "1.0.0-next.0",
   "license": "MIT",
   "engines": {
     "node": ">=22.12"
@@ -30,7 +30,7 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "@harpua/langgraph": ">=0.1.6 <1.0.0",
+    "@harpua/langgraph": ">=1.0.0-next.0",
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
     "@nestjs/common": "^12.0.0",
