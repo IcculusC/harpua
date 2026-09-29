@@ -2,9 +2,9 @@ import { describe, it, expect, afterEach } from "vitest";
 import {
   createGraphTestingModule,
   type GraphTestingHarness,
-} from "../testing-module";
-import { expectInterrupt } from "../interrupt-helpers";
-import { ruleModel } from "../scripted-model";
+} from "../testing-module.js";
+import { expectInterrupt } from "../interrupt-helpers.js";
+import { ruleModel } from "../scripted-model.js";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { HumanMessage } from "@langchain/core/messages";
 import { LangGraphAgent, BudgetMiddleware, provideBudget } from "@harpua/langgraph";
@@ -18,7 +18,7 @@ import {
   NodeB,
   OrderService,
   OrderTools,
-} from "./fixtures";
+} from "./fixtures.js";
 
 describe("createGraphTestingModule", () => {
   let harness: GraphTestingHarness;

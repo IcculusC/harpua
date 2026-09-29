@@ -1,6 +1,11 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+
+// Messages read back through a real (sqlite) checkpointer come from the saver
+// package's own CommonJS copy of @langchain/core (optional-require loads it via
+// createRequire), so `instanceof HumanMessage` against our ESM copy is false.
+// `HumanMessage.isInstance` is the realm-independent check.
 import {
   LangGraphAgent,
   CompactionMiddleware,
@@ -10,9 +15,9 @@ import {
   ManagedContextMiddleware,
   provideManagedContext,
 } from "@harpua/langgraph";
-import { createGraphTestingModule, type GraphTestingHarness } from "../testing-module";
-import { ruleModel } from "../scripted-model";
-import { OrderTools, OrderService } from "./fixtures";
+import { createGraphTestingModule, type GraphTestingHarness } from "../testing-module.js";
+import { ruleModel } from "../scripted-model.js";
+import { OrderTools, OrderService } from "./fixtures.js";
 
 /**
  * Builds a rule model that alternates: request a tool, then answer. Each
@@ -66,7 +71,7 @@ describe("compaction e2e (drop, real checkpointer)", () => {
       // Head is always the original first HumanMessage: the fold pins
       // messages[0..headIndex] and cuts only at HumanMessage boundaries, so the
       // head can never become a Tool- OR AIMessage.
-      expect(res.messages[0]).toBeInstanceOf(HumanMessage);
+      expect(HumanMessage.isInstance(res.messages[0])).toBe(true);
       // State stays bounded near the trigger (allow one turn of overshoot);
       // if the fold weren't firing this would grow linearly past 40+.
       expect(res.messages.length).toBeLessThanOrEqual(12);
@@ -120,7 +125,7 @@ describe("compaction e2e (drop, real checkpointer)", () => {
       { messages: [new HumanMessage("one more turn")] },
       { configurable: { thread_id: threadId } },
     );
-    expect(res.messages[0]).toBeInstanceOf(HumanMessage);
+    expect(HumanMessage.isInstance(res.messages[0])).toBe(true);
     expect(res.messages.length).toBeLessThanOrEqual(12);
     const last = res.messages[res.messages.length - 1];
     expect(last.content).toBe("answered");
@@ -154,7 +159,7 @@ describe("compaction e2e (drop, real checkpointer)", () => {
         { configurable: { thread_id: "e2e-bundle" } },
       );
       counts.push(res.messages.length);
-      expect(res.messages[0]).toBeInstanceOf(HumanMessage);
+      expect(HumanMessage.isInstance(res.messages[0])).toBe(true);
       expect(res.messages.length).toBeLessThanOrEqual(12);
     }
     expect(Math.max(...counts)).toBeGreaterThanOrEqual(7);
@@ -251,7 +256,7 @@ describe("compaction e2e (summarize, real fold + view)", () => {
       );
       // Head safety holds even under the summarize strategy: the fold only
       // ever cuts at HumanMessage boundaries.
-      expect(res.messages[0]).toBeInstanceOf(HumanMessage);
+      expect(HumanMessage.isInstance(res.messages[0])).toBe(true);
     }
 
     // At least one captured call must have been rendered with a SystemMessage
@@ -266,6 +271,6 @@ describe("compaction e2e (summarize, real fold + view)", () => {
       ),
     );
     expect(withSummary).toBeDefined();
-    expect(withSummary![0]).toBeInstanceOf(HumanMessage);
+    expect(HumanMessage.isInstance(withSummary![0])).toBe(true);
   });
 });

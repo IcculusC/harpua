@@ -8,28 +8,28 @@ export {
   RuleModelBuilder,
   ToolCallSpec,
   textOf,
-} from "./scripted-model";
+} from "./scripted-model.js";
 export type {
   FakeChatModel,
   ScriptedChatModel,
   RuleResult,
-} from "./scripted-model";
+} from "./scripted-model.js";
 export type { UsageMetadata } from "@langchain/core/messages";
 
 // Stream collectors.
-export { collectStream, collectUntilInterrupt } from "./stream-collectors";
-export type { CollectedUntilInterrupt } from "./stream-collectors";
+export { collectStream, collectUntilInterrupt } from "./stream-collectors.js";
+export type { CollectedUntilInterrupt } from "./stream-collectors.js";
 
 // Interrupt helpers.
-export { expectInterrupt } from "./interrupt-helpers";
+export { expectInterrupt } from "./interrupt-helpers.js";
 
 // Test module builder.
-export { createGraphTestingModule } from "./testing-module";
+export { createGraphTestingModule } from "./testing-module.js";
 export type {
   GraphTestingModuleConfig,
   GraphTestingHarness,
-} from "./testing-module";
+} from "./testing-module.js";
 
 // Fixed clock provider.
-export { CLOCK, fixedClock, provideFixedClock } from "./clock";
-export type { Clock } from "./clock";
+export { CLOCK, fixedClock, provideFixedClock } from "./clock.js";
+export type { Clock } from "./clock.js";
