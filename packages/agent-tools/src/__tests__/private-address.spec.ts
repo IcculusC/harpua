@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { isPrivateAddress } from "../web-research/private-address";
 
 /** Read a URL's hostname the way fetch_url does, so tests mirror runtime input. */

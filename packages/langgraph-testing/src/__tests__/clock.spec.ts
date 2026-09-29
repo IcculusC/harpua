@@ -1,3 +1,4 @@
+import { describe, it, expect, afterEach } from "vitest";
 import { CLOCK, fixedClock, provideFixedClock } from "../clock";
 import {
   createGraphTestingModule,

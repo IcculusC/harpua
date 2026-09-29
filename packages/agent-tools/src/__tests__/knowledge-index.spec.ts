@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -148,8 +149,8 @@ describe("syncIndex", () => {
     await syncIndex({ root, ...ARGS });
     const before = fs.readFileSync(indexPath());
 
-    const writeSpy = jest.spyOn(fs, "writeFileSync");
-    const renameSpy = jest.spyOn(fs, "renameSync");
+    const writeSpy = vi.spyOn(fs, "writeFileSync");
+    const renameSpy = vi.spyOn(fs, "renameSync");
     await syncIndex({ root, ...ARGS });
     expect(writeSpy).not.toHaveBeenCalled();
     expect(renameSpy).not.toHaveBeenCalled();
@@ -190,8 +191,8 @@ describe("syncIndex", () => {
     const before = fs.readFileSync(indexPath());
 
     // Second sync with unchanged files and same embedder must be a no-op.
-    const writeSpy = jest.spyOn(fs, "writeFileSync");
-    const renameSpy = jest.spyOn(fs, "renameSync");
+    const writeSpy = vi.spyOn(fs, "writeFileSync");
+    const renameSpy = vi.spyOn(fs, "renameSync");
     const calls = spyOnEmbedDocuments(embedder);
     await syncIndex({ root, embeddings: embedder, maxChunkChars: 1200 });
 

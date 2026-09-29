@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { ToolMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
@@ -5,7 +6,7 @@ import { z } from "zod";
 import { composeToolWrap } from "../middleware/tool-wrap";
 
 function makeEchoTool() {
-  const spy = jest.fn(async ({ x }: { x: number }) => String(x));
+  const spy = vi.fn(async ({ x }: { x: number }) => String(x));
   const echoTool = tool(spy, {
     name: "echo",
     description: "Echo x back as a string.",
@@ -88,7 +89,7 @@ describe("composeToolWrap", () => {
     };
     const { echoTool } = makeEchoTool();
     const state = { foo: "bar" };
-    const stateOf = jest.fn(() => state);
+    const stateOf = vi.fn(() => state);
     const wrapped = composeToolWrap(echoTool, [Recorder], stateOf);
 
     await wrapped.invoke(

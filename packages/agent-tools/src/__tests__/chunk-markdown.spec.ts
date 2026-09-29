@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { chunkMarkdown } from "../knowledge/chunk-markdown";
 
 const OPTS = { maxChunkChars: 1200 };

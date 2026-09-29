@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "../file-exploration/secret-paths";
 
 /** Shorthand: does the default policy consider this root-relative path a secret? */

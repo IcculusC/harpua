@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { buildChatModel } from "../model-factory";
 import { MockChatModel } from "../mock-chat-model";
 import * as optionalRequire from "../optional-require";
@@ -11,11 +12,11 @@ const fastRole: Registration = {
   defaults: { openrouter: { model: "deepseek/deepseek-v4-flash" } },
 };
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe("named roles with arm-scoped defaults", () => {
   it("keyless boot stays sacred: a role with an OpenRouter model default boots on mock with zero env — no client constructed", () => {
-    const spy = jest.spyOn(optionalRequire, "requireOptionalModule");
+    const spy = vi.spyOn(optionalRequire, "requireOptionalModule");
     const model = buildChatModel(fastRole, {});
     expect(model).toBeInstanceOf(MockChatModel);
     // The optional peer is never even required at boot.

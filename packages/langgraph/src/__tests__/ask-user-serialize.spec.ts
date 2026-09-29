@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { defaultSerializeAnswers } from "../tools/ask-user/serialize-answers";
 
 describe("defaultSerializeAnswers", () => {

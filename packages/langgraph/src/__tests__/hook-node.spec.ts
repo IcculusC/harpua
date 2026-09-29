@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { buildMiddlewareContext } from "../middleware/context";
 import { makeHookNode } from "../agent/hook-node";
 import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";

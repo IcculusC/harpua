@@ -1,16 +1,17 @@
+import { describe, it, expect, vi } from "vitest";
 import { lazyBoundProxy } from "../lazy-bound-model";
 
 // A stand-in "resolved model": records calls, offers a couple of Runnable-ish methods.
 function fakeModel() {
   return {
-    invoke: jest.fn(async (input: unknown) => `invoked:${String(input)}`),
-    withStructuredOutput: jest.fn((_schema: unknown) => "structured-runnable"),
+    invoke: vi.fn(async (input: unknown) => `invoked:${String(input)}`),
+    withStructuredOutput: vi.fn((_schema: unknown) => "structured-runnable"),
   };
 }
 
 describe("lazyBoundProxy", () => {
   it("does not call resolve on construction or on property access", () => {
-    const resolve = jest.fn(fakeModel);
+    const resolve = vi.fn(fakeModel);
     const proxy = lazyBoundProxy(resolve as any);
     expect(resolve).toHaveBeenCalledTimes(0);
     // reading a method must NOT resolve — only calling it may
@@ -20,7 +21,7 @@ describe("lazyBoundProxy", () => {
 
   it("resolves on first call and delegates to the resolved model", async () => {
     const model = fakeModel();
-    const resolve = jest.fn(() => model);
+    const resolve = vi.fn(() => model);
     const proxy = lazyBoundProxy(resolve as any);
     const out = await (proxy as any).invoke("hi");
     expect(out).toBe("invoked:hi");
@@ -30,7 +31,7 @@ describe("lazyBoundProxy", () => {
 
   it("memoizes success — a second call does not resolve again", async () => {
     const model = fakeModel();
-    const resolve = jest.fn(() => model);
+    const resolve = vi.fn(() => model);
     const proxy = lazyBoundProxy(resolve as any);
     await (proxy as any).invoke("a");
     await (proxy as any).invoke("b");
@@ -38,7 +39,7 @@ describe("lazyBoundProxy", () => {
   });
 
   it("throws PER CALL when resolve throws — synchronously, and not memoized", () => {
-    const resolve = jest.fn(() => {
+    const resolve = vi.fn(() => {
       throw new Error("arm not registered");
     });
     const proxy = lazyBoundProxy(resolve as any);
@@ -50,7 +51,7 @@ describe("lazyBoundProxy", () => {
   });
 
   it("is not thenable and does not resolve when awaited", async () => {
-    const resolve = jest.fn(fakeModel);
+    const resolve = vi.fn(fakeModel);
     const proxy = lazyBoundProxy(resolve as any);
     expect((proxy as any).then).toBeUndefined();
     const awaited = await (proxy as any); // resolves to the proxy itself, not a hang
@@ -69,7 +70,7 @@ describe("lazyBoundProxy", () => {
   // invoke it and resolve the arm at boot — the exact crash this feature kills.
   // They MUST stay undefined; dropping one silently reintroduces the boot crash.
   it("returns undefined for every Nest lifecycle-hook name (no boot-time resolution)", () => {
-    const resolve = jest.fn(fakeModel);
+    const resolve = vi.fn(fakeModel);
     const proxy = lazyBoundProxy(resolve as any);
     for (const hook of [
       "onModuleInit",

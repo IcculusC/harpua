@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll, type MockInstance } from "vitest";
 import { Injectable, Logger } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
@@ -640,7 +641,7 @@ describe("customizable approval + decline wording", () => {
   describe("provider tool with a throwing approvalMessage", () => {
     let app: INestApplication;
     let graph: LangGraphRunnable<MsgState>;
-    let warnSpy: jest.SpyInstance;
+    let warnSpy: MockInstance;
 
     beforeAll(async () => {
       const moduleRef = await Test.createTestingModule({
@@ -660,7 +661,7 @@ describe("customizable approval + decline wording", () => {
     });
 
     beforeEach(() => {
-      warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+      warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation();
     });
 
     afterEach(() => {

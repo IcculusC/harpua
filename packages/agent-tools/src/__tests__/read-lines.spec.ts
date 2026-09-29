@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { readLinesTool } from "../file-exploration/read-lines";
 import {
   makeTmpDir,

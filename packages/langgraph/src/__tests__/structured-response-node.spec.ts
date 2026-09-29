@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { makeStructuredResponseNode } from "../agent/structured-response-node";
@@ -11,7 +12,7 @@ const schema = z.object({
 
 describe("makeStructuredResponseNode", () => {
   it("resolves the base model, coerces via withStructuredOutput, and returns { outcome }", async () => {
-    const withStructuredOutputSpy = jest.fn();
+    const withStructuredOutputSpy = vi.fn();
     let capturedMessages: unknown[] | undefined;
 
     const fakeModel = {

@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, afterEach } from "vitest";
 import type { ModuleRef } from "@nestjs/core";
 import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { SqliteSaver } from "@langchain/langgraph-checkpoint-sqlite";
@@ -15,14 +16,14 @@ import type { CheckpointerOptions } from "../interfaces";
 const noModuleRef = {} as ModuleRef;
 
 describe("buildCheckpointer: config -> saver wiring", () => {
-  afterEach(() => jest.restoreAllMocks());
+  afterEach(() => vi.restoreAllMocks());
 
   describe("postgres", () => {
     it("uses fromConnString and owns/closes the created pool", async () => {
-      const setup = jest
+      const setup = vi
         .spyOn(PostgresSaver.prototype, "setup")
         .mockResolvedValue(undefined);
-      const end = jest
+      const end = vi
         .spyOn(PostgresSaver.prototype, "end")
         .mockResolvedValue(undefined);
 
@@ -44,10 +45,10 @@ describe("buildCheckpointer: config -> saver wiring", () => {
     });
 
     it("accepts a caller-provided pool and never closes it", async () => {
-      const setup = jest
+      const setup = vi
         .spyOn(PostgresSaver.prototype, "setup")
         .mockResolvedValue(undefined);
-      const pool = { end: jest.fn() };
+      const pool = { end: vi.fn() };
 
       const built = await buildCheckpointer(
         { type: "postgres", pool },
@@ -71,7 +72,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
       expect(built.saver).toBeInstanceOf(SqliteSaver);
       expect(built.teardown).toBeDefined();
 
-      const close = jest.spyOn((built.saver as SqliteSaver).db, "close");
+      const close = vi.spyOn((built.saver as SqliteSaver).db, "close");
       await built.teardown!();
       expect(close).toHaveBeenCalledTimes(1);
     });
@@ -79,7 +80,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
 
   describe("mongodb", () => {
     it("wraps a caller-provided client, runs setup, and leaves it open", async () => {
-      const setup = jest
+      const setup = vi
         .spyOn(MongoDBSaver.prototype, "setup")
         .mockResolvedValue([]);
       // A real (unconnected) MongoClient — the saver constructor derives its db
@@ -89,7 +90,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
         "@langchain/langgraph-checkpoint-mongodb",
       ) as { MongoClient: new (url: string) => { close: () => Promise<void> } };
       const client = new MongoClient("mongodb://localhost:27017");
-      const close = jest
+      const close = vi
         .spyOn(client, "close")
         .mockResolvedValue(undefined as never);
 
@@ -112,13 +113,13 @@ describe("buildCheckpointer: config -> saver wiring", () => {
         "@langchain/langgraph-checkpoint-mongodb",
       ) as { MongoClient: { prototype: Record<string, unknown> } };
 
-      const setup = jest
+      const setup = vi
         .spyOn(MongoDBSaver.prototype, "setup")
         .mockResolvedValue([]);
-      const connect = jest
+      const connect = vi
         .spyOn(MongoClient.prototype as { connect: () => unknown }, "connect")
         .mockResolvedValue(undefined as never);
-      const close = jest
+      const close = vi
         .spyOn(MongoClient.prototype as { close: () => unknown }, "close")
         .mockResolvedValue(undefined as never);
 
@@ -138,7 +139,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
 
   describe("redis", () => {
     it("wraps a caller-provided client and leaves it open", async () => {
-      const client = { quit: jest.fn() };
+      const client = { quit: vi.fn() };
       const built = await buildCheckpointer(
         { type: "redis", client },
         noModuleRef,
@@ -148,8 +149,8 @@ describe("buildCheckpointer: config -> saver wiring", () => {
     });
 
     it("uses fromUrl for the url form and owns/closes the client", async () => {
-      const fakeSaver = { end: jest.fn().mockResolvedValue(undefined) };
-      const fromUrl = jest
+      const fakeSaver = { end: vi.fn().mockResolvedValue(undefined) };
+      const fromUrl = vi
         .spyOn(RedisSaver, "fromUrl")
         .mockResolvedValue(fakeSaver as unknown as RedisSaver);
 
@@ -168,7 +169,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
 
   describe("missing optional package", () => {
     it("throws an actionable install error when the driver is not installed", async () => {
-      jest
+      vi
         .spyOn(optionalRequire, "requireOptionalModule")
         .mockImplementation(() => {
           const err = new Error(
@@ -189,7 +190,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
     });
 
     it("rethrows unrelated require errors unchanged", async () => {
-      jest
+      vi
         .spyOn(optionalRequire, "requireOptionalModule")
         .mockImplementation(() => {
           throw new Error("boom from inside the package");
@@ -217,7 +218,7 @@ describe("buildCheckpointer: config -> saver wiring", () => {
 describe("CheckpointerLifecycle", () => {
   it("closes a module-owned connection exactly once on shutdown", async () => {
     const lifecycle = new CheckpointerLifecycle();
-    const teardown = jest.fn().mockResolvedValue(undefined);
+    const teardown = vi.fn().mockResolvedValue(undefined);
     lifecycle.register(teardown);
 
     await lifecycle.onApplicationShutdown();

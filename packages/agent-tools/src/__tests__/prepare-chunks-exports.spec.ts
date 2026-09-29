@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import * as pkg from "../index";
 
 describe("public exports (prepareChunks)", () => {

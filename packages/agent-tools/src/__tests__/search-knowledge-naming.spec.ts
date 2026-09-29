@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { searchKnowledgeTool } from "../knowledge/search-knowledge";
 import { rememberTool } from "../knowledge/remember";
 import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";

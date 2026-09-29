@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { prepareChunks, type PrepareChunksOptions } from "../knowledge/prepare-chunks";
 
 /** Three h1 sections → three chunks: a "---" stub, a sparse table row (10

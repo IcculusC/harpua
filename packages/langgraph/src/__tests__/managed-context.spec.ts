@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { AIMessage } from "@langchain/core/messages";
 import { ManagedContextMiddleware, provideManagedContext } from "../middleware/managed-context.middleware";
 import { CompactionMiddleware } from "../middleware/compaction.middleware";
@@ -8,9 +9,9 @@ import { COMPACTION_STATE } from "../middleware/compaction-state";
 
 describe("ManagedContextMiddleware", () => {
   it("delegates each hook to the injected workers, forwarding args + returns", async () => {
-    const compaction = { beforeModel: jest.fn(async () => ({ tag: "fold" })) } as any;
+    const compaction = { beforeModel: vi.fn(async () => ({ tag: "fold" })) } as any;
     const SENTINEL = new AIMessage("sentinel");
-    const window = { wrapModelCall: jest.fn(async () => SENTINEL) } as any;
+    const window = { wrapModelCall: vi.fn(async () => SENTINEL) } as any;
     const mw = new ManagedContextMiddleware(compaction, window);
 
     const ctxObj = {} as any;
@@ -18,7 +19,7 @@ describe("ManagedContextMiddleware", () => {
     expect(compaction.beforeModel).toHaveBeenCalledWith(ctxObj);
 
     const req = { messages: [] } as any;
-    const next = jest.fn();
+    const next = vi.fn();
     expect(await mw.wrapModelCall(req, next)).toBe(SENTINEL);
     expect(window.wrapModelCall).toHaveBeenCalledWith(req, next);
   });

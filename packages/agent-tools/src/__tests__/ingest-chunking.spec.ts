@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 
 import { ingest, type IngestOptions } from "../knowledge/ingest";

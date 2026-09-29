@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Inject, Injectable } from "@nestjs/common";
 import type { INestApplication } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";

@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { Logger } from "@nestjs/common";
 
 import { buildChatModel } from "../model-factory";
@@ -16,10 +17,10 @@ const defaultReg = (defaults?: Registration["defaults"]): Registration => ({
  * (api keys, credentialed base urls) must never appear.
  */
 describe("model resolution boot log", () => {
-  let logSpy: jest.SpyInstance;
+  let logSpy: MockInstance;
 
   beforeEach(() => {
-    logSpy = jest.spyOn(Logger.prototype, "log").mockImplementation(() => {});
+    logSpy = vi.spyOn(Logger.prototype, "log").mockImplementation(() => {});
   });
 
   afterEach(() => {

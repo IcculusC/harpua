@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, beforeAll, afterAll } from "vitest";
 import { Injectable } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
@@ -175,7 +176,7 @@ describe("OpenTelemetry graph instrumentation", () => {
   });
 
   it("does not instrument (and never crashes) when @opentelemetry/api is absent", async () => {
-    jest
+    vi
       .spyOn(optionalRequire, "requireOptionalModule")
       .mockImplementation((pkg: string) => {
         const err = new Error(`Cannot find module '${pkg}'`) as NodeJS.ErrnoException;
@@ -188,7 +189,7 @@ describe("OpenTelemetry graph instrumentation", () => {
     expect(result.steps).toEqual(["A", "B"]);
     expect(exporter.getFinishedSpans()).toHaveLength(0);
 
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     resetOtelCache();
   });
 

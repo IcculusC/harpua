@@ -10,7 +10,7 @@
     "sourceMap": true,
     "outDir": "./dist",
     "baseUrl": "./",
-    "types": ["node", "jest"]
+    "types": ["node"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

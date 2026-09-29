@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { CompactionOptions, COMPACTION_OPTS } from "../middleware/compaction.options";
 import { CompactionSummarySchema } from "../middleware/compaction-state";
 

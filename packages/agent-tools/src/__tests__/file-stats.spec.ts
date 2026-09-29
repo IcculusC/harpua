@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { fileStatsTool } from "../file-exploration/file-stats";
 import * as runRgModule from "../file-exploration/run-rg";
 import {
@@ -10,10 +11,10 @@ import {
 } from "./tmp-tree";
 
 /** Force the readdir fallback path by simulating ripgrep being absent. */
-function stubRgMissing(): jest.SpyInstance {
+function stubRgMissing(): MockInstance {
   const err = new Error("spawn rg ENOENT") as NodeJS.ErrnoException;
   err.code = "ENOENT";
-  return jest.spyOn(runRgModule, "runRg").mockRejectedValue(err);
+  return vi.spyOn(runRgModule, "runRg").mockRejectedValue(err);
 }
 
 describe("file_stats", () => {
@@ -22,7 +23,7 @@ describe("file_stats", () => {
     root = makeTmpDir();
   });
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     removeTmpDir(root);
   });
 
@@ -115,7 +116,7 @@ describe("file_stats", () => {
     it("uses the injected ripgrep --files output", async () => {
       writeFile(root, "x.ts", numberedLines(4));
       writeFile(root, "y.ts", numberedLines(6));
-      jest
+      vi
         .spyOn(runRgModule, "runRg")
         .mockResolvedValue({ stdout: "x.ts\ny.ts\n", stderr: "", code: 0 });
       const stats = fileStatsTool({ root });
