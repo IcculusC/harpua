@@ -19,6 +19,8 @@ LangChain / LangGraph TypeScript app — a `ToolNode`, `createReactAgent`,
 
 ## Install
 
+Requires Node >=22.12. ESM-only (CommonJS consumers use `require(esm)`).
+
 ```bash
 pnpm add @harpua/agent-tools
 # peers you almost certainly already have:

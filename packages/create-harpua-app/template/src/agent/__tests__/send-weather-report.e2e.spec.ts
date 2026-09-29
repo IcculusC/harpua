@@ -14,13 +14,13 @@ import {
   CallModelNode,
   WeatherAgentGraph,
   type AgentState,
-} from "../weather-agent.graph";
-import { WeatherTools } from "../weather.tools";
-import { OutboxService } from "../outbox.service";
+} from "../weather-agent.graph.js";
+import { WeatherTools } from "../weather.tools.js";
+import { OutboxService } from "../outbox.service.js";
 import { CHAT_MODEL } from "@harpua/models";
 import { provideGraphBoundModel } from "@harpua/langgraph";
-import { AGENT_BOUND_MODEL } from "../agent-model.token";
-import { WEATHER_FETCH, type FetchFn } from "../fetch.token";
+import { AGENT_BOUND_MODEL } from "../agent-model.token.js";
+import { WEATHER_FETCH, type FetchFn } from "../fetch.token.js";
 
 /* --------------------------------------------------------------------- *
  * The approval gate, end to end: a scripted model emits the side-effectful

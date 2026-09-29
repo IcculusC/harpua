@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { WeatherTools } from "../weather.tools";
-import { OutboxService } from "../outbox.service";
-import type { FetchFn } from "../fetch.token";
+import { WeatherTools } from "../weather.tools.js";
+import { OutboxService } from "../outbox.service.js";
+import type { FetchFn } from "../fetch.token.js";
 
 /** Canned Open-Meteo payloads keyed by which endpoint the URL targets. */
 function cannedFetch(

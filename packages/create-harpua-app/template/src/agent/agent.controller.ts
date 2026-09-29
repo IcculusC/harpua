@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { z } from "zod";
 
-import { AgentService, type AgentTurn } from "./agent.service";
+import { AgentService, type AgentTurn } from "./agent.service.js";
 
 const resumeBodySchema = z.object({
   approved: z.boolean(),
