@@ -1,6 +1,6 @@
 {
   "name": "create-harpua-app",
-  "version": "0.1.4",
+  "version": "1.0.0-next.0",
   "license": "MIT",
   "engines": {
     "node": ">=22.12"
