@@ -13,7 +13,7 @@ export default defineConfig({
     swc.vite(),
     {
       // The optional checkpoint-saver peers are loaded by optional-require.ts
-      // through createRequire, so the library gets their CommonJS entries. Specs
+      // through createRequire, so the library gets their require() (CJS) entries. Specs
       // that `import` the same packages would get the ESM entries: a second
       // instance, which breaks `instanceof` and prototype spies (PostgresSaver,
       // SqliteSaver, ...). Resolve the specs' imports the way the library does

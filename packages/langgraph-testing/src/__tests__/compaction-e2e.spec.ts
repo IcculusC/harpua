@@ -3,7 +3,7 @@ import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 
 // Messages read back through a real (sqlite) checkpointer come from the saver
-// package's own CommonJS copy of @langchain/core (optional-require loads it via
+// package's own CJS copy of @langchain/core (optional-require loads it via
 // createRequire), so `instanceof HumanMessage` against our ESM copy is false.
 // `HumanMessage.isInstance` is the realm-independent check.
 import {
