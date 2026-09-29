@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
-import { vectorStoreSchema } from "../knowledge/options";
+import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store.js";
+import { vectorStoreSchema } from "../knowledge/options.js";
 
 const rec = (id: string, vector: number[], text = id) => ({ id, documentKey: id, vector, text });
 

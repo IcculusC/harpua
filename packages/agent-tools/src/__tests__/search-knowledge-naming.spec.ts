@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { searchKnowledgeTool } from "../knowledge/search-knowledge";
-import { rememberTool } from "../knowledge/remember";
-import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
+import { searchKnowledgeTool } from "../knowledge/search-knowledge.js";
+import { rememberTool } from "../knowledge/remember.js";
+import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
 
 const failingEmbeddings = {
   embedDocuments: async () => {

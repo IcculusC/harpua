@@ -1,6 +1,6 @@
 // Compile-only assertions for the ingest surface. Excluded from the build
 // (tsconfig.build.json); verified via `tsc -p tsconfig.json --noEmit`.
-import type { Document, IngestOptions, IngestResult, ingest } from "./ingest";
+import type { Document, IngestOptions, IngestResult, ingest } from "./ingest.js";
 
 // id is optional; metadata is an open record.
 const _idless: Document = { text: "excerpt with no id" };

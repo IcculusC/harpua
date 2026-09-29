@@ -1,5 +1,5 @@
 import { similarity } from "ml-distance";
-import type { BaseQueryOptions, VectorMatch, VectorRecord, VectorStore } from "./vector-store";
+import type { BaseQueryOptions, VectorMatch, VectorRecord, VectorStore } from "./vector-store.js";
 
 export interface InMemoryQueryOptions {
   minScore?: number;

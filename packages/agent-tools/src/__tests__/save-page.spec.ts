@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { pageSlug, savePage } from "../web-research/save-page";
-import { makeTmpDir, removeTmpDir } from "./tmp-tree";
+import { pageSlug, savePage } from "../web-research/save-page.js";
+import { makeTmpDir, removeTmpDir } from "./tmp-tree.js";
 
 describe("pageSlug", () => {
   it("slugs the title and appends a stable URL hash", () => {

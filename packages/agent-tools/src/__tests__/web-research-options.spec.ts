@@ -8,8 +8,8 @@ import {
   DEFAULT_FETCH_TIMEOUT_MS,
   DEFAULT_MAX_RESPONSE_BYTES,
   DEFAULT_FETCH_PDF_MAX_RESPONSE_BYTES,
-} from "../web-research/options";
-import { errorMessage } from "../web-research/errors";
+} from "../web-research/options.js";
+import { errorMessage } from "../web-research/errors.js";
 
 describe("web-research options", () => {
   it("applies web_search defaults with only baseUrl given", () => {

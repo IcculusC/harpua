@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { readLinesTool } from "../file-exploration/read-lines";
-import { fileStatsTool } from "../file-exploration/file-stats";
-import { makeTmpDir, removeTmpDir, runTool, writeFile } from "./tmp-tree";
+import { readLinesTool } from "../file-exploration/read-lines.js";
+import { fileStatsTool } from "../file-exploration/file-stats.js";
+import { makeTmpDir, removeTmpDir, runTool, writeFile } from "./tmp-tree.js";
 
 const SECRET = "AWS_SECRET_ACCESS_KEY=hunter2\n";
 

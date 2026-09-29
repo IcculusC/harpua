@@ -1,7 +1,7 @@
 import { similarity } from "ml-distance";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
-import type { BaseQueryOptions, VectorMatch } from "./vector-store";
-import { syncIndex } from "./knowledge-index";
+import type { BaseQueryOptions, VectorMatch } from "./vector-store.js";
+import { syncIndex } from "./knowledge-index.js";
 
 export interface CorpusQueryArgs {
   root: string;

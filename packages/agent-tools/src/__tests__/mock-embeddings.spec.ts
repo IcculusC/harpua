@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   MockEmbeddings,
   MOCK_EMBEDDING_DIMENSION,
-} from "../knowledge/mock-embeddings";
+} from "../knowledge/mock-embeddings.js";
 
 function cosine(a: number[], b: number[]): number {
   let dot = 0;

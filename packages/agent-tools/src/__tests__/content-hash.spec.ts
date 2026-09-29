@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { contentHash } from "../knowledge/content-hash";
+import { contentHash } from "../knowledge/content-hash.js";
 
 describe("contentHash", () => {
   it("is stable for byte-identical text", () => {

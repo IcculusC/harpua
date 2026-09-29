@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { SkillRegistry } from "../skills/skill-registry";
-import { renderSkillMenu } from "../skills/render-skill-menu";
-import { makeTmpDir, removeTmpDir, writeFile } from "./tmp-tree";
+import { SkillRegistry } from "../skills/skill-registry.js";
+import { renderSkillMenu } from "../skills/render-skill-menu.js";
+import { makeTmpDir, removeTmpDir, writeFile } from "./tmp-tree.js";
 
 const SKILL = (name: string, description: string, body = "Follow these steps.") =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\n# ${name}\n\n${body}\n`;

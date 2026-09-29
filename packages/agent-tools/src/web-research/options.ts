@@ -1,7 +1,7 @@
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 
-import { loadUnpdf } from "./load-unpdf";
+import { loadUnpdf } from "./load-unpdf.js";
 
 /** Sane default number of results included in a web_search reply. */
 export const DEFAULT_MAX_RESULTS = 5;

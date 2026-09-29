@@ -2,7 +2,7 @@ import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { skillToolOptionsSchema, listSkills, type SkillToolOptions } from "./options";
+import { skillToolOptionsSchema, listSkills, type SkillToolOptions } from "./options.js";
 
 const DESCRIPTION =
   "Load a skill — a procedure you should follow. Returns the skill's " +

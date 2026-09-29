@@ -1,7 +1,7 @@
 // Compile-only assertions for the VectorStore typed generic `Q`.
 // Excluded from the build (tsconfig.build.json); verified via
 // `tsc -p tsconfig.json --noEmit`, which full-type-checks src.
-import type { VectorStore } from "./vector-store";
+import type { VectorStore } from "./vector-store.js";
 
 // A pgvector-shaped adapter types its own knobs; the base only guarantees topK.
 type PgQ = { where?: string; metric?: "cosine" | "l2" | "ip"; minScore?: number };

@@ -3,8 +3,8 @@ import {
   resolveSearchKnowledgeOptions,
   DEFAULT_TOP_K,
   DEFAULT_MAX_CHUNK_CHARS,
-} from "../knowledge/options";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
+} from "../knowledge/options.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
 
 describe("search_knowledge options", () => {
   it("applies defaults with only root given, including a MockEmbeddings instance", () => {

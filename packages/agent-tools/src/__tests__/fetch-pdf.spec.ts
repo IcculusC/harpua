@@ -2,9 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { fetchPdfTool, UNPDF_MISSING_MESSAGE } from "../web-research/fetch-pdf";
-import type { FetchFn, FetchResponseLike, LoadUnpdf } from "../web-research/options";
-import { makeTmpDir, removeTmpDir, runTool } from "./tmp-tree";
+import { fetchPdfTool, UNPDF_MISSING_MESSAGE } from "../web-research/fetch-pdf.js";
+import { loadUnpdf } from "../web-research/load-unpdf.js";
+import type { FetchFn, FetchResponseLike, LoadUnpdf } from "../web-research/options.js";
+import { makeTmpDir, removeTmpDir, runTool } from "./tmp-tree.js";
 
 const FIXED_NOW = () => new Date("2026-07-08T12:00:00Z");
 
@@ -71,18 +72,11 @@ describe("fetch_pdf", () => {
   beforeEach(() => (dir = makeTmpDir()));
   afterEach(() => removeTmpDir(dir));
 
-  // The extraction test stubs the unpdf loader via the same injectable seam
-  // the missing-peer test uses. `unpdf` is ESM-only, and jest 30's CJS vm
-  // context cannot execute the genuine dynamic `import()` in load-unpdf.ts
-  // without `--experimental-vm-modules` — worse, unpdf's own CJS build
-  // dynamic-imports its ESM-only pdf.js bundle at extraction time, so no
-  // loader-side fallback can dodge the flag either. Rather than bend the
-  // whole test runtime around one dependency, jest never loads the real
-  // module: the PDF bytes still flow through the full fetch → guard →
-  // content-type check → save pipeline, but the real ESM `import("unpdf")`
-  // path in load-unpdf.ts is intentionally not exercised under jest at all —
-  // there is no automated smoke check for it. It was manually verified
-  // against the built `dist` output (see load-unpdf.ts's own comment).
+  // Most tests stub the unpdf loader through the injectable `loadUnpdf` seam
+  // (the same one the missing-peer test uses), so the PDF bytes flow through the
+  // full fetch -> guard -> content-type check -> save pipeline without parsing.
+  // The real `import("unpdf")` path is covered by the "real unpdf" describe at
+  // the bottom of this file.
   it("extracts a PDF's text and saves it as markdown", async () => {
     const bytes = makePdf("Hello LM317 datasheet");
     const extracted = "Dropout voltage 1.5 V typical.";
@@ -274,5 +268,35 @@ describe("fetch_pdf", () => {
     expect(out).toMatch(/not a PDF/i);
     expect(out).toContain("%PDF-");
     expect(fs.readdirSync(dir)).toHaveLength(0);
+  });
+});
+
+describe("fetch_pdf with the real unpdf (default loader)", () => {
+  let dir: string;
+  beforeEach(() => (dir = makeTmpDir()));
+  afterEach(() => removeTmpDir(dir));
+
+  it("loadUnpdf() imports the real package and extracts text from a real PDF", async () => {
+    const unpdf = await loadUnpdf();
+    const { text, totalPages } = await unpdf.extractText(makePdf("Hello real unpdf"), {
+      mergePages: true,
+    });
+    expect(totalPages).toBe(1);
+    expect(text).toContain("Hello real unpdf");
+  });
+
+  it("fetchPdfTool without an injected loader extracts and saves the real text", async () => {
+    const tool = fetchPdfTool({
+      saveDir: dir,
+      fetchFn: async () => pdfResponse(makePdf("Real LM317 datasheet")),
+      now: FIXED_NOW,
+    });
+    const out = await runTool(tool, { url: "https://ti.com/lm317.pdf" });
+    expect(out).toMatch(/search_files|read_lines/);
+    const saved = fs
+      .readdirSync(dir, { recursive: true, encoding: "utf8" })
+      .filter((f) => f.endsWith(".md"));
+    expect(saved).toHaveLength(1);
+    expect(fs.readFileSync(path.join(dir, saved[0]!), "utf8")).toContain("Real LM317 datasheet");
   });
 });

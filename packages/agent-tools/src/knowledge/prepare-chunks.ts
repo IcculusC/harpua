@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { chunkMarkdown, type MarkdownChunk } from "./chunk-markdown";
-import { embeddingTextFor } from "./knowledge-index";
-import { DEFAULT_MAX_CHUNK_CHARS } from "./options";
-import { stripControlChars } from "./sanitize-chunk-text";
+import { chunkMarkdown, type MarkdownChunk } from "./chunk-markdown.js";
+import { embeddingTextFor } from "./knowledge-index.js";
+import { DEFAULT_MAX_CHUNK_CHARS } from "./options.js";
+import { stripControlChars } from "./sanitize-chunk-text.js";
 
 /**
  * One prepared chunk: sanitized + junk-filtered `text` (what {@link ingest}

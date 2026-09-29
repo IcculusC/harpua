@@ -7,11 +7,11 @@ import { z } from "zod";
 import {
   resolveFetchUrlOptions,
   type FetchUrlToolOptions,
-} from "./options";
-import { errorMessage } from "./errors";
-import { fetchGuarded, readTextCapped } from "./fetch-guarded";
-import { htmlToMarkdown } from "./html-to-markdown";
-import { savePage } from "./save-page";
+} from "./options.js";
+import { errorMessage } from "./errors.js";
+import { fetchGuarded, readTextCapped } from "./fetch-guarded.js";
+import { htmlToMarkdown } from "./html-to-markdown.js";
+import { savePage } from "./save-page.js";
 
 const DESCRIPTION =
   "Fetch a web page and save it locally as markdown so it can be searched " +

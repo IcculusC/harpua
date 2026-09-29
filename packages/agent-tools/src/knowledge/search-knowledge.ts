@@ -3,12 +3,12 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 
-import { errorMessage } from "../web-research/errors";
+import { errorMessage } from "../web-research/errors.js";
 import {
   resolveSearchKnowledgeOptions,
   type SearchKnowledgeToolOptions,
-} from "./options";
-import { queryCorpus } from "./corpus-query";
+} from "./options.js";
+import { queryCorpus } from "./corpus-query.js";
 
 const DESCRIPTION =
   "Search everything saved in this project's sources (fetched web pages, " +

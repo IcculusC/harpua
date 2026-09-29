@@ -3,9 +3,9 @@ import path from "node:path";
 
 import { z } from "zod";
 
-import { parseFrontmatter } from "./frontmatter";
-import { renderSkillMenu } from "./render-skill-menu";
-import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "../file-exploration/secret-paths";
+import { parseFrontmatter } from "./frontmatter.js";
+import { renderSkillMenu } from "./render-skill-menu.js";
+import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "../file-exploration/secret-paths.js";
 
 /** One discovered skill: the menu entry plus its jail root. */
 export interface Skill {

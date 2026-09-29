@@ -4,9 +4,9 @@ import path from "node:path";
 
 import type { RunnableConfig } from "@langchain/core/runnables";
 
-import { fetchUrlTool } from "../web-research/fetch-url";
-import type { FetchFn, FetchResponseLike } from "../web-research/options";
-import { makeTmpDir, removeTmpDir, runTool } from "./tmp-tree";
+import { fetchUrlTool } from "../web-research/fetch-url.js";
+import type { FetchFn, FetchResponseLike } from "../web-research/options.js";
+import { makeTmpDir, removeTmpDir, runTool } from "./tmp-tree.js";
 
 const FIXED_NOW = () => new Date("2026-07-08T12:00:00Z");
 

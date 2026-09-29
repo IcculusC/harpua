@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
-import { fileStatsTool } from "../file-exploration/file-stats";
-import * as runRgModule from "../file-exploration/run-rg";
+import { fileStatsTool } from "../file-exploration/file-stats.js";
+import * as runRgModule from "../file-exploration/run-rg.js";
 import {
   makeTmpDir,
   numberedLines,
@@ -8,7 +8,7 @@ import {
   runTool,
   writeBinaryFile,
   writeFile,
-} from "./tmp-tree";
+} from "./tmp-tree.js";
 
 /** Force the readdir fallback path by simulating ripgrep being absent. */
 function stubRgMissing(): MockInstance {

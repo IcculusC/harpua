@@ -4,9 +4,9 @@ import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { createSandbox, SandboxError, SecretPathError, type Sandbox } from "../file-exploration/sandbox";
-import { looksBinary } from "../file-exploration/file-info";
-import { skillToolOptionsSchema, listSkills, type SkillToolOptions } from "./options";
+import { createSandbox, SandboxError, SecretPathError, type Sandbox } from "../file-exploration/sandbox.js";
+import { looksBinary } from "../file-exploration/file-info.js";
+import { skillToolOptionsSchema, listSkills, type SkillToolOptions } from "./options.js";
 
 const DESCRIPTION =
   "Read one reference file belonging to a skill. This is its own file tree, " +

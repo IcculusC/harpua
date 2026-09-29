@@ -2,8 +2,8 @@ import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 
-import { MockEmbeddings } from "./mock-embeddings";
-import type { VectorStore } from "./vector-store";
+import { MockEmbeddings } from "./mock-embeddings.js";
+import type { VectorStore } from "./vector-store.js";
 
 /** Sane default number of chunks a search returns. */
 export const DEFAULT_TOP_K = 5;

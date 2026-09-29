@@ -4,7 +4,7 @@ import path from "node:path";
 
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 
-import { chunkMarkdown, type MarkdownChunk } from "./chunk-markdown";
+import { chunkMarkdown, type MarkdownChunk } from "./chunk-markdown.js";
 
 export const INDEX_VERSION = 1 as const;
 

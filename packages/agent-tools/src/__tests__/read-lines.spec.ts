@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { readLinesTool } from "../file-exploration/read-lines";
+import { readLinesTool } from "../file-exploration/read-lines.js";
 import {
   makeTmpDir,
   numberedLines,
@@ -7,7 +7,7 @@ import {
   runTool,
   writeBinaryFile,
   writeFile,
-} from "./tmp-tree";
+} from "./tmp-tree.js";
 
 describe("read_lines", () => {
   let root: string;

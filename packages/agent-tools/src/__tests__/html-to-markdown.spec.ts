@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { htmlToMarkdown } from "../web-research/html-to-markdown";
+import { htmlToMarkdown } from "../web-research/html-to-markdown.js";
 
 describe("htmlToMarkdown", () => {
   it("captures the title, decoding entities, separately from the body", () => {

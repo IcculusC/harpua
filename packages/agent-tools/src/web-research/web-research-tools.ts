@@ -1,11 +1,11 @@
 import type { StructuredToolInterface } from "@langchain/core/tools";
 
-import { webSearchTool } from "./web-search";
-import { fetchUrlTool } from "./fetch-url";
+import { webSearchTool } from "./web-search.js";
+import { fetchUrlTool } from "./fetch-url.js";
 import {
   webResearchToolsOptionsSchema,
   type WebResearchToolsOptions,
-} from "./options";
+} from "./options.js";
 
 /**
  * The web-research tool family: `web_search` (SearXNG-backed) and `fetch_url`

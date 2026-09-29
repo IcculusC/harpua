@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import * as pkg from "../index";
+import * as pkg from "../index.js";
 
 describe("public exports (prepareChunks)", () => {
   it("exports prepareChunks as a function", () => {

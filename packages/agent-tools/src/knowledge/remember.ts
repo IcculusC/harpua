@@ -3,10 +3,10 @@ import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import { z } from "zod";
 
-import { errorMessage } from "../web-research/errors";
-import { ingest } from "./ingest";
-import { MockEmbeddings } from "./mock-embeddings";
-import { embeddingsSchema, toolNameSchema, vectorStoreSchema } from "./options";
+import { errorMessage } from "../web-research/errors.js";
+import { ingest } from "./ingest.js";
+import { MockEmbeddings } from "./mock-embeddings.js";
+import { embeddingsSchema, toolNameSchema, vectorStoreSchema } from "./options.js";
 
 const makeDescription = (searchToolName: string) =>
   "Save an excerpt or note into this project's searchable knowledge so you " +

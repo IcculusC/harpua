@@ -3,8 +3,8 @@ import path from "node:path";
 
 import type { RunnableConfig } from "@langchain/core/runnables";
 
-import { searchKnowledgeTool } from "../knowledge/search-knowledge";
-import { makeTmpDir, removeTmpDir, writeFile, runTool } from "./tmp-tree";
+import { searchKnowledgeTool } from "../knowledge/search-knowledge.js";
+import { makeTmpDir, removeTmpDir, writeFile, runTool } from "./tmp-tree.js";
 
 describe("search_knowledge", () => {
   let root: string;

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readMarkdownDir } from "../knowledge/markdown-dir-source";
+import { readMarkdownDir } from "../knowledge/markdown-dir-source.js";
 
 describe("readMarkdownDir", () => {
   it("returns one document per .md file, sorted, id=file, metadata={file}", () => {
