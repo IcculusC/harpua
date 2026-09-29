@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildChatModel } from "../model-factory";
-import type { Registration } from "../interfaces";
+import { buildChatModel } from "../model-factory.js";
+import type { Registration } from "../interfaces.js";
 
 const defaultReg = (defaults?: Registration["defaults"]): Registration => ({
   name: "default",

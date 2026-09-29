@@ -4,12 +4,12 @@ import { Test } from "@nestjs/testing";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-import { ChatModelModule } from "../chat-model.module";
-import { CHAT_MODEL } from "../constants";
-import { InjectChatModel } from "../decorators";
-import { MockChatModel } from "../mock-chat-model";
-import { resetChatModelRegistry } from "../registry";
-import { stubEnv } from "./env-fixture";
+import { ChatModelModule } from "../chat-model.module.js";
+import { CHAT_MODEL } from "../constants.js";
+import { InjectChatModel } from "../decorators.js";
+import { MockChatModel } from "../mock-chat-model.js";
+import { resetChatModelRegistry } from "../registry.js";
+import { stubEnv } from "./env-fixture.js";
 
 @Injectable()
 class Consumer {

@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-import { buildChatModel } from "../model-factory";
-import { MockChatModel } from "../mock-chat-model";
-import type { Registration } from "../interfaces";
+import { buildChatModel } from "../model-factory.js";
+import { MockChatModel } from "../mock-chat-model.js";
+import type { Registration } from "../interfaces.js";
 
 const defaultReg: Registration = { name: "default", envPrefix: "" };
 

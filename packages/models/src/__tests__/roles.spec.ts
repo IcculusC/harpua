@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { buildChatModel } from "../model-factory";
-import { MockChatModel } from "../mock-chat-model";
-import * as optionalRequire from "../optional-require";
-import type { Registration } from "../interfaces";
-import { stubEnv } from "./env-fixture";
+import { buildChatModel } from "../model-factory.js";
+import { MockChatModel } from "../mock-chat-model.js";
+import * as optionalRequire from "../optional-require.js";
+import type { Registration } from "../interfaces.js";
+import { stubEnv } from "./env-fixture.js";
 
 /** A "fast" role registered with an arm-scoped OpenRouter model default. */
 const fastRole: Registration = {

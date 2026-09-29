@@ -1,5 +1,5 @@
 import { Inject } from "@nestjs/common";
-import { getChatModelToken } from "./constants";
+import { getChatModelToken } from "./constants.js";
 
 /**
  * Injects a registered chat model by name. With no argument (or `"default"`) it
