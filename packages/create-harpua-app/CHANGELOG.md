@@ -1,5 +1,16 @@
 # create-harpua-app
 
+## 1.0.0
+
+### Major Changes
+
+- db19bfc: ESM scaffold on Nest 12 + @harpua 1.0. The generated project is `"type": "module"` (`NodeNext`, `.js` relative imports, SWC ES output), depends on the `@harpua/*` 1.0 line, and no longer needs the `langchain-single-instance` Vitest plugin. The CLI itself is now ESM too. Requires Node >=22.12.
+
+  Migration guide: [MIGRATING-1.0.md](https://github.com/IcculusC/harpua/blob/main/MIGRATING-1.0.md)
+
+- 70fa6cb: The scaffolded template now targets NestJS 12 (`@nestjs/*` ^12, `@nestjs/cli` 12). Migration: use Node 20.19+, 22.12+ or 24+ for new apps.
+- ebd6fc9: Scaffolded apps now test with Vitest (with `unplugin-swc` for Nest decorator metadata) instead of Jest. The `test` script is `vitest run`; the `jest` config block, `jest`, `ts-jest` and `@types/jest` are gone from the template.
+
 ## 1.0.0-next.0
 
 ### Major Changes
