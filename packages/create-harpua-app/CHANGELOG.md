@@ -1,5 +1,15 @@
 # create-harpua-app
 
+## 1.1.0
+
+### Minor Changes
+
+- 8258d14: Add `--help`/`-h` and `--version`/`-v`; unknown flags now print an error plus usage and exit 1. Scaffolded apps depend on stable `^1.0.0` `@harpua/*` ranges (not `1.0.0-next`) and the scaffolded README title uses the project name instead of a hardcoded `harpua-weather-agent`.
+
+### Patch Changes
+
+- 88df129: Scaffolded apps now pin TypeScript 6.0.3. The template tsconfig drops the deprecated `baseUrl` and sets `rootDir` to `./src`.
+
 ## 1.0.0
 
 ### Major Changes
