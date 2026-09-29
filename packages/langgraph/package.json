@@ -89,7 +89,7 @@
     "eslint": "9.39.4",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "unplugin-swc": "2.0.0",
     "vitest": "5.0.2",
     "zod": "3.25.76"

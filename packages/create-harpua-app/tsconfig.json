@@ -5,7 +5,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "baseUrl": "./",
+    "rootDir": "./src",
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],
