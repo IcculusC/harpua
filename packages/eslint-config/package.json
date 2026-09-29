@@ -12,7 +12,8 @@
   },
   "files": [
     "base.js",
-    "nestjs.js"
+    "nestjs.js",
+    "no-top-level-await.js"
   ],
   "dependencies": {
     "@eslint/js": "9.39.4",
