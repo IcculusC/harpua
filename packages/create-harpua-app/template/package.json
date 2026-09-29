@@ -18,9 +18,9 @@
     "prepare": "harpua-skills"
   },
   "dependencies": {
-    "@harpua/agent-tools": "^1.0.0-next.0",
-    "@harpua/langgraph": "^1.0.0-next.1",
-    "@harpua/models": "^1.0.0-next.1",
+    "@harpua/agent-tools": "^1.0.0",
+    "@harpua/langgraph": "^1.0.0",
+    "@harpua/models": "^1.0.0",
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
     "@langchain/ollama": "^1",
@@ -35,7 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
-    "@harpua/langgraph-testing": "^1.0.0-next.1",
+    "@harpua/langgraph-testing": "^1.0.0",
     "@nestjs/cli": "12.0.8",
     "@nestjs/schematics": "12.0.6",
     "@nestjs/testing": "12.1.1",

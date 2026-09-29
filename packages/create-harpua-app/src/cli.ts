@@ -97,6 +97,28 @@ function copyTree(from: string, to: string, relBase = ""): string[] {
   return written;
 }
 
+/**
+ * Placeholder in template text files (currently the README title) replaced with
+ * the derived project name at scaffold time.
+ */
+const PROJECT_NAME_PLACEHOLDER = "{{PROJECT_NAME}}";
+
+/** Files whose `{{PROJECT_NAME}}` placeholder is substituted on scaffold. */
+const NAME_SUBSTITUTED_FILES = ["README.md"];
+
+/** Substitute the project name placeholder in the templated text files. */
+function stampProjectName(targetDir: string, appName: string): void {
+  for (const file of NAME_SUBSTITUTED_FILES) {
+    const filePath = path.join(targetDir, file);
+    if (!fs.existsSync(filePath)) continue;
+    const text = fs.readFileSync(filePath, "utf8");
+    fs.writeFileSync(
+      filePath,
+      text.split(PROJECT_NAME_PLACEHOLDER).join(appName),
+    );
+  }
+}
+
 /** Rewrite the scaffolded `package.json` `name` to the derived project name. */
 function setPackageName(targetDir: string, appName: string): void {
   const pkgPath = path.join(targetDir, "package.json");
@@ -133,6 +155,7 @@ export function scaffold(options: ScaffoldOptions): ScaffoldResult {
 
   const files = copyTree(templateDir, targetDir).sort();
   setPackageName(targetDir, appName);
+  stampProjectName(targetDir, appName);
 
   return { targetDir, appName, files };
 }
@@ -159,17 +182,98 @@ function nextSteps(result: ScaffoldResult): string {
   ].join("\n");
 }
 
+const USAGE = [
+  "Usage: create-harpua-app <target-dir>",
+  "       create-harpua-app --help | --version",
+].join("\n");
+
+const HELP = [
+  "create-harpua-app — scaffold a runnable NestJS + LangGraph weather agent",
+  "built on @harpua/langgraph.",
+  "",
+  USAGE,
+  "",
+  "Arguments:",
+  "  <target-dir>    directory to create; its basename becomes the project",
+  "                  (package) name, so it must be a valid npm package name",
+  "",
+  "Options:",
+  "  -h, --help      show this help",
+  "  -v, --version   print the create-harpua-app version",
+  "",
+  "Generates a NestJS 12 (ESM) project with a weather agent graph, tools, an",
+  "HTTP API and a chat CLI, tests, and agent skills. The target directory must",
+  "not exist or must be empty.",
+  "",
+  "Next steps after scaffolding:",
+  "  cd <target-dir>",
+  "  pnpm install",
+  "  pnpm start:dev",
+].join("\n");
+
+const argvSchema = z.union([
+  z.object({ kind: z.literal("help") }),
+  z.object({ kind: z.literal("version") }),
+  z.object({ kind: z.literal("scaffold"), targetArg: z.string().min(1) }),
+  z.object({ kind: z.literal("error"), message: z.string() }),
+]);
+
+export type ParsedArgs = z.infer<typeof argvSchema>;
+
+/**
+ * Parse the arguments after `node cli.js`. `--help`/`-h` and `--version`/`-v`
+ * win over everything else; any other flag, a second positional, or a missing
+ * target is an error.
+ */
+export function parseArgs(args: string[]): ParsedArgs {
+  if (args.includes("--help") || args.includes("-h")) return { kind: "help" };
+  if (args.includes("--version") || args.includes("-v"))
+    return { kind: "version" };
+
+  const flag = args.find((a) => a.startsWith("-"));
+  if (flag)
+    return argvSchema.parse({
+      kind: "error",
+      message: `unknown option "${flag}"`,
+    });
+
+  const positionals = args;
+  if (positionals.length === 0)
+    return { kind: "error", message: "missing <target-dir>" };
+  if (positionals.length > 1)
+    return { kind: "error", message: "expected exactly one <target-dir>" };
+  return argvSchema.parse({ kind: "scaffold", targetArg: positionals[0] });
+}
+
+/** Read this package's own version from its package.json. */
+export function readVersion(
+  packageJsonPath = path.join(import.meta.dirname, "..", "package.json"),
+): string {
+  return z
+    .object({ version: z.string() })
+    .parse(JSON.parse(fs.readFileSync(packageJsonPath, "utf8"))).version;
+}
+
 /* istanbul ignore next -- bin entry: thin caller, exercised by the pack smoke test */
 export function main(argv: string[]): void {
-  const targetArg = argv[2];
-  if (!targetArg) {
-    console.error("Usage: create-harpua-app <target-dir>");
+  const parsed = parseArgs(argv.slice(2));
+
+  if (parsed.kind === "help") {
+    console.log(HELP);
+    return;
+  }
+  if (parsed.kind === "version") {
+    console.log(readVersion());
+    return;
+  }
+  if (parsed.kind === "error") {
+    console.error(`create-harpua-app: ${parsed.message}\n\n${USAGE}`);
     process.exit(1);
   }
 
   try {
     const result = scaffold({
-      targetDir: path.resolve(process.cwd(), targetArg),
+      targetDir: path.resolve(process.cwd(), parsed.targetArg),
       templateDir: path.join(import.meta.dirname, "..", "template"),
     });
     console.log(nextSteps(result));
