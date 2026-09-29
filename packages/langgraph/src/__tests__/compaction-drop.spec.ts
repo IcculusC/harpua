@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage, RemoveMessage } from "@langchain/core/messages";
-import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware";
-import { COMPACTION_OPTS, CompactionOptions } from "../middleware/compaction.options";
-import { SUMMARY_EPILOGUE } from "../middleware/summary-epilogue.token";
-import { COMPACTION_STATE } from "../middleware/compaction-state";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware.js";
+import { COMPACTION_OPTS, CompactionOptions } from "../middleware/compaction.options.js";
+import { SUMMARY_EPILOGUE } from "../middleware/summary-epilogue.token.js";
+import { COMPACTION_STATE } from "../middleware/compaction-state.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 function ctx(messages: any[]) {
   return { state: { messages }, loop: AGENT_LOOP_DEFAULT, config: {}, now: () => 0, interrupt: () => undefined, exit: () => ({}) } as any;

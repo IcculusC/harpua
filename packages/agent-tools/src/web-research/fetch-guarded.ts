@@ -1,6 +1,6 @@
-import { errorMessage } from "./errors";
-import { isPrivateAddress } from "./private-address";
-import type { FetchFn, FetchResponseLike } from "./options";
+import { errorMessage } from "./errors.js";
+import { isPrivateAddress } from "./private-address.js";
+import type { FetchFn, FetchResponseLike } from "./options.js";
 
 /** The guard/read caps and injected fetch shared by `fetch_url` and `fetch_pdf`. */
 export interface FetchGuardOptions {

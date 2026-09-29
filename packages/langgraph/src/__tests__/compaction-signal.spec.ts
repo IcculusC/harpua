@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
-import { buildCompactionSignal, resolveTrigger } from "../middleware/compaction-signal";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import { buildCompactionSignal, resolveTrigger } from "../middleware/compaction-signal.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 function ctxWith(messages: any[]) {
   return {

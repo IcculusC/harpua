@@ -3,7 +3,7 @@ import { ToolMessage } from "@langchain/core/messages";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { composeToolWrap } from "../middleware/tool-wrap";
+import { composeToolWrap } from "../middleware/tool-wrap.js";
 
 function makeEchoTool() {
   const spy = vi.fn(async ({ x }: { x: number }) => String(x));

@@ -2,11 +2,11 @@ import { Logger } from "@nestjs/common";
 import { z } from "zod";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-import { MODEL_PACKAGES } from "./constants";
-import { requireOptionalModule } from "./optional-require";
-import { buildEnvSchema, readRawEnv } from "./env";
-import { MockChatModel } from "./mock-chat-model";
-import type { Registration } from "./interfaces";
+import { MODEL_PACKAGES } from "./constants.js";
+import { requireOptionalModule } from "./optional-require.js";
+import { buildEnvSchema, readRawEnv } from "./env.js";
+import { MockChatModel } from "./mock-chat-model.js";
+import type { Registration } from "./interfaces.js";
 
 /**
  * Boot-time visibility. Nest's `Logger` runs fine here because factories execute

@@ -11,10 +11,10 @@ import type { ChatResult } from "@langchain/core/outputs";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { LangGraphModule, getGraphFacadeToken } from "../index";
-import type { LangGraphRunnable } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
-import { BudgetMiddleware, provideBudget } from "../middleware/budget.middleware";
+import { LangGraphModule, getGraphFacadeToken } from "../index.js";
+import type { LangGraphRunnable } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
+import { BudgetMiddleware, provideBudget } from "../middleware/budget.middleware.js";
 
 /**
  * `maxWallMs` guards UNATTENDED runaway, not human deliberation: time a run

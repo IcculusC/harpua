@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { expectInterrupt } from "../interrupt-helpers";
+import { expectInterrupt } from "../interrupt-helpers.js";
 import {
   createGraphTestingModule,
   type GraphTestingHarness,
-} from "../testing-module";
-import { AskHumanNode, HilGraph, type HilStateT } from "./fixtures";
+} from "../testing-module.js";
+import { AskHumanNode, HilGraph, type HilStateT } from "./fixtures.js";
 
 describe("expectInterrupt", () => {
   let harness: GraphTestingHarness;

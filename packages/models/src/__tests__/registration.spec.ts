@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { Test } from "@nestjs/testing";
 
-import { ChatModelModule } from "../chat-model.module";
-import { envPrefixOf, resetChatModelRegistry } from "../registry";
-import { stubEnv } from "./env-fixture";
+import { ChatModelModule } from "../chat-model.module.js";
+import { envPrefixOf, resetChatModelRegistry } from "../registry.js";
+import { stubEnv } from "./env-fixture.js";
 
 beforeEach(() => resetChatModelRegistry());
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SkillRegistry } from "../skills/skill-registry";
-import { useSkillTool } from "../skills/use-skill";
-import { readSkillFileTool } from "../skills/read-skill-file";
-import { makeTmpDir, removeTmpDir, writeFile, numberedLines, runTool } from "./tmp-tree";
+import { SkillRegistry } from "../skills/skill-registry.js";
+import { useSkillTool } from "../skills/use-skill.js";
+import { readSkillFileTool } from "../skills/read-skill-file.js";
+import { makeTmpDir, removeTmpDir, writeFile, numberedLines, runTool } from "./tmp-tree.js";
 
 const SKILL = (name: string, description: string, body: string) =>
   `---\nname: ${name}\ndescription: ${description}\n---\n\n${body}\n`;

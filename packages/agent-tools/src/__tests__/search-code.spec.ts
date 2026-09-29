@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { execFileSync } from "node:child_process";
 
-import { searchFilesTool, RG_MISSING_MESSAGE } from "../file-exploration/search-files";
-import * as runRgModule from "../file-exploration/run-rg";
-import type { RgResult } from "../file-exploration/run-rg";
-import { makeTmpDir, removeTmpDir, runTool, writeFile } from "./tmp-tree";
+import { searchFilesTool, RG_MISSING_MESSAGE } from "../file-exploration/search-files.js";
+import * as runRgModule from "../file-exploration/run-rg.js";
+import type { RgResult } from "../file-exploration/run-rg.js";
+import { makeTmpDir, removeTmpDir, runTool, writeFile } from "./tmp-tree.js";
 
 /** Build ripgrep-style `path:line:text` output for `n` synthetic matches. */
 function fakeMatches(n: number): string {

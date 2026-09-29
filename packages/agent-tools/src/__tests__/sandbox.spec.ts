@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-import { readLinesTool } from "../file-exploration/read-lines";
-import { fileStatsTool } from "../file-exploration/file-stats";
+import { readLinesTool } from "../file-exploration/read-lines.js";
+import { fileStatsTool } from "../file-exploration/file-stats.js";
 import {
   makeTmpDir,
   removeTmpDir,
   runTool,
   writeFile,
-} from "./tmp-tree";
+} from "./tmp-tree.js";
 
 describe("sandbox confinement", () => {
   let root: string;

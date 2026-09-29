@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { Logger } from "@nestjs/common";
 
-import { buildChatModel } from "../model-factory";
-import type { Registration } from "../interfaces";
+import { buildChatModel } from "../model-factory.js";
+import type { Registration } from "../interfaces.js";
 
 const defaultReg = (defaults?: Registration["defaults"]): Registration => ({
   name: "default",

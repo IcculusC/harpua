@@ -5,14 +5,14 @@ import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { createSandbox, SandboxError } from "./sandbox";
-import { inspectFile, type FileInfo } from "./file-info";
-import { runRg } from "./run-rg";
+import { createSandbox, SandboxError } from "./sandbox.js";
+import { inspectFile, type FileInfo } from "./file-info.js";
+import { runRg } from "./run-rg.js";
 import {
   resolveOptions,
   type FileExplorationOptions,
   type ResolvedFileExplorationOptions,
-} from "./options";
+} from "./options.js";
 
 const DESCRIPTION =
   "Inspect the sandboxed project before reading it. With no `path` (or a " +

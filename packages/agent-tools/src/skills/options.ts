@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { SkillRegistry } from "./skill-registry";
+import type { SkillRegistry } from "./skill-registry.js";
 
 /** Structural check (any object honoring the registry surface mounts). */
 export const skillRegistrySchema = z.custom<SkillRegistry>(

@@ -6,8 +6,8 @@ import {
   LangGraphModule,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
-import { AskHumanNode, HilGraph, HilStateT } from "./fixtures";
+} from "../index.js";
+import { AskHumanNode, HilGraph, HilStateT } from "./fixtures.js";
 
 /**
  * Real end-to-end integration test against the official SQLite checkpoint saver

@@ -1,7 +1,7 @@
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
-import { ingest } from "./ingest";
-import { readMarkdownDir } from "./markdown-dir-source";
-import type { VectorStore } from "./vector-store";
+import { ingest } from "./ingest.js";
+import { readMarkdownDir } from "./markdown-dir-source.js";
+import type { VectorStore } from "./vector-store.js";
 
 /**
  * Full ingest of a markdown corpus into any VectorStore. Now a thin source

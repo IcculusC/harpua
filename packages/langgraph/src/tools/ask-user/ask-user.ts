@@ -11,9 +11,9 @@ import {
   resolveAskUserResume,
   type AskUserAnswerValue,
   type AskUserQuestionPreset,
-} from "./schemas";
-import { resolveAskUserToolOptions, type AskUserToolOptions } from "./options";
-import { defaultSerializeAnswers } from "./serialize-answers";
+} from "./schemas.js";
+import { resolveAskUserToolOptions, type AskUserToolOptions } from "./options.js";
+import { defaultSerializeAnswers } from "./serialize-answers.js";
 
 /**
  * `askUserTool(options?)` — the model-callable sibling of the approval gate

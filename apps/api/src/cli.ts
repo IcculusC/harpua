@@ -5,8 +5,8 @@ import { NestFactory } from "@nestjs/core";
 import { isAIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 
-import { AppModule } from "./app.module";
-import { ChatService, type ChatTurn } from "./chat/chat.service";
+import { AppModule } from "./app.module.js";
+import { ChatService, type ChatTurn } from "./chat/chat.service.js";
 
 // The interrupt payload an approval-gated tool raises. Render it as a readable
 // prompt when it matches; fall back to raw JSON for any other interrupt kind.

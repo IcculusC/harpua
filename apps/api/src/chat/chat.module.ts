@@ -2,14 +2,14 @@ import { Module } from "@nestjs/common";
 import { LangGraphModule, provideGraphBoundModel } from "@harpua/langgraph";
 import { CHAT_MODEL, ChatModelModule } from "@harpua/models";
 
-import { ChatController } from "./chat.controller";
-import { ChatService } from "./chat.service";
-import { CallModelNode, ChatGraph } from "./chat.graph";
-import { CHAT_BOUND_MODEL } from "./chat-model.token";
-import { MockChatModel } from "./mock-chat-model";
-import { OrderTools } from "./order.tools";
-import { OrdersService } from "./orders.service";
-import { SystemPrompt } from './system-prompt';
+import { ChatController } from "./chat.controller.js";
+import { ChatService } from "./chat.service.js";
+import { CallModelNode, ChatGraph } from "./chat.graph.js";
+import { CHAT_BOUND_MODEL } from "./chat-model.token.js";
+import { MockChatModel } from "./mock-chat-model.js";
+import { OrderTools } from "./order.tools.js";
+import { OrdersService } from "./orders.service.js";
+import { SystemPrompt } from './system-prompt.js';
 
 @Module({
   imports: [

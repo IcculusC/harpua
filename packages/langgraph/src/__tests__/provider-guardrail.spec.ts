@@ -5,7 +5,7 @@ import {
   ProviderGuardrailOptions,
   provideProviderGuardrail,
   PROVIDER_GUARDRAIL_OPTS,
-} from "../middleware/provider-guardrail.middleware";
+} from "../middleware/provider-guardrail.middleware.js";
 
 /**
  * A provider-side block (finish_reason "content_filter" & co.) arrives as a

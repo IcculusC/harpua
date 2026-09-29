@@ -1,9 +1,9 @@
 import { Inject, type Provider } from "@nestjs/common";
 import { z } from "zod";
-import { LangGraphMiddleware } from "../middleware/middleware.decorator";
-import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "../middleware/middleware.interface";
-import type { MiddlewareContext } from "../middleware/middleware.types";
-import { AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./loop-state";
+import { LangGraphMiddleware } from "../middleware/middleware.decorator.js";
+import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "../middleware/middleware.interface.js";
+import type { MiddlewareContext } from "../middleware/middleware.types.js";
+import { AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./loop-state.js";
 
 export const BudgetOptions = z.object({
   maxCycles: z.number().int().positive(),

@@ -1,5 +1,5 @@
 import type { AIMessage } from "@langchain/core/messages";
-import type { LangGraphMiddleware, ModelNext, ModelRequest } from "./middleware.interface";
+import type { LangGraphMiddleware, ModelNext, ModelRequest } from "./middleware.interface.js";
 
 export function composeModelWrap<S>(
   middlewares: Array<Pick<LangGraphMiddleware<S>, "wrapModelCall">>,

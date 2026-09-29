@@ -13,14 +13,14 @@ import { ToolMessage, type AIMessageChunk } from "@langchain/core/messages";
 import { interrupt } from "@langchain/langgraph";
 import { z } from "zod";
 
-import { getGraphMetadata, getToolMethods } from "./decorators";
-import type { ApprovalMessageFn, DeclineMessageFn } from "./interfaces";
-import { instrumentRawTool, instrumentTool } from "./observability";
-import { getAgentMetadata } from "./agent/agent.decorator";
-import { lowerAgent } from "./agent/agent-compiler";
-import { composeToolWrap } from "./middleware/tool-wrap";
-import { isLazyModel, type LazyModel } from "./lazy-model";
-import { lazyBoundProxy } from "./lazy-bound-model";
+import { getGraphMetadata, getToolMethods } from "./decorators.js";
+import type { ApprovalMessageFn, DeclineMessageFn } from "./interfaces.js";
+import { instrumentRawTool, instrumentTool } from "./observability.js";
+import { getAgentMetadata } from "./agent/agent.decorator.js";
+import { lowerAgent } from "./agent/agent-compiler.js";
+import { composeToolWrap } from "./middleware/tool-wrap.js";
+import { isLazyModel, type LazyModel } from "./lazy-model.js";
+import { lazyBoundProxy } from "./lazy-bound-model.js";
 
 /** Logs a warning when a user-supplied approval/decline message builder throws. */
 const approvalLogger = new Logger("LangGraphApprovalGate");

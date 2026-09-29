@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "../file-exploration/secret-paths";
+import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "../file-exploration/secret-paths.js";
 
 /** Shorthand: does the default policy consider this root-relative path a secret? */
 const secret = (rel: string): boolean => isSecretPath(rel, DEFAULT_SECRET_PATTERNS);

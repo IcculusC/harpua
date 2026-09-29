@@ -21,9 +21,9 @@ import {
   defineEdges,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
-import * as optionalRequire from "../optional-require";
-import { resetOtelCache } from "../observability";
+} from "../index.js";
+import * as optionalRequire from "../optional-require.js";
+import { resetOtelCache } from "../observability.js";
 import {
   AgentGraph,
   CallModel,
@@ -35,7 +35,7 @@ import {
   NodeB,
   OrderService,
   OrderTools,
-} from "./fixtures";
+} from "./fixtures.js";
 
 /* A graph whose single node throws, to exercise error span semantics. */
 const BoomState = z.object({ done: z.boolean() });

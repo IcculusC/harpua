@@ -9,7 +9,7 @@ import {
   GraphRecursionError,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 import {
   AgentGraph,
   CallModel,
@@ -17,7 +17,7 @@ import {
   AlwaysToolModel,
   OrderService,
   OrderTools,
-} from "./fixtures";
+} from "./fixtures.js";
 
 describe("LangGraph agentic loop", () => {
   let app: INestApplication;

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
-import { makeStructuredResponseNode } from "../agent/structured-response-node";
+import { makeStructuredResponseNode } from "../agent/structured-response-node.js";
 
 const MODEL_TOKEN = "MODEL_TOKEN";
 

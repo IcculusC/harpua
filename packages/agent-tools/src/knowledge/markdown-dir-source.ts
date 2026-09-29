@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { Document } from "./ingest";
+import type { Document } from "./ingest.js";
 
 /**
  * The markdown-directory source: list `*.md` files under `root` as ingestable

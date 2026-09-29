@@ -4,9 +4,9 @@ import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { createSandbox, SandboxError } from "./sandbox";
-import { looksBinary } from "./file-info";
-import { resolveOptions, type FileExplorationOptions } from "./options";
+import { createSandbox, SandboxError } from "./sandbox.js";
+import { looksBinary } from "./file-info.js";
+import { resolveOptions, type FileExplorationOptions } from "./options.js";
 
 const DESCRIPTION =
   "Read one bounded page of a text file inside the sandboxed project, with " +

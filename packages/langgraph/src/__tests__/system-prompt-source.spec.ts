@@ -6,8 +6,8 @@ import type { Provider, Type } from "@nestjs/common";
 import {
   makeSystemPromptMiddleware,
   type SystemPromptMiddlewareConfig,
-} from "../agent/system-prompt-middleware";
-import type { ModelRequest } from "../middleware/middleware.types";
+} from "../agent/system-prompt-middleware.js";
+import type { ModelRequest } from "../middleware/middleware.types.js";
 
 async function bootMiddleware(
   systemPrompt: SystemPromptMiddlewareConfig["systemPrompt"],

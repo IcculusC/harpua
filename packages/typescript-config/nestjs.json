@@ -3,8 +3,6 @@
   "display": "Harpua NestJS",
   "extends": "./base.json",
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "Node10",
     "target": "ES2023",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,

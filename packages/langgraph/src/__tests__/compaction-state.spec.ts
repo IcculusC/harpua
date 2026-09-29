@@ -5,7 +5,7 @@ import {
   withCompactionState,
   needsCompactionState,
   COMPACTION_STATE,
-} from "../middleware/compaction-state";
+} from "../middleware/compaction-state.js";
 
 describe("compaction-state", () => {
   it("parses a well-formed summary", () => {

@@ -1,6 +1,6 @@
 import { SystemMessage, ToolMessage, type BaseMessage } from "@langchain/core/messages";
-import { markCacheBoundary } from "./cache-markers";
-import type { CompactionSummary } from "./compaction-state";
+import { markCacheBoundary } from "./cache-markers.js";
+import type { CompactionSummary } from "./compaction-state.js";
 
 /** Deterministic template so the same summary renders byte-identically.
  *  `epilogue` is applied HERE, at render time — never stored in the summary

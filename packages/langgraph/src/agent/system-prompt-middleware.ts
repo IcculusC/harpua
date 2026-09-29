@@ -2,8 +2,8 @@ import { Injectable, type InjectionToken, type Type } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import { SystemMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import type { LangGraphMiddleware } from "../middleware/middleware.interface";
-import type { ModelNext, ModelRequest } from "../middleware/middleware.types";
+import type { LangGraphMiddleware } from "../middleware/middleware.interface.js";
+import type { ModelNext, ModelRequest } from "../middleware/middleware.types.js";
 
 // Parsed (not just typed) so a source that resolves to a non-string fails
 // loudly at the middleware, not as a cryptic SystemMessage construction

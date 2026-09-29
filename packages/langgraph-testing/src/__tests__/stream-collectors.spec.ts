@@ -1,12 +1,12 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { HumanMessage } from "@langchain/core/messages";
 
-import { collectStream, collectUntilInterrupt } from "../stream-collectors";
-import { scriptedModel } from "../scripted-model";
+import { collectStream, collectUntilInterrupt } from "../stream-collectors.js";
+import { scriptedModel } from "../scripted-model.js";
 import {
   createGraphTestingModule,
   type GraphTestingHarness,
-} from "../testing-module";
+} from "../testing-module.js";
 import {
   AgentGraph,
   CallModel,
@@ -21,7 +21,7 @@ import {
   OrderService,
   OrderTools,
   type AgentStateT,
-} from "./fixtures";
+} from "./fixtures.js";
 
 describe("collectStream", () => {
   let harness: GraphTestingHarness;

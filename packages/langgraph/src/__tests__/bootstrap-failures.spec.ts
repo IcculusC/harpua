@@ -12,7 +12,7 @@ import {
   END,
   TOOLS,
   as,
-} from "../index";
+} from "../index.js";
 
 const State = z.object({ trail: z.array(z.string()) });
 type StateT = z.infer<typeof State>;

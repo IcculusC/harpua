@@ -1,4 +1,4 @@
-import { ModelNameSchema } from "./interfaces";
+import { ModelNameSchema } from "./interfaces.js";
 
 /**
  * Process-wide bookkeeping for {@link ChatModelModule}. It records that the

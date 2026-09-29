@@ -1,10 +1,10 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { CLOCK, fixedClock, provideFixedClock } from "../clock";
+import { CLOCK, fixedClock, provideFixedClock } from "../clock.js";
 import {
   createGraphTestingModule,
   type GraphTestingHarness,
-} from "../testing-module";
-import { StampGraph, StampNode, type StampStateT } from "./fixtures";
+} from "../testing-module.js";
+import { StampGraph, StampNode, type StampStateT } from "./fixtures.js";
 
 describe("fixedClock", () => {
   it("returns the same instant on every now() call", () => {

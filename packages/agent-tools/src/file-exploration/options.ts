@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DEFAULT_SECRET_PATTERNS } from "./secret-paths";
+import { DEFAULT_SECRET_PATTERNS } from "./secret-paths.js";
 
 /** Sane default page size for {@link readLinesTool} (lines per page). */
 export const DEFAULT_PAGE_LINES = 200;

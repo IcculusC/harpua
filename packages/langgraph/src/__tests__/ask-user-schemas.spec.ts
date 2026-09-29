@@ -8,7 +8,7 @@ import {
   askUserResumeSchema,
   resolveAskUserResume,
   type AskUserQuestionPreset,
-} from "../tools/ask-user/schemas";
+} from "../tools/ask-user/schemas.js";
 
 describe("askUserQuestionPresetSchema", () => {
   it("accepts a minimal boolean question", () => {

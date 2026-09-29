@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "./secret-paths";
+import { DEFAULT_SECRET_PATTERNS, isSecretPath } from "./secret-paths.js";
 
 /**
  * Thrown when a resolved path escapes the sandbox root. Tools catch it and

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { CompactionOptions, COMPACTION_OPTS } from "../middleware/compaction.options";
-import { CompactionSummarySchema } from "../middleware/compaction-state";
+import { CompactionOptions, COMPACTION_OPTS } from "../middleware/compaction.options.js";
+import { CompactionSummarySchema } from "../middleware/compaction-state.js";
 
 describe("CompactionOptions", () => {
   it("defaults strategy to 'drop'", () => {

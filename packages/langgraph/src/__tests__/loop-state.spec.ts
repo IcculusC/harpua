@@ -5,7 +5,7 @@ import {
   AGENT_LOOP_DEFAULT,
   AGENT_EXIT_DEFAULT,
   LoopInfo,
-} from "../middleware/loop-state";
+} from "../middleware/loop-state.js";
 
 describe("loop-state", () => {
   it("adds loop and exit channels defaulting to zeros/unrequested, preserving existing fields", () => {

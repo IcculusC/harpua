@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { CompactionOptions } from "./compaction.options";
-import { ContextWindowOptions } from "./context-window.options";
+import { CompactionOptions } from "./compaction.options.js";
+import { ContextWindowOptions } from "./context-window.options.js";
 
 export const MANAGED_CONTEXT_OPTS = Symbol.for("@harpua/langgraph:MANAGED_CONTEXT_OPTS");
 

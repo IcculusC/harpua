@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+
 import {
   LangGraphAgent,
   CompactionMiddleware,
@@ -10,9 +11,9 @@ import {
   ManagedContextMiddleware,
   provideManagedContext,
 } from "@harpua/langgraph";
-import { createGraphTestingModule, type GraphTestingHarness } from "../testing-module";
-import { ruleModel } from "../scripted-model";
-import { OrderTools, OrderService } from "./fixtures";
+import { createGraphTestingModule, type GraphTestingHarness } from "../testing-module.js";
+import { ruleModel } from "../scripted-model.js";
+import { OrderTools, OrderService } from "./fixtures.js";
 
 /**
  * Builds a rule model that alternates: request a tool, then answer. Each

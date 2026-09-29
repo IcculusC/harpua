@@ -4,9 +4,9 @@ import path from "node:path";
 
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 
-import { syncIndex } from "../knowledge/knowledge-index";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
-import { makeTmpDir, removeTmpDir, writeFile } from "./tmp-tree";
+import { syncIndex } from "../knowledge/knowledge-index.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
+import { makeTmpDir, removeTmpDir, writeFile } from "./tmp-tree.js";
 
 const embeddings = new MockEmbeddings();
 const ARGS = { embeddings, maxChunkChars: 1200 };

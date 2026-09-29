@@ -17,7 +17,7 @@ import {
 
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
-import { CLOCK, type Clock } from "../clock";
+import { CLOCK, type Clock } from "../clock.js";
 
 /* ------------------------------------------------------------------ */
 /* Linear graph (streaming / module fixtures)                          */

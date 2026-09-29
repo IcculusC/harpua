@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { lazyBoundProxy } from "../lazy-bound-model";
+import { lazyBoundProxy } from "../lazy-bound-model.js";
 
 // A stand-in "resolved model": records calls, offers a couple of Runnable-ish methods.
 function fakeModel() {

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 
-import { ingest, type IngestOptions } from "../knowledge/ingest";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
-import type { VectorMatch, VectorRecord, VectorStore } from "../knowledge/vector-store";
+import { ingest, type IngestOptions } from "../knowledge/ingest.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
+import type { VectorMatch, VectorRecord, VectorStore } from "../knowledge/vector-store.js";
 
 /** MockEmbeddings that records every embedDocuments batch it receives. */
 class RecordingEmbeddings implements EmbeddingsInterface {

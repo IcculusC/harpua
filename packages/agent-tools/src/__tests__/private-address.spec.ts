@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isPrivateAddress } from "../web-research/private-address";
+import { isPrivateAddress } from "../web-research/private-address.js";
 
 /** Read a URL's hostname the way fetch_url does, so tests mirror runtime input. */
 const host = (url: string): string => new URL(url).hostname;

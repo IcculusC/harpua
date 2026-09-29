@@ -14,9 +14,9 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import type { ChatResult } from "@langchain/core/outputs";
 
-import { LangGraphModule, getGraphFacadeToken } from "../index";
-import type { LangGraphRunnable } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
+import { LangGraphModule, getGraphFacadeToken } from "../index.js";
+import type { LangGraphRunnable } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
 
 /**
  * Pin for walkie report 007: token usage must survive from the in-flight

@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { ModelProviderSchema } from "./interfaces";
-import type { ModelDefaults } from "./interfaces";
+import { ModelProviderSchema } from "./interfaces.js";
+import type { ModelDefaults } from "./interfaces.js";
 
 /** The canonical (prefix-stripped) env variable names this package reads. */
 const ENV_KEYS = [

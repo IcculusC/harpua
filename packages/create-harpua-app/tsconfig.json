@@ -1,8 +1,6 @@
 {
   "extends": "@harpua/typescript-config/library.json",
   "compilerOptions": {
-    "module": "CommonJS",
-    "moduleResolution": "Node10",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,

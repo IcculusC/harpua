@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach, type MockInstance } from "vitest";
-import { buildChatModel } from "../model-factory";
-import * as optionalRequire from "../optional-require";
-import type { Registration } from "../interfaces";
+import { buildChatModel } from "../model-factory.js";
+import * as optionalRequire from "../optional-require.js";
+import type { Registration } from "../interfaces.js";
 
 const realRequire = optionalRequire.requireOptionalModule;
 const reg: Registration = { name: "default", envPrefix: "" };

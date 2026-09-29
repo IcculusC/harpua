@@ -1,4 +1,4 @@
-import type { Skill } from "./skill-registry";
+import type { Skill } from "./skill-registry.js";
 
 /** The default header, kept as a named constant so it stays byte-identical
  *  across refactors — stable bytes are what keep the provider's

@@ -1,12 +1,12 @@
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import { z } from "zod";
-import { contentHash } from "./content-hash";
-import { DEFAULT_INGEST_BATCH_SIZE, embeddingsSchema, vectorStoreSchema } from "./options";
+import { contentHash } from "./content-hash.js";
+import { DEFAULT_INGEST_BATCH_SIZE, embeddingsSchema, vectorStoreSchema } from "./options.js";
 // INTERNAL: already-validated-options entry point (see prepare-chunks.ts) —
 // avoids re-running prepareChunksOptionsSchema.parse() once per document
 // below, when ingestOptionsSchema already validated these knobs once above.
-import { prepareChunksFromResolvedOptions, prepareChunksOptionsSchema } from "./prepare-chunks";
-import type { VectorRecord } from "./vector-store";
+import { prepareChunksFromResolvedOptions, prepareChunksOptionsSchema } from "./prepare-chunks.js";
+import type { VectorRecord } from "./vector-store.js";
 
 /** A retrievable unit from any source. Omit `id` and ingest derives a
  *  content-hash id, so byte-identical text dedupes across sources. */

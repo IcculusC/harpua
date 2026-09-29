@@ -6,14 +6,14 @@ import {
   LangGraphModule,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 import {
   ChildOne,
   ChildTwo,
   ParentGraph,
   StepOne,
   StepTwo,
-} from "./fixtures";
+} from "./fixtures.js";
 
 describe("LangGraph subgraph composition", () => {
   let app: INestApplication;

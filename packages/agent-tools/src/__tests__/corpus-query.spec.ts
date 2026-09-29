@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { queryCorpus } from "../knowledge/corpus-query";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
+import { queryCorpus } from "../knowledge/corpus-query.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
 
 function tmpCorpus(files: Record<string, string>): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cq-"));

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
-import { ingest } from "../knowledge/ingest";
-import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
+import { ingest } from "../knowledge/ingest.js";
+import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
 
 const embeddings = new MockEmbeddings();
 

@@ -7,14 +7,14 @@ import {
   LangGraphModule,
   InjectLangGraphRunnable,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 import {
   CounterStateT,
   IncrementService,
   LinearGraph,
   NodeA,
   NodeB,
-} from "./fixtures";
+} from "./fixtures.js";
 
 @Injectable()
 class LinearConsumer {

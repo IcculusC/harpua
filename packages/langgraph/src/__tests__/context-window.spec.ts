@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { HumanMessage, AIMessage, AIMessage as AI, SystemMessage } from "@langchain/core/messages";
-import { ContextWindowMiddleware, provideContextWindow } from "../middleware/context-window.middleware";
-import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "../middleware/context-window.options";
-import { COMPACTION_STATE } from "../middleware/compaction-state";
+import { ContextWindowMiddleware, provideContextWindow } from "../middleware/context-window.middleware.js";
+import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "../middleware/context-window.options.js";
+import { COMPACTION_STATE } from "../middleware/compaction-state.js";
 
 const SUMMARY = { goal: "g", keyDecisions: [], openQuestions: [], artifacts: [], currentState: "c" };
 function req(messages: any[], summary: any) {

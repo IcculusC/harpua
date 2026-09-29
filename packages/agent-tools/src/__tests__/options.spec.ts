@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { searchFilesTool } from "../file-exploration/search-files";
-import { readLinesTool } from "../file-exploration/read-lines";
-import { fileStatsTool } from "../file-exploration/file-stats";
-import { fileExplorationTools } from "../file-exploration/file-exploration-tools";
-import { makeTmpDir, removeTmpDir, writeFile } from "./tmp-tree";
+import { searchFilesTool } from "../file-exploration/search-files.js";
+import { readLinesTool } from "../file-exploration/read-lines.js";
+import { fileStatsTool } from "../file-exploration/file-stats.js";
+import { fileExplorationTools } from "../file-exploration/file-exploration-tools.js";
+import { makeTmpDir, removeTmpDir, writeFile } from "./tmp-tree.js";
 
 describe("file-exploration options validation", () => {
   let root: string;

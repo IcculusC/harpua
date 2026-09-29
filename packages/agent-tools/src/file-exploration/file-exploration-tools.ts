@@ -1,9 +1,9 @@
 import type { StructuredToolInterface } from "@langchain/core/tools";
 
-import { searchFilesTool } from "./search-files";
-import { readLinesTool } from "./read-lines";
-import { fileStatsTool } from "./file-stats";
-import { type FileExplorationOptions } from "./options";
+import { searchFilesTool } from "./search-files.js";
+import { readLinesTool } from "./read-lines.js";
+import { fileStatsTool } from "./file-stats.js";
+import { type FileExplorationOptions } from "./options.js";
 
 /**
  * The file-exploration tool family: `search_files`, `read_lines`, and

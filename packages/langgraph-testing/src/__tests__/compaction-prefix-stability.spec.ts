@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from "vitest";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { HumanMessage } from "@langchain/core/messages";
 import { LangGraphAgent, ManagedContextMiddleware, provideManagedContext } from "@harpua/langgraph";
-import { createGraphTestingModule, type GraphTestingHarness } from "../testing-module";
-import { ruleModel } from "../scripted-model";
+import { createGraphTestingModule, type GraphTestingHarness } from "../testing-module.js";
+import { ruleModel } from "../scripted-model.js";
 
 /** Serialize the prefix up to (and including) the last cache boundary. */
 function prefixSignature(messages: any[]): string {

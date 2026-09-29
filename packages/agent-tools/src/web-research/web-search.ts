@@ -5,8 +5,8 @@ import { z } from "zod";
 import {
   resolveWebSearchOptions,
   type WebSearchToolOptions,
-} from "./options";
-import { errorMessage } from "./errors";
+} from "./options.js";
+import { errorMessage } from "./errors.js";
 
 const DESCRIPTION =
   "Search the web (via a SearXNG metasearch instance) and get a numbered " +

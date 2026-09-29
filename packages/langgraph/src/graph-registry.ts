@@ -9,17 +9,17 @@ import { StateGraph, START, END } from "@langchain/langgraph";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 import { ToolNode } from "@langchain/langgraph/prebuilt";
 
-import { LANGGRAPH_CHECKPOINTER, TOOLS, TOOLS_NODE_ID } from "./constants";
-import { getGraphMetadata, isGraphClass } from "./decorators";
-import { isAliasRef, isRouteMarker } from "./edges";
-import { instrumentNode } from "./observability";
-import { buildGraphTools } from "./graph-tools";
+import { LANGGRAPH_CHECKPOINTER, TOOLS, TOOLS_NODE_ID } from "./constants.js";
+import { getGraphMetadata, isGraphClass } from "./decorators.js";
+import { isAliasRef, isRouteMarker } from "./edges.js";
+import { instrumentNode } from "./observability.js";
+import { buildGraphTools } from "./graph-tools.js";
 import type {
   AnyNodeRef,
   GraphEdge,
   LangGraphOptions,
   NodeHandler,
-} from "./interfaces";
+} from "./interfaces.js";
 
 type NodeSpec =
   | { kind: "node"; target: Type<any> }

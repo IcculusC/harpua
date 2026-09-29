@@ -10,7 +10,7 @@ import {
 } from "@nestjs/common";
 import { Observable, from, map } from "rxjs";
 import { z } from "zod";
-import { ChatService, type ChatStreamEvent, type ChatTurn } from "./chat.service";
+import { ChatService, type ChatStreamEvent, type ChatTurn } from "./chat.service.js";
 
 const resumeBodySchema = z.object({
   approved: z.boolean(),

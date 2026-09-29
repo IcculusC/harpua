@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import type { FetchFn, FetchResponseLike } from "../web-research/options";
-import { fetchUrlTool } from "../web-research/fetch-url";
-import { searchKnowledgeTool } from "../knowledge/search-knowledge";
-import { makeTmpDir, removeTmpDir, runTool } from "./tmp-tree";
+import type { FetchFn, FetchResponseLike } from "../web-research/options.js";
+import { fetchUrlTool } from "../web-research/fetch-url.js";
+import { searchKnowledgeTool } from "../knowledge/search-knowledge.js";
+import { makeTmpDir, removeTmpDir, runTool } from "./tmp-tree.js";
 
 const FIXED_NOW = () => new Date("2026-07-09T12:00:00Z");
 

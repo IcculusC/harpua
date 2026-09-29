@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { linkSkills } from "../harpua-skills";
+import { linkSkills } from "../harpua-skills.js";
 
 const AGENT_DIRS = [".claude/skills", ".agents/skills"] as const;
 

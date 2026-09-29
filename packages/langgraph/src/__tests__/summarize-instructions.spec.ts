@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { HumanMessage } from "@langchain/core/messages";
-import { summarizeSpan } from "../middleware/summarize";
-import { CompactionOptions } from "../middleware/compaction.options";
+import { summarizeSpan } from "../middleware/summarize.js";
+import { CompactionOptions } from "../middleware/compaction.options.js";
 
 const SUMMARY = { goal: "g", keyDecisions: ["d"], openQuestions: [], artifacts: ["f"], currentState: "c" };
 

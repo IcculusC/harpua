@@ -2,13 +2,13 @@ import { tool } from "@langchain/core/tools";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { z } from "zod";
 
-import { createSandbox } from "./sandbox";
-import { runRg } from "./run-rg";
+import { createSandbox } from "./sandbox.js";
+import { runRg } from "./run-rg.js";
 import {
   resolveOptions,
   type FileExplorationOptions,
   type ResolvedFileExplorationOptions,
-} from "./options";
+} from "./options.js";
 
 /** Shown when the `rg` binary is not installed on the host. */
 export const RG_MISSING_MESSAGE =

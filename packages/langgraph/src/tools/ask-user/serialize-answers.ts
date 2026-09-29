@@ -1,4 +1,4 @@
-import type { AskUserAnswerValue } from "./schemas";
+import type { AskUserAnswerValue } from "./schemas.js";
 
 /**
  * The minimum shape the default serializer needs from a question — every

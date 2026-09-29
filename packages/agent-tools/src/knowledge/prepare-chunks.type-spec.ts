@@ -1,6 +1,6 @@
 // Compile-only assertions for the prepareChunks surface. Excluded from the
 // build (tsconfig.build.json); verified via `tsc -p tsconfig.json --noEmit`.
-import type { PrepareChunksOptions, PreparedChunk, prepareChunks } from "./prepare-chunks";
+import type { PrepareChunksOptions, PreparedChunk, prepareChunks } from "./prepare-chunks.js";
 
 // Every option is optional (defaults applied by the schema).
 const _optsMinimal: PrepareChunksOptions = {};

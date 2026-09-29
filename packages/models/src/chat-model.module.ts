@@ -4,16 +4,16 @@ import {
   CHAT_MODEL,
   CHAT_MODEL_MODULE_OPTIONS,
   getChatModelToken,
-} from "./constants";
+} from "./constants.js";
 import {
   ForRootOptionsSchema,
   RegisterOptionsSchema,
   type ForRootOptions,
   type RegisterOptions,
   type Registration,
-} from "./interfaces";
-import { buildChatModel } from "./model-factory";
-import { envPrefixOf, registerName, registerRoot } from "./registry";
+} from "./interfaces.js";
+import { buildChatModel } from "./model-factory.js";
+import { envPrefixOf, registerName, registerRoot } from "./registry.js";
 
 /**
  * Provides chat models to a NestJS app by named registration, env-driven, with

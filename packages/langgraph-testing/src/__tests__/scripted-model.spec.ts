@@ -3,11 +3,11 @@ import { HumanMessage, isAIMessage, type UsageMetadata } from "@langchain/core/m
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { z } from "zod";
 
-import { scriptedModel, ruleModel, textOf } from "../scripted-model";
+import { scriptedModel, ruleModel, textOf } from "../scripted-model.js";
 import {
   createGraphTestingModule,
   type GraphTestingHarness,
-} from "../testing-module";
+} from "../testing-module.js";
 import {
   AgentGraph,
   CallModel,
@@ -15,7 +15,7 @@ import {
   OrderService,
   OrderTools,
   type AgentStateT,
-} from "./fixtures";
+} from "./fixtures.js";
 
 describe("scriptedModel (sequence)", () => {
   let harness: GraphTestingHarness;

@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { searchKnowledgeTool } from "../knowledge/search-knowledge";
-import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
-import { MockEmbeddings } from "../knowledge/mock-embeddings";
+import { searchKnowledgeTool } from "../knowledge/search-knowledge.js";
+import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store.js";
+import { MockEmbeddings } from "../knowledge/mock-embeddings.js";
 
 describe("searchKnowledgeTool + store option", () => {
   it("routes through a provided store and formats its matches (file:line + score)", async () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildMiddlewareContext } from "../middleware/context";
-import { makeHookNode } from "../agent/hook-node";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import { buildMiddlewareContext } from "../middleware/context.js";
+import { makeHookNode } from "../agent/hook-node.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 describe("buildMiddlewareContext", () => {
   it("now() returns the injected clock's value", () => {

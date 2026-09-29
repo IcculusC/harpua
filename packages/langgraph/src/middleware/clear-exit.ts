@@ -1,4 +1,4 @@
-import { AGENT_EXIT_DEFAULT } from "./loop-state";
+import { AGENT_EXIT_DEFAULT } from "./loop-state.js";
 
 /**
  * Escape hatch to clear a stuck `exit.requested` on a thread (use with

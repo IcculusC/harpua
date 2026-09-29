@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { prepareChunks, type PrepareChunksOptions } from "../knowledge/prepare-chunks";
+import { prepareChunks, type PrepareChunksOptions } from "../knowledge/prepare-chunks.js";
 
 /** Three h1 sections → three chunks: a "---" stub, a sparse table row (10
  *  alphanumeric chars), and real prose. Mirrors ingest-chunking.spec.ts's

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { BudgetMiddleware, BudgetOptions } from "../middleware/budget.middleware";
-import { clearAgentExit } from "../middleware/clear-exit";
-import { AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "../middleware/loop-state";
+import { BudgetMiddleware, BudgetOptions } from "../middleware/budget.middleware.js";
+import { clearAgentExit } from "../middleware/clear-exit.js";
+import { AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "../middleware/loop-state.js";
 
 function ctx(loop: any) {
   return { state: {}, loop, config: {}, now: () => 0, interrupt: () => undefined, exit: (meta: any) => ({ exit: { requested: true, meta } }) } as any;

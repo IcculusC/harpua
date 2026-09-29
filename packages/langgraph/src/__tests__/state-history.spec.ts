@@ -7,14 +7,14 @@ import {
   LangGraphModule,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 import {
   CounterStateT,
   IncrementService,
   LinearGraph,
   NodeA,
   NodeB,
-} from "./fixtures";
+} from "./fixtures.js";
 
 /**
  * Exercises the time-travel primitives against the real compiled graph

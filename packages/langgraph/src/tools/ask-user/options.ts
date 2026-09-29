@@ -1,7 +1,7 @@
 import { z, type ZodType } from "zod";
 
-import { DEFAULT_MAX_QUESTIONS } from "./schemas";
-import type { AskUserAnswerValue, AskUserQuestionPreset } from "./schemas";
+import { DEFAULT_MAX_QUESTIONS } from "./schemas.js";
+import type { AskUserAnswerValue, AskUserQuestionPreset } from "./schemas.js";
 
 /** Default tool name the model sees. */
 export const DEFAULT_ASK_USER_NAME = "ask_user";

@@ -13,9 +13,9 @@ import {
   type GraphBoundModel,
 } from "@harpua/langgraph";
 
-import { CHAT_BOUND_MODEL } from "./chat-model.token";
-import { SystemPrompt } from "./system-prompt";
-import { OrderTools } from "./order.tools";
+import { CHAT_BOUND_MODEL } from "./chat-model.token.js";
+import { SystemPrompt } from "./system-prompt.js";
+import { OrderTools } from "./order.tools.js";
 
 export const ChatMessagesState = new StateSchema({ messages: MessagesValue });
 export type ChatState = StateOf<typeof ChatMessagesState>;

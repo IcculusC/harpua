@@ -6,9 +6,9 @@ import {
   ToolMessage,
 } from "@langchain/core/messages";
 
-import { lastNonSystemIsHuman } from "../middleware/turn-start";
-import { composeModelWrap } from "../middleware/model-wrap";
-import type { ModelRequest } from "../middleware/middleware.types";
+import { lastNonSystemIsHuman } from "../middleware/turn-start.js";
+import { composeModelWrap } from "../middleware/model-wrap.js";
+import type { ModelRequest } from "../middleware/middleware.types.js";
 
 describe("lastNonSystemIsHuman", () => {
   it("is true when the human turn is the literal last message", () => {

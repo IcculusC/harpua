@@ -3,16 +3,16 @@ import { ModuleRef } from "@nestjs/core";
 import type { z } from "zod";
 import { RemoveMessage, isHumanMessage, type BaseMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
-import { LangGraphMiddleware } from "./middleware.decorator";
-import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
-import type { MiddlewareContext } from "./middleware.types";
-import { COMPACTION_OPTS, CompactionOptions, summaryEpilogueOf } from "./compaction.options";
-import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state";
-import { computeFold } from "./compaction-cut";
-import { buildCompactionSignal, resolveTrigger } from "./compaction-signal";
-import { summarizeSpan } from "./summarize";
-import { SUMMARY_EPILOGUE } from "./summary-epilogue.token";
-import { ContextWindowMiddleware } from "./context-window.middleware";
+import { LangGraphMiddleware } from "./middleware.decorator.js";
+import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface.js";
+import type { MiddlewareContext } from "./middleware.types.js";
+import { COMPACTION_OPTS, CompactionOptions, summaryEpilogueOf } from "./compaction.options.js";
+import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state.js";
+import { computeFold } from "./compaction-cut.js";
+import { buildCompactionSignal, resolveTrigger } from "./compaction-signal.js";
+import { summarizeSpan } from "./summarize.js";
+import { SUMMARY_EPILOGUE } from "./summary-epilogue.token.js";
+import { ContextWindowMiddleware } from "./context-window.middleware.js";
 
 const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 

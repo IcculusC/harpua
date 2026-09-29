@@ -1,7 +1,7 @@
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type { ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import type { LangGraphMiddleware, ToolNext, ToolRequest } from "./middleware.interface";
+import type { LangGraphMiddleware, ToolNext, ToolRequest } from "./middleware.interface.js";
 
 /** A ToolCall as `ToolNode` hands it to a raw tool's `invoke`. */
 const toolCallSchema = z.object({

@@ -8,9 +8,9 @@ import { RedisSaver } from "@langchain/langgraph-checkpoint-redis";
 import {
   buildCheckpointer,
   CheckpointerLifecycle,
-} from "../checkpointer";
-import * as optionalRequire from "../optional-require";
-import type { CheckpointerOptions } from "../interfaces";
+} from "../checkpointer.js";
+import * as optionalRequire from "../optional-require.js";
+import type { CheckpointerOptions } from "../interfaces.js";
 
 // moduleRef is only touched by the useExisting/useFactory branches.
 const noModuleRef = {} as ModuleRef;

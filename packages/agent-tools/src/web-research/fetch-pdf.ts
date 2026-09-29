@@ -7,10 +7,10 @@ import { z } from "zod";
 import {
   resolveFetchPdfOptions,
   type FetchPdfToolOptions,
-} from "./options";
-import { errorMessage } from "./errors";
-import { fetchGuarded, readBytesCapped } from "./fetch-guarded";
-import { savePage } from "./save-page";
+} from "./options.js";
+import { errorMessage } from "./errors.js";
+import { fetchGuarded, readBytesCapped } from "./fetch-guarded.js";
+import { savePage } from "./save-page.js";
 
 /** Coaching hint returned when the optional `unpdf` peer isn't installed. */
 export const UNPDF_MISSING_MESSAGE =

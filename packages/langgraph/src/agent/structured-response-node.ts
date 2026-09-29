@@ -4,7 +4,7 @@ import { SystemMessage, type BaseMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 import { z } from "zod";
-import type { NodeHandler } from "../interfaces";
+import type { NodeHandler } from "../interfaces.js";
 
 export const ResponseFormatOptions = z.object({
   /** Route the envelope call to a different token (a smart arm, or a facade

@@ -3,7 +3,7 @@ import { StructuredTool } from "@langchain/core/tools";
 import { ToolMessage } from "@langchain/core/messages";
 import { z } from "zod";
 
-import { thinkTool } from "../think";
+import { thinkTool } from "../think.js";
 
 describe("thinkTool", () => {
   it("produces a StructuredTool named 'think' with a { thought: string } schema", () => {

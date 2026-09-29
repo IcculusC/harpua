@@ -1,14 +1,14 @@
 import { Inject, Optional, type Provider } from "@nestjs/common";
 import type { z } from "zod";
 import { isHumanMessage, type AIMessage, type BaseMessage } from "@langchain/core/messages";
-import { LangGraphMiddleware } from "./middleware.decorator";
-import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
-import type { ModelRequest, ModelNext } from "./middleware.types";
-import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./context-window.options";
-import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state";
-import { assembleWindow, evictOldToolOutputs } from "./context-assembly";
-import { translateCacheMarkers } from "./cache-markers";
-import { SUMMARY_EPILOGUE } from "./summary-epilogue.token";
+import { LangGraphMiddleware } from "./middleware.decorator.js";
+import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface.js";
+import type { ModelRequest, ModelNext } from "./middleware.types.js";
+import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./context-window.options.js";
+import { COMPACTION_STATE, type CompactionSummary } from "./compaction-state.js";
+import { assembleWindow, evictOldToolOutputs } from "./context-assembly.js";
+import { translateCacheMarkers } from "./cache-markers.js";
+import { SUMMARY_EPILOGUE } from "./summary-epilogue.token.js";
 
 const defaultPin = (m: BaseMessage): boolean => isHumanMessage(m);
 

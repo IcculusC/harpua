@@ -1,7 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 import { LangGraphTool } from "@harpua/langgraph";
-import { OrdersService } from "./orders.service";
+import { OrdersService } from "./orders.service.js";
 
 @Injectable()
 export class OrderTools {

@@ -5,7 +5,7 @@ import type {
   NodeClassRef,
   RouteMarker,
   RouteResult,
-} from "./interfaces";
+} from "./interfaces.js";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
 /**

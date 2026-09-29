@@ -5,8 +5,8 @@ import {
   HumanMessage,
   isAIMessage,
 } from "@langchain/core/messages";
-import { makeCallModelNode } from "../agent/call-model-node";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import { makeCallModelNode } from "../agent/call-model-node.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 class RecordingMw {
   ran = false;
