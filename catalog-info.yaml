@@ -1,0 +1,18 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: harpua
+  description: Reusable toolkit for LangGraph + NestJS (@harpua/langgraph, @harpua/langgraph-testing, @harpua/agent-tools, @harpua/models, create-harpua-app).
+  annotations:
+    github.com/project-slug: IcculusC/harpua
+    backstage.io/source-location: url:https://github.com/IcculusC/harpua/tree/main/
+  links:
+    - url: https://github.com/IcculusC/harpua
+      title: GitHub
+      icon: github
+    - url: https://www.npmjs.com/package/@harpua/langgraph
+      title: npm
+spec:
+  type: library
+  lifecycle: experimental
+  owner: user:default/leath
