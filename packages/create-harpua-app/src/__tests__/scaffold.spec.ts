@@ -3,9 +3,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { scaffold, ScaffoldError } from "../cli";
+import { scaffold, ScaffoldError } from "../cli.js";
 
-const TEMPLATE_DIR = path.resolve(__dirname, "..", "..", "template");
+const TEMPLATE_DIR = path.resolve(import.meta.dirname, "..", "..", "template");
 
 function tmpParent(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "create-harpua-app-"));

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
@@ -169,7 +170,7 @@ export function main(argv: string[]): void {
   try {
     const result = scaffold({
       targetDir: path.resolve(process.cwd(), targetArg),
-      templateDir: path.join(__dirname, "..", "template"),
+      templateDir: path.join(import.meta.dirname, "..", "template"),
     });
     console.log(nextSteps(result));
   } catch (err) {
@@ -185,6 +186,9 @@ export function main(argv: string[]): void {
 }
 
 /* istanbul ignore next -- only runs as a bin, not when imported by tests */
-if (require.main === module) {
+if (
+  process.argv[1] !== undefined &&
+  fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   main(process.argv);
 }
