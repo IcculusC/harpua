@@ -43,7 +43,7 @@ made runnable the idiomatic `@harpua/langgraph` way:
 - An HTTP surface (`POST /agent/:threadId`) and a thin **CLI REPL**
   (`pnpm chat`).
 - **Deterministic, offline tests** for the tool loop and the weather tool.
-- Self-contained TypeScript / ESLint / Jest config and a GitHub Actions CI
+- Self-contained TypeScript / ESLint / Vitest config and a GitHub Actions CI
   workflow — no build tooling to wire up.
 
 ## The scaffolder
