@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { HumanMessage } from "@langchain/core/messages";
-import { CACHE_BOUNDARY, markCacheBoundary, translateCacheMarkers } from "../middleware/cache-markers";
+import { CACHE_BOUNDARY, markCacheBoundary, translateCacheMarkers } from "../middleware/cache-markers.js";
 
 describe("cache-markers", () => {
   it("marks a boundary in additional_kwargs", () => {

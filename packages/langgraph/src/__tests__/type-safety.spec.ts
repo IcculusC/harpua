@@ -8,7 +8,7 @@ import * as path from "node:path";
  * every rejection is still in force (and every accepted case still compiles).
  */
 describe("defineEdges type-level state compatibility", () => {
-  const pkgRoot = path.resolve(__dirname, "..", "..");
+  const pkgRoot = path.resolve(import.meta.dirname, "..", "..");
 
   it("compiles the type-spec cleanly (@ts-expect-error rejections hold)", () => {
     let output = "";

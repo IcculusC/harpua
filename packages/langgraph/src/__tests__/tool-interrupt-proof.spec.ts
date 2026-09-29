@@ -21,7 +21,7 @@ import {
   getGraphFacadeToken,
   type StateOf,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 
 /*
  * EMPIRICAL PROOF (must pass before the approval-gated-tools feature is built on

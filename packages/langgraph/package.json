@@ -2,6 +2,7 @@
   "name": "@harpua/langgraph",
   "version": "0.6.3",
   "license": "MIT",
+  "type": "module",
   "engines": {
     "node": ">=22.12"
   },
@@ -20,6 +21,13 @@
   },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "bin": {
     "harpua-skills": "dist/cli/harpua-skills.js"
   },

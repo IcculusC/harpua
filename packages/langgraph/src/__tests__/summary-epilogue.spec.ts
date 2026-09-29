@@ -2,12 +2,12 @@ import { describe, it, expect, vi } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { ModuleRef } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
-import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware";
-import { provideManagedContext } from "../middleware/managed-context.middleware";
-import { CompactionOptions, summaryEpilogueOf } from "../middleware/compaction.options";
-import { SUMMARY_EPILOGUE } from "../middleware/summary-epilogue.token";
-import { renderSummary } from "../middleware/context-assembly";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware.js";
+import { provideManagedContext } from "../middleware/managed-context.middleware.js";
+import { CompactionOptions, summaryEpilogueOf } from "../middleware/compaction.options.js";
+import { SUMMARY_EPILOGUE } from "../middleware/summary-epilogue.token.js";
+import { renderSummary } from "../middleware/context-assembly.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 const MODEL = Symbol.for("epilogue-model");
 const EPILOGUE = "the transcript was compacted — the NOTEBOOK was not";

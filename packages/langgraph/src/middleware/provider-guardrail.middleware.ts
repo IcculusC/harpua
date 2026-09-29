@@ -1,9 +1,9 @@
 import { Inject, type Provider } from "@nestjs/common";
 import { z } from "zod";
 import { AIMessage } from "@langchain/core/messages";
-import { LangGraphMiddleware } from "../middleware/middleware.decorator";
-import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "../middleware/middleware.interface";
-import type { ModelRequest, ModelNext } from "../middleware/middleware.types";
+import { LangGraphMiddleware } from "../middleware/middleware.decorator.js";
+import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "../middleware/middleware.interface.js";
+import type { ModelRequest, ModelNext } from "../middleware/middleware.types.js";
 
 export const ProviderGuardrailOptions = z.object({
   /** Terminal finish_reasons that mark a provider-side intervention whose

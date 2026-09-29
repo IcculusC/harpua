@@ -3,7 +3,7 @@
  * type-safety.spec.ts / tsconfig.type-test.json). A middleware literal using
  * every hook must typecheck against `LangGraphMiddleware`.
  */
-import type { LangGraphMiddleware, ToolNext } from "./middleware.interface";
+import type { LangGraphMiddleware, ToolNext } from "./middleware.interface.js";
 
 // A middleware using every hook must typecheck.
 const _mw: LangGraphMiddleware<{ messages: unknown[] }> = {

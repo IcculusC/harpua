@@ -1,6 +1,6 @@
 import { it, expect } from "vitest";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
-import { composeModelWrap } from "../middleware/model-wrap";
+import { composeModelWrap } from "../middleware/model-wrap.js";
 
 it("composes wrapModelCall in onion order (first = outermost)", async () => {
   const order: string[] = [];

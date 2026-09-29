@@ -1,4 +1,4 @@
-import type { StreamInterrupt } from "./interfaces";
+import type { StreamInterrupt } from "./interfaces.js";
 
 /** The key under which LangGraph surfaces interrupts in stream chunks / state. */
 export const INTERRUPT_KEY = "__interrupt__";

@@ -36,8 +36,8 @@ import {
   type GraphBoundModel,
   type StateOf,
   type LangGraphRunnable,
-} from "../index";
-import { OrderService, OrderTools } from "./fixtures";
+} from "../index.js";
+import { OrderService, OrderTools } from "./fixtures.js";
 
 const MessagesState = new StateSchema({ messages: MessagesValue });
 type MsgState = StateOf<typeof MessagesState>;

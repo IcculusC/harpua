@@ -6,14 +6,14 @@ import {
   LangGraphModule,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 import {
   LogStamp,
   ReuseGraphOne,
   ReuseGraphTwo,
   SetAlpha,
   SetBeta,
-} from "./fixtures";
+} from "./fixtures.js";
 
 describe("LangGraph node reuse across graphs", () => {
   let app: INestApplication;

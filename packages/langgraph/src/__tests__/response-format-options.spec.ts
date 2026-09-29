@@ -4,7 +4,7 @@ import { HumanMessage, SystemMessage, type BaseMessage } from "@langchain/core/m
 import {
   makeStructuredResponseNode,
   ResponseFormatOptions,
-} from "../agent/structured-response-node";
+} from "../agent/structured-response-node.js";
 
 /**
  * Walkie report 010: the structured turn-ending call was a fixed black box —
@@ -145,8 +145,8 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import type { ChatResult } from "@langchain/core/outputs";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
-import { LangGraphModule, getGraphFacadeToken } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
+import { LangGraphModule, getGraphFacadeToken } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
 
 const CHAT = Symbol.for("rfo:CHAT");
 const ENVELOPE = Symbol.for("rfo:ENVELOPE");

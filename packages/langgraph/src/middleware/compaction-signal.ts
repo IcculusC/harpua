@@ -1,8 +1,8 @@
 import { isAIMessage, type BaseMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import type { MiddlewareContext } from "./middleware.types";
-import type { LoopInfo } from "./loop-state";
-import type { TriggerSpec } from "./compaction.options";
+import type { MiddlewareContext } from "./middleware.types.js";
+import type { LoopInfo } from "./loop-state.js";
+import type { TriggerSpec } from "./compaction.options.js";
 
 const TokenCount = z.number().int().nonnegative();
 

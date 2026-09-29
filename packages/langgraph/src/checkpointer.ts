@@ -3,8 +3,8 @@ import type { ModuleRef } from "@nestjs/core";
 import { MemorySaver } from "@langchain/langgraph";
 import type { BaseCheckpointSaver } from "@langchain/langgraph";
 
-import { requireOptionalModule, requirePeerOf } from "./optional-require";
-import type { CheckpointerOptions } from "./interfaces";
+import { requireOptionalModule, requirePeerOf } from "./optional-require.js";
+import type { CheckpointerOptions } from "./interfaces.js";
 
 /** npm names of the optional checkpoint saver packages. */
 export const CHECKPOINT_PACKAGES = {

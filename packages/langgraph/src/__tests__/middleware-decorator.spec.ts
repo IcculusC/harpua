@@ -3,7 +3,7 @@ import {
   LangGraphMiddleware,
   isMiddlewareClass,
   normalizeMiddleware,
-} from "../middleware/middleware.decorator";
+} from "../middleware/middleware.decorator.js";
 
 @LangGraphMiddleware()
 class MyMw {

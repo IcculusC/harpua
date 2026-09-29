@@ -30,8 +30,8 @@ import {
   provideGraphBoundModel,
   type GraphBoundModel,
   type NodeHandler,
-} from "../index";
-import { OrderService, OrderTools, hasToolCalls, type MsgState } from "./fixtures";
+} from "../index.js";
+import { OrderService, OrderTools, hasToolCalls, type MsgState } from "./fixtures.js";
 
 /**
  * Proves "the preset IS the lowered graph" on the messages contract: a

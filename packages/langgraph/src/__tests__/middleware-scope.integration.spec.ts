@@ -10,13 +10,13 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import type { ChatResult } from "@langchain/core/outputs";
 
-import { LangGraphModule, getGraphFacadeToken, LangGraphTool } from "../index";
-import type { LangGraphRunnable } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
-import { BudgetMiddleware, provideBudget } from "../middleware/budget.middleware";
-import { LangGraphMiddleware } from "../middleware/middleware.decorator";
-import type { LangGraphMiddleware as MiddlewareContract } from "../middleware/middleware.interface";
-import type { ModelRequest } from "../middleware/middleware.types";
+import { LangGraphModule, getGraphFacadeToken, LangGraphTool } from "../index.js";
+import type { LangGraphRunnable } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
+import { BudgetMiddleware, provideBudget } from "../middleware/budget.middleware.js";
+import { LangGraphMiddleware } from "../middleware/middleware.decorator.js";
+import type { LangGraphMiddleware as MiddlewareContract } from "../middleware/middleware.interface.js";
+import type { ModelRequest } from "../middleware/middleware.types.js";
 import { z } from "zod";
 
 /**

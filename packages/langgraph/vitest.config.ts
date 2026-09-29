@@ -12,16 +12,20 @@ export default defineConfig({
   plugins: [
     swc.vite(),
     {
-      // Our libraries build to CommonJS and `require` @langchain/* (also via
-      // optional-require), while spec files `import` them (ESM entries). Two
-      // module instances break `instanceof` and prototype spies (StateSchema,
-      // ToolMessage, PostgresSaver, ...). Resolve the specs' imports through
-      // Node's `require` conditions so both sides share one CJS copy. Goes away
-      // when the packages move to ESM.
-      name: "langchain-single-instance",
+      // The optional checkpoint-saver peers are loaded by optional-require.ts
+      // through createRequire, so the library gets their CommonJS entries. Specs
+      // that `import` the same packages would get the ESM entries: a second
+      // instance, which breaks `instanceof` and prototype spies (PostgresSaver,
+      // SqliteSaver, ...). Resolve the specs' imports the way the library does
+      // so both sides share one copy. (Everything else, including
+      // @langchain/core and @langchain/langgraph, is imported as ESM on both
+      // sides now.)
+      name: "checkpoint-savers-single-instance",
       enforce: "pre",
       resolveId(id) {
-        if (/^@langchain\//.test(id)) return require.resolve(id);
+        if (/^@langchain\/langgraph-checkpoint-/.test(id)) {
+          return require.resolve(id);
+        }
       },
     },
   ],

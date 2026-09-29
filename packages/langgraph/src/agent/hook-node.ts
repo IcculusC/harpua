@@ -1,10 +1,10 @@
 import { Injectable, type InjectionToken, type Type } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
-import type { NodeHandler } from "../interfaces";
-import type { NodeHookName } from "../middleware/middleware.interface";
-import { buildMiddlewareContext } from "../middleware/context";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import type { NodeHandler } from "../interfaces.js";
+import type { NodeHookName } from "../middleware/middleware.interface.js";
+import { buildMiddlewareContext } from "../middleware/context.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 /** Config a `@LangGraphAgent` preset uses to generate one middleware's node-hook wrapper. */
 export interface HookNodeConfig {

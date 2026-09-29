@@ -1,5 +1,5 @@
 import { Injectable, type Type } from "@nestjs/common";
-import { MIDDLEWARE_METADATA } from "../constants";
+import { MIDDLEWARE_METADATA } from "../constants.js";
 
 export type NodeRef = Type<any>;
 export type MiddlewareEntry = Type<any> | { use: Type<any>; on: NodeRef };

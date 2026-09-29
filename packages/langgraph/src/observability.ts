@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { requireOptionalModule } from "./optional-require";
+import { requireOptionalModule } from "./optional-require.js";
 
 /**
  * Plain OpenTelemetry tracing for compiled graphs. Instrumentation is built on

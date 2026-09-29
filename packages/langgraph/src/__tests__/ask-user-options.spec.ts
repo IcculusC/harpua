@@ -6,7 +6,7 @@ import {
   DEFAULT_ASK_USER_NAME,
   DEFAULT_ASK_USER_DESCRIPTION,
   DEFAULT_DISMISSED_MESSAGE,
-} from "../tools/ask-user/options";
+} from "../tools/ask-user/options.js";
 
 describe("askUserToolOptionsSchema / resolveAskUserToolOptions", () => {
   it("defaults name, description, maxQuestions, and dismissedMessage", () => {

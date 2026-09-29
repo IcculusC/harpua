@@ -6,8 +6,8 @@ import {
   LangGraphModule,
   getGraphFacadeToken,
   type LangGraphRunnable,
-} from "../index";
-import { AliasedGraph, Appender } from "./fixtures";
+} from "../index.js";
+import { AliasedGraph, Appender } from "./fixtures.js";
 
 describe("LangGraph node aliasing via as()", () => {
   let app: INestApplication;

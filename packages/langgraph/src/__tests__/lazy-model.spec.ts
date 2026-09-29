@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { lazyModel, LazyModel, isLazyModel } from "../lazy-model";
+import { lazyModel, LazyModel, isLazyModel } from "../lazy-model.js";
 
 class SomeChatModelClass {}
 

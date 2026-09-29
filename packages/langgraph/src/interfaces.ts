@@ -7,7 +7,7 @@ import type {
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
-import type { TOOLS } from "./constants";
+import type { TOOLS } from "./constants.js";
 
 /**
  * A LangGraph node implemented as an ordinary `@Injectable` Nest provider.

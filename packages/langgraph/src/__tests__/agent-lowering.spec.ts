@@ -3,13 +3,13 @@ import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import { AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
 
-import { START, END, TOOLS, isRouteMarker } from "../index";
-import { getGraphMetadata } from "../decorators";
-import { LangGraphMiddleware } from "../middleware/middleware.decorator";
-import { LangGraphAgent, getAgentMetadata } from "../agent/agent.decorator";
-import { lowerAgent } from "../agent/agent-compiler";
-import { OrderTools } from "./fixtures";
-import type { GraphEdge, RouteMarker } from "../interfaces";
+import { START, END, TOOLS, isRouteMarker } from "../index.js";
+import { getGraphMetadata } from "../decorators.js";
+import { LangGraphMiddleware } from "../middleware/middleware.decorator.js";
+import { LangGraphAgent, getAgentMetadata } from "../agent/agent.decorator.js";
+import { lowerAgent } from "../agent/agent-compiler.js";
+import { OrderTools } from "./fixtures.js";
+import type { GraphEdge, RouteMarker } from "../interfaces.js";
 
 const CHAT_MODEL = Symbol.for("test:CHAT_MODEL");
 

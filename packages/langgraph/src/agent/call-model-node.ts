@@ -2,11 +2,11 @@ import { Injectable, type InjectionToken, type Type } from "@nestjs/common";
 import { ModuleRef } from "@nestjs/core";
 import { AIMessage, type BaseMessage } from "@langchain/core/messages";
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
-import type { NodeHandler } from "../interfaces";
-import type { GraphBoundModel } from "../graph-tools";
-import { composeModelWrap } from "../middleware/model-wrap";
-import { AGENT_LOOP_DEFAULT, type LoopInfo } from "../middleware/loop-state";
-import type { ModelRequest } from "../middleware/middleware.types";
+import type { NodeHandler } from "../interfaces.js";
+import type { GraphBoundModel } from "../graph-tools.js";
+import { composeModelWrap } from "../middleware/model-wrap.js";
+import { AGENT_LOOP_DEFAULT, type LoopInfo } from "../middleware/loop-state.js";
+import type { ModelRequest } from "../middleware/middleware.types.js";
 
 /** Config a `@LangGraphAgent` preset uses to generate its `CallModelNode`. */
 export interface CallModelNodeConfig {

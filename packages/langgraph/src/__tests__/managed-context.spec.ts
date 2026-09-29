@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { AIMessage } from "@langchain/core/messages";
-import { ManagedContextMiddleware, provideManagedContext } from "../middleware/managed-context.middleware";
-import { CompactionMiddleware } from "../middleware/compaction.middleware";
-import { ContextWindowMiddleware } from "../middleware/context-window.middleware";
-import { COMPACTION_OPTS } from "../middleware/compaction.options";
-import { CONTEXT_WINDOW_OPTS } from "../middleware/context-window.options";
-import { COMPACTION_STATE } from "../middleware/compaction-state";
+import { ManagedContextMiddleware, provideManagedContext } from "../middleware/managed-context.middleware.js";
+import { CompactionMiddleware } from "../middleware/compaction.middleware.js";
+import { ContextWindowMiddleware } from "../middleware/context-window.middleware.js";
+import { COMPACTION_OPTS } from "../middleware/compaction.options.js";
+import { CONTEXT_WINDOW_OPTS } from "../middleware/context-window.options.js";
+import { COMPACTION_STATE } from "../middleware/compaction-state.js";
 
 describe("ManagedContextMiddleware", () => {
   it("delegates each hook to the injected workers, forwarding args + returns", async () => {

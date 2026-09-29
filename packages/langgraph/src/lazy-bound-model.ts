@@ -1,4 +1,4 @@
-import type { GraphBoundModel } from "./graph-tools";
+import type { GraphBoundModel } from "./graph-tools.js";
 
 /** Keys that must never trigger resolution: promise/thenable detection,
  *  runtime inspection, and Nest lifecycle hooks. Returning `undefined` for these

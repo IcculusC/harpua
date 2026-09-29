@@ -4,8 +4,8 @@
  * error; if the rejection stopped working, tsc would flag the unused directive
  * and the test would fail.
  */
-import { defineEdges, START, END, route, as } from "./index";
-import type { NodeHandler } from "./index";
+import { defineEdges, START, END, route, as } from "./index.js";
+import type { NodeHandler } from "./index.js";
 
 interface WideState {
   a: string;

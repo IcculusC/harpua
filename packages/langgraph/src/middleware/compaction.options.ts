@@ -1,8 +1,8 @@
 import type { InjectionToken } from "@nestjs/common";
 import type { BaseMessage } from "@langchain/core/messages";
 import { z, type ZodType } from "zod";
-import { CompactionSummarySchema } from "./compaction-state";
-import type { CompactionSignal } from "./compaction-signal";
+import { CompactionSummarySchema } from "./compaction-state.js";
+import type { CompactionSignal } from "./compaction-signal.js";
 
 export const COMPACTION_OPTS = Symbol.for("@harpua/langgraph:COMPACTION_OPTS");
 

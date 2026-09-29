@@ -23,8 +23,8 @@ import {
   END,
   type GraphBoundModel,
   type StateOf,
-} from "../index";
-import { OrderService, OrderTools } from "./fixtures";
+} from "../index.js";
+import { OrderService, OrderTools } from "./fixtures.js";
 
 const MessagesState = new StateSchema({ messages: MessagesValue });
 type MsgState = StateOf<typeof MessagesState>;

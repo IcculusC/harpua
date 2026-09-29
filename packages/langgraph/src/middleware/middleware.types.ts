@@ -1,7 +1,7 @@
 import type { LangGraphRunnableConfig } from "@langchain/langgraph";
 import type { AIMessage, BaseMessage, ToolMessage } from "@langchain/core/messages";
-import type { GraphBoundModel } from "../graph-tools";
-import type { LoopInfo } from "./loop-state";
+import type { GraphBoundModel } from "../graph-tools.js";
+import type { LoopInfo } from "./loop-state.js";
 
 /**
  * The read/write surface a node-level middleware hook (`beforeAgent`,

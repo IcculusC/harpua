@@ -5,13 +5,13 @@ import {
   GRAPH_METADATA,
   TOOL_METHODS_METADATA,
   getGraphFacadeToken,
-} from "./constants";
+} from "./constants.js";
 import type {
   ApprovalMessageFn,
   DeclineMessageFn,
   LangGraphOptions,
   ToolMethodMetadata,
-} from "./interfaces";
+} from "./interfaces.js";
 
 /**
  * Marks a class as a LangGraph graph definition. The class is expected to expose

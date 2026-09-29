@@ -10,12 +10,12 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import type { ChatResult } from "@langchain/core/outputs";
 
-import { LangGraphModule, getGraphFacadeToken } from "../index";
-import type { LangGraphRunnable } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
-import { BudgetMiddleware, provideBudget } from "../middleware/budget.middleware";
-import { RetryMiddleware, provideRetry } from "../middleware/retry.middleware";
-import { OrderService, OrderTools } from "./fixtures";
+import { LangGraphModule, getGraphFacadeToken } from "../index.js";
+import type { LangGraphRunnable } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
+import { BudgetMiddleware, provideBudget } from "../middleware/budget.middleware.js";
+import { RetryMiddleware, provideRetry } from "../middleware/retry.middleware.js";
+import { OrderService, OrderTools } from "./fixtures.js";
 
 /**
  * End-to-end proof that Budget + Retry actually drive a booted

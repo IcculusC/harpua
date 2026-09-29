@@ -3,19 +3,19 @@ import { ModuleRef } from "@nestjs/core";
 import { START, END } from "@langchain/langgraph";
 import { isAIMessage } from "@langchain/core/messages";
 
-import { AGENT_METADATA, TOOLS } from "../constants";
-import { defineEdges, route } from "../edges";
-import { normalizeMiddleware } from "../middleware/middleware.decorator";
-import type { NodeHookName } from "../middleware/middleware.interface";
-import { isLazyModel } from "../lazy-model";
-import { makeCallModelNode } from "./call-model-node";
-import { makeStructuredResponseNode, ResponseFormatOptions } from "./structured-response-node";
-import { makeHookNode } from "./hook-node";
-import { makeSystemPromptMiddleware } from "./system-prompt-middleware";
-import { provideGraphBoundModel } from "../graph-tools";
-import type { EdgeTarget, GraphEdge } from "../interfaces";
-import type { LangGraphAgentOptions, AgentMetadata } from "./agent.decorator";
-import { getAgentMetadata } from "./agent.decorator";
+import { AGENT_METADATA, TOOLS } from "../constants.js";
+import { defineEdges, route } from "../edges.js";
+import { normalizeMiddleware } from "../middleware/middleware.decorator.js";
+import type { NodeHookName } from "../middleware/middleware.interface.js";
+import { isLazyModel } from "../lazy-model.js";
+import { makeCallModelNode } from "./call-model-node.js";
+import { makeStructuredResponseNode, ResponseFormatOptions } from "./structured-response-node.js";
+import { makeHookNode } from "./hook-node.js";
+import { makeSystemPromptMiddleware } from "./system-prompt-middleware.js";
+import { provideGraphBoundModel } from "../graph-tools.js";
+import type { EdgeTarget, GraphEdge } from "../interfaces.js";
+import type { LangGraphAgentOptions, AgentMetadata } from "./agent.decorator.js";
+import { getAgentMetadata } from "./agent.decorator.js";
 
 /** The lowered pieces Task 12 needs to register providers for an agent. */
 export interface LoweredAgent {

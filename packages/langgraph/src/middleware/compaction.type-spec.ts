@@ -3,8 +3,8 @@
  * ergonomics of `provideCompaction`/`provideManagedContext`. Compiled by tsc
  * (see type-safety.spec.ts / tsconfig.type-test.json), not by the test runner.
  */
-import type { CompactionOptions } from "../index";
-import { CompactionSummarySchema, provideCompaction, provideManagedContext } from "../index";
+import type { CompactionOptions } from "../index.js";
+import { CompactionSummarySchema, provideCompaction, provideManagedContext } from "../index.js";
 
 // A drop config and a summarize config must both satisfy the parsed options type.
 const _drop: CompactionOptions = { triggerAt: { messages: 40 }, keepRecent: 20, strategy: "drop" };

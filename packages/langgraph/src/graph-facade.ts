@@ -3,13 +3,13 @@ import type { Type } from "@nestjs/common";
 import { Command, isCommand } from "@langchain/langgraph";
 import type { RunnableConfig } from "@langchain/core/runnables";
 import type { StateSnapshot } from "@langchain/langgraph";
-import type { GraphRegistry } from "./graph-registry";
-import { getGraphMetadata } from "./decorators";
+import type { GraphRegistry } from "./graph-registry.js";
+import { getGraphMetadata } from "./decorators.js";
 import {
   threadIdOf,
   withGraphSpan,
   withGraphStreamSpan,
-} from "./observability";
+} from "./observability.js";
 import type {
   LangGraphRunnable,
   MessageChunk,
@@ -17,7 +17,7 @@ import type {
   NodeUpdate,
   StateHistoryOptions,
   StreamMode,
-} from "./interfaces";
+} from "./interfaces.js";
 
 /**
  * Injectable facade delegating to the compiled graph held by the

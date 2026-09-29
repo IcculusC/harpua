@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage, RemoveMessage } from "@langchain/core/messages";
 import { ModuleRef } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
-import { CompactionMiddleware } from "../middleware/compaction.middleware";
-import { CompactionOptions } from "../middleware/compaction.options";
-import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state";
+import { CompactionMiddleware } from "../middleware/compaction.middleware.js";
+import { CompactionOptions } from "../middleware/compaction.options.js";
+import { AGENT_LOOP_DEFAULT } from "../middleware/loop-state.js";
 
 const MODEL = Symbol.for("summary-model");
 function ctx(messages: any[]) {

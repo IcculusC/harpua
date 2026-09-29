@@ -5,7 +5,7 @@ import type {
   ModelRequest,
   ToolNext,
   ToolRequest,
-} from "./middleware.types";
+} from "./middleware.types.js";
 
 export type {
   MiddlewareContext,
@@ -13,7 +13,7 @@ export type {
   ModelRequest,
   ToolNext,
   ToolRequest,
-} from "./middleware.types";
+} from "./middleware.types.js";
 
 /** The four node-level hooks a middleware may implement, in run order. */
 export type NodeHookName = "beforeAgent" | "beforeModel" | "afterModel" | "afterAgent";

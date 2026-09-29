@@ -12,18 +12,18 @@ import {
   LANGGRAPH_CHECKPOINTER,
   LANGGRAPH_MODULE_OPTIONS,
   getGraphFacadeToken,
-} from "./constants";
-import { getGraphMetadata } from "./decorators";
-import { GraphRegistry } from "./graph-registry";
-import { GraphFacade } from "./graph-facade";
-import { buildCheckpointer, CheckpointerLifecycle } from "./checkpointer";
-import { getAgentMetadata } from "./agent/agent.decorator";
-import { agentProviders } from "./agent/agent-compiler";
+} from "./constants.js";
+import { getGraphMetadata } from "./decorators.js";
+import { GraphRegistry } from "./graph-registry.js";
+import { GraphFacade } from "./graph-facade.js";
+import { buildCheckpointer, CheckpointerLifecycle } from "./checkpointer.js";
+import { getAgentMetadata } from "./agent/agent.decorator.js";
+import { agentProviders } from "./agent/agent-compiler.js";
 import type {
   CheckpointerOptions,
   LangGraphModuleAsyncOptions,
   LangGraphModuleOptions,
-} from "./interfaces";
+} from "./interfaces.js";
 
 function checkpointerProvider(): Provider {
   return {

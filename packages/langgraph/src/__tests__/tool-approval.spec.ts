@@ -31,8 +31,8 @@ import {
   getGraphFacadeToken,
   type StateOf,
   type LangGraphRunnable,
-} from "../index";
-import { resetOtelCache } from "../observability";
+} from "../index.js";
+import { resetOtelCache } from "../observability.js";
 
 /* ------------------------------------------------------------------ *
  * Approval-gated tools: enforcement lives in buildGraphTools, so both

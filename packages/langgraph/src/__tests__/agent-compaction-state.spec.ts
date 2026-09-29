@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
-import { LangGraphAgent } from "../agent/agent.decorator";
-import { getGraphMetadata } from "../decorators";
-import { CompactionMiddleware } from "../middleware/compaction.middleware";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
+import { getGraphMetadata } from "../decorators.js";
+import { CompactionMiddleware } from "../middleware/compaction.middleware.js";
 
 const MODEL = Symbol.for("m");
 

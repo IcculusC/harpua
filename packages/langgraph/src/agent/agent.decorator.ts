@@ -1,17 +1,17 @@
 import type { InjectionToken } from "@nestjs/common";
 import { StateSchema } from "@langchain/langgraph";
-import type { LazyModel } from "../lazy-model";
+import type { LazyModel } from "../lazy-model.js";
 import type { AIMessage } from "@langchain/core/messages";
 import { z } from "zod";
-import { AGENT_METADATA } from "../constants";
-import { LangGraph } from "../decorators";
-import { withAgentLoop } from "../middleware/loop-state";
-import { needsCompactionState, withCompactionState } from "../middleware/compaction-state";
-import { normalizeMiddleware, type MiddlewareEntry } from "../middleware/middleware.decorator";
-import type { ToolEntry } from "../interfaces";
-import type { SystemPromptSource } from "./system-prompt-middleware";
-import type { ResponseFormatOptions } from "./structured-response-node";
-import { buildAgentGraph, type AgentBuild } from "./agent-compiler";
+import { AGENT_METADATA } from "../constants.js";
+import { LangGraph } from "../decorators.js";
+import { withAgentLoop } from "../middleware/loop-state.js";
+import { needsCompactionState, withCompactionState } from "../middleware/compaction-state.js";
+import { normalizeMiddleware, type MiddlewareEntry } from "../middleware/middleware.decorator.js";
+import type { ToolEntry } from "../interfaces.js";
+import type { SystemPromptSource } from "./system-prompt-middleware.js";
+import type { ResponseFormatOptions } from "./structured-response-node.js";
+import { buildAgentGraph, type AgentBuild } from "./agent-compiler.js";
 
 /** Options for the {@link LangGraphAgent} preset decorator. */
 export interface LangGraphAgentOptions {

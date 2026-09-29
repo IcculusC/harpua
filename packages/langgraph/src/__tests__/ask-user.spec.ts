@@ -20,8 +20,8 @@ import {
   getGraphFacadeToken,
   type StateOf,
   type LangGraphRunnable,
-} from "../index";
-import { DEFAULT_DISMISSED_MESSAGE } from "../tools/ask-user/options";
+} from "../index.js";
+import { DEFAULT_DISMISSED_MESSAGE } from "../tools/ask-user/options.js";
 
 /* ------------------------------------------------------------------ *
  * Schema-level unit tests: prove options are actually wired in,

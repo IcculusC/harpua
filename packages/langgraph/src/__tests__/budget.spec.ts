@@ -4,8 +4,8 @@ import {
   BudgetOptions,
   BUDGET_OPTS,
   provideBudget,
-} from "../middleware/budget.middleware";
-import type { MiddlewareContext } from "../middleware/middleware.types";
+} from "../middleware/budget.middleware.js";
+import type { MiddlewareContext } from "../middleware/middleware.types.js";
 
 describe("BudgetMiddleware", () => {
   it("returns exit patch when iteration cap is hit", async () => {

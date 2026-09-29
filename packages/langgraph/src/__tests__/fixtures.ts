@@ -15,7 +15,7 @@ import {
   as,
   interrupt,
   type StateOf,
-} from "../index";
+} from "../index.js";
 
 /* ------------------------------------------------------------------ */
 /* Linear graph + DI                                                   */

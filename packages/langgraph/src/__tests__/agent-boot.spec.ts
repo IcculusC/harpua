@@ -9,10 +9,10 @@ import {
 } from "@langchain/core/language_models/chat_models";
 import type { ChatResult } from "@langchain/core/outputs";
 
-import { LangGraphModule, getGraphFacadeToken } from "../index";
-import type { LangGraphRunnable } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
-import { OrderService, OrderTools } from "./fixtures";
+import { LangGraphModule, getGraphFacadeToken } from "../index.js";
+import type { LangGraphRunnable } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
+import { OrderService, OrderTools } from "./fixtures.js";
 
 const CHAT_MODEL = Symbol.for("agent-boot:CHAT_MODEL");
 

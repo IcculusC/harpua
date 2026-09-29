@@ -27,9 +27,9 @@ import {
   getGraphFacadeToken,
   type StateOf,
   type LangGraphRunnable,
-} from "../index";
-import { resetOtelCache } from "../observability";
-import { OrderService, OrderTools } from "./fixtures";
+} from "../index.js";
+import { resetOtelCache } from "../observability.js";
+import { OrderService, OrderTools } from "./fixtures.js";
 
 const MessagesState = new StateSchema({ messages: MessagesValue });
 type MsgState = StateOf<typeof MessagesState>;

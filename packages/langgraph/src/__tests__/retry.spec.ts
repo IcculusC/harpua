@@ -5,8 +5,8 @@ import {
   RetryOptions,
   RETRY_OPTS,
   provideRetry,
-} from "../middleware/retry.middleware";
-import type { ModelRequest, ToolRequest } from "../middleware/middleware.types";
+} from "../middleware/retry.middleware.js";
+import type { ModelRequest, ToolRequest } from "../middleware/middleware.types.js";
 
 describe("RetryMiddleware", () => {
   it("retries model call and succeeds on third attempt", async () => {

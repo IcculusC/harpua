@@ -1,16 +1,16 @@
 import { type Provider } from "@nestjs/common";
 import type { z } from "zod";
 import type { AIMessage } from "@langchain/core/messages";
-import { LangGraphMiddleware } from "./middleware.decorator";
-import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface";
-import type { MiddlewareContext, ModelRequest, ModelNext } from "./middleware.types";
-import { CompactionMiddleware } from "./compaction.middleware";
-import { ContextWindowMiddleware } from "./context-window.middleware";
-import { COMPACTION_OPTS, CompactionOptions, summaryEpilogueOf } from "./compaction.options";
-import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./context-window.options";
-import { ManagedContextOptions } from "./managed-context.options";
-import { COMPACTION_STATE } from "./compaction-state";
-import { SUMMARY_EPILOGUE } from "./summary-epilogue.token";
+import { LangGraphMiddleware } from "./middleware.decorator.js";
+import type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware.interface.js";
+import type { MiddlewareContext, ModelRequest, ModelNext } from "./middleware.types.js";
+import { CompactionMiddleware } from "./compaction.middleware.js";
+import { ContextWindowMiddleware } from "./context-window.middleware.js";
+import { COMPACTION_OPTS, CompactionOptions, summaryEpilogueOf } from "./compaction.options.js";
+import { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./context-window.options.js";
+import { ManagedContextOptions } from "./managed-context.options.js";
+import { COMPACTION_STATE } from "./compaction-state.js";
+import { SUMMARY_EPILOGUE } from "./summary-epilogue.token.js";
 
 /** Batteries-included context management: one entry that delegates fold + view. */
 @LangGraphMiddleware()

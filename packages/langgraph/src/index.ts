@@ -2,10 +2,10 @@ import "reflect-metadata";
 
 // Sentinels: START/END re-exported from LangGraph, TOOLS is ours.
 export { START, END } from "@langchain/langgraph";
-export { TOOLS, getGraphFacadeToken, LANGGRAPH_CHECKPOINTER } from "./constants";
+export { TOOLS, getGraphFacadeToken, LANGGRAPH_CHECKPOINTER } from "./constants.js";
 
 // Edge DSL.
-export { defineEdges, route, as, isAliasRef, isRouteMarker } from "./edges";
+export { defineEdges, route, as, isAliasRef, isRouteMarker } from "./edges.js";
 
 // Decorators.
 export {
@@ -15,17 +15,17 @@ export {
   getGraphMetadata,
   getToolMethods,
   isGraphClass,
-} from "./decorators";
+} from "./decorators.js";
 export type {
   LangGraphToolOptions,
   LangGraphToolBaseOptions,
   LangGraphToolApprovalOptions,
-} from "./decorators";
+} from "./decorators.js";
 
 // Module + runtime pieces.
-export { LangGraphModule } from "./langgraph.module";
-export { GraphRegistry } from "./graph-registry";
-export { GraphFacade } from "./graph-facade";
+export { LangGraphModule } from "./langgraph.module.js";
+export { GraphRegistry } from "./graph-registry.js";
+export { GraphFacade } from "./graph-facade.js";
 
 // Tool binding: expose a graph's tools to a chat model so it can emit tool
 // calls (the ToolNode only executes them).
@@ -35,28 +35,28 @@ export {
   provideGraphTools,
   provideGraphBoundModel,
   requireApproval,
-} from "./graph-tools";
+} from "./graph-tools.js";
 export type {
   GraphBoundModel,
   ProvideGraphToolsOptions,
   ProvideGraphBoundModelOptions,
   ToolApprovalRequest,
   RequireApprovalOptions,
-} from "./graph-tools";
+} from "./graph-tools.js";
 
 // Lazy model binding: defer resolution to first use instead of feature-init.
-export { lazyModel, LazyModel, isLazyModel } from "./lazy-model";
+export { lazyModel, LazyModel, isLazyModel } from "./lazy-model.js";
 
 // ask_user: the model-callable sibling of the approval gate (`requireApproval`)
 // — the model calls ask_user with typed questions instead of a gated action;
 // the host renders them and the answers return as the tool result.
-export { askUserTool } from "./tools/ask-user/ask-user";
-export { askUserQuestionPresetSchema } from "./tools/ask-user/schemas";
-export type { AskUserRequest, AskUserQuestionPreset } from "./tools/ask-user/schemas";
-export type { AskUserToolOptions } from "./tools/ask-user/options";
+export { askUserTool } from "./tools/ask-user/ask-user.js";
+export { askUserQuestionPresetSchema } from "./tools/ask-user/schemas.js";
+export type { AskUserRequest, AskUserQuestionPreset } from "./tools/ask-user/schemas.js";
+export type { AskUserToolOptions } from "./tools/ask-user/options.js";
 
 // Streaming helpers.
-export { getStreamedInterrupts, INTERRUPT_KEY } from "./stream-utils";
+export { getStreamedInterrupts, INTERRUPT_KEY } from "./stream-utils.js";
 
 // Public types.
 export type {
@@ -92,7 +92,7 @@ export type {
   MessageChunk,
   ModeChunk,
   StateOf,
-} from "./interfaces";
+} from "./interfaces.js";
 
 // Re-export the LangGraph runtime primitives users need in nodes.
 export {
@@ -105,11 +105,11 @@ export type { LangGraphRunnableConfig } from "@langchain/langgraph";
 
 // Agent-loop preset: a declarative model<->tools loop that lowers
 // transparently to primitives (fully ejectable and addressable).
-export { LangGraphAgent, getAgentMetadata } from "./agent/agent.decorator";
-export type { LangGraphAgentOptions } from "./agent/agent.decorator";
-export type { SystemPromptSource } from "./agent/system-prompt-middleware";
+export { LangGraphAgent, getAgentMetadata } from "./agent/agent.decorator.js";
+export type { LangGraphAgentOptions } from "./agent/agent.decorator.js";
+export type { SystemPromptSource } from "./agent/system-prompt-middleware.js";
 // Both a zod schema (value) and its input type (merged declaration).
-export { ResponseFormatOptions } from "./agent/structured-response-node";
+export { ResponseFormatOptions } from "./agent/structured-response-node.js";
 
 // Middleware: DI-provider classes implementing node hooks
 // (beforeAgent/beforeModel/afterModel/afterAgent) and/or callable-wrap hooks
@@ -129,45 +129,45 @@ export { ResponseFormatOptions } from "./agent/structured-response-node";
 // distinctly-named `LangGraphMiddlewareContract` alias (the same alias name
 // already used internally by BudgetMiddleware/RetryMiddleware). Consumers
 // write `class X implements LangGraphMiddlewareContract`.
-export { LangGraphMiddleware, normalizeMiddleware } from "./middleware/middleware.decorator";
-export type { MiddlewareEntry, NodeRef } from "./middleware/middleware.decorator";
-export type { NodeHookName } from "./middleware/middleware.interface";
-export type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware/middleware.interface";
+export { LangGraphMiddleware, normalizeMiddleware } from "./middleware/middleware.decorator.js";
+export type { MiddlewareEntry, NodeRef } from "./middleware/middleware.decorator.js";
+export type { NodeHookName } from "./middleware/middleware.interface.js";
+export type { LangGraphMiddleware as LangGraphMiddlewareContract } from "./middleware/middleware.interface.js";
 export type {
   MiddlewareContext,
   ModelRequest,
   ToolRequest,
   ModelNext,
   ToolNext,
-} from "./middleware/middleware.types";
-export { lastNonSystemIsHuman } from "./middleware/turn-start";
+} from "./middleware/middleware.types.js";
+export { lastNonSystemIsHuman } from "./middleware/turn-start.js";
 
 // Reserved persisted loop state the agent loop and its middleware share.
-export { withAgentLoop, AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./middleware/loop-state";
-export type { LoopInfo, AgentExit } from "./middleware/loop-state";
+export { withAgentLoop, AGENT_LOOP_DEFAULT, AGENT_EXIT_DEFAULT } from "./middleware/loop-state.js";
+export type { LoopInfo, AgentExit } from "./middleware/loop-state.js";
 
 // Reference middlewares. `BudgetOptions`/`RetryOptions` are each both a zod
 // schema (value) and its inferred type (merged declaration in the source
 // module) — the plain export specifier carries both.
-export { BudgetMiddleware, BudgetOptions, BUDGET_OPTS, provideBudget } from "./middleware/budget.middleware";
-export { RetryMiddleware, RetryOptions, RETRY_OPTS, provideRetry } from "./middleware/retry.middleware";
-export { ProviderGuardrailMiddleware, ProviderGuardrailOptions, PROVIDER_GUARDRAIL_OPTS, provideProviderGuardrail } from "./middleware/provider-guardrail.middleware";
+export { BudgetMiddleware, BudgetOptions, BUDGET_OPTS, provideBudget } from "./middleware/budget.middleware.js";
+export { RetryMiddleware, RetryOptions, RETRY_OPTS, provideRetry } from "./middleware/retry.middleware.js";
+export { ProviderGuardrailMiddleware, ProviderGuardrailOptions, PROVIDER_GUARDRAIL_OPTS, provideProviderGuardrail } from "./middleware/provider-guardrail.middleware.js";
 
 // Context management middleware family: durable compaction (fold) + the
 // cache-coherent render layout (view), plus a batteries-included bundle.
-export { CompactionMiddleware, provideCompaction } from "./middleware/compaction.middleware";
-export { ContextWindowMiddleware, provideContextWindow } from "./middleware/context-window.middleware";
-export { ManagedContextMiddleware, provideManagedContext } from "./middleware/managed-context.middleware";
-export { clearAgentExit } from "./middleware/clear-exit";
+export { CompactionMiddleware, provideCompaction } from "./middleware/compaction.middleware.js";
+export { ContextWindowMiddleware, provideContextWindow } from "./middleware/context-window.middleware.js";
+export { ManagedContextMiddleware, provideManagedContext } from "./middleware/managed-context.middleware.js";
+export { clearAgentExit } from "./middleware/clear-exit.js";
 export {
   withCompactionState,
   needsCompactionState,
   CompactionSummarySchema,
   COMPACTION_STATE,
-} from "./middleware/compaction-state";
-export { COMPACTION_OPTS, CompactionOptions } from "./middleware/compaction.options";
-export { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./middleware/context-window.options";
-export { MANAGED_CONTEXT_OPTS, ManagedContextOptions } from "./middleware/managed-context.options";
-export type { CompactionSummary } from "./middleware/compaction-state";
-export type { CompactionSignal } from "./middleware/compaction-signal";
-export type { TriggerSpec, CompactionStrategy } from "./middleware/compaction.options";
+} from "./middleware/compaction-state.js";
+export { COMPACTION_OPTS, CompactionOptions } from "./middleware/compaction.options.js";
+export { CONTEXT_WINDOW_OPTS, ContextWindowOptions } from "./middleware/context-window.options.js";
+export { MANAGED_CONTEXT_OPTS, ManagedContextOptions } from "./middleware/managed-context.options.js";
+export type { CompactionSummary } from "./middleware/compaction-state.js";
+export type { CompactionSignal } from "./middleware/compaction-signal.js";
+export type { TriggerSpec, CompactionStrategy } from "./middleware/compaction.options.js";

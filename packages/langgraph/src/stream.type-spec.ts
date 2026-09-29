@@ -9,7 +9,7 @@ import type {
   NodeUpdate,
   MessageChunk,
   ModeChunk,
-} from "./index";
+} from "./index.js";
 
 interface DemoState {
   count: number;

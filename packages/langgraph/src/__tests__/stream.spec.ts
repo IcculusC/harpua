@@ -10,7 +10,7 @@ import {
   getGraphFacadeToken,
   getStreamedInterrupts,
   type LangGraphRunnable,
-} from "../index";
+} from "../index.js";
 import {
   AgentGraph,
   AskHumanNode,
@@ -25,7 +25,7 @@ import {
   NodeB,
   OrderService,
   OrderTools,
-} from "./fixtures";
+} from "./fixtures.js";
 
 async function collect<T>(stream: AsyncIterable<T>): Promise<T[]> {
   const out: T[] = [];

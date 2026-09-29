@@ -10,10 +10,10 @@ import {
 import type { ChatResult } from "@langchain/core/outputs";
 import { z } from "zod";
 
-import { LangGraphModule, getGraphFacadeToken, lazyModel } from "../index";
-import type { LangGraphRunnable } from "../index";
-import { LangGraphAgent } from "../agent/agent.decorator";
-import { OrderService, OrderTools } from "./fixtures";
+import { LangGraphModule, getGraphFacadeToken, lazyModel } from "../index.js";
+import type { LangGraphRunnable } from "../index.js";
+import { LangGraphAgent } from "../agent/agent.decorator.js";
+import { OrderService, OrderTools } from "./fixtures.js";
 
 const FAST = Symbol.for("lazy-agent:ChatModel:fast");
 const MISSING = Symbol.for("lazy-agent:ChatModel:missing");

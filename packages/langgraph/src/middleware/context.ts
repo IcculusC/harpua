@@ -1,6 +1,6 @@
 import { interrupt, type LangGraphRunnableConfig } from "@langchain/langgraph";
-import type { MiddlewareContext } from "./middleware.types";
-import { AGENT_LOOP_DEFAULT } from "./loop-state";
+import type { MiddlewareContext } from "./middleware.types.js";
+import { AGENT_LOOP_DEFAULT } from "./loop-state.js";
 
 /**
  * Builds the `ctx` a node-hook middleware (`beforeAgent`/`beforeModel`/

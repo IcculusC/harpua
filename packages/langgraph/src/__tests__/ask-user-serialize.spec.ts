@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { defaultSerializeAnswers } from "../tools/ask-user/serialize-answers";
+import { defaultSerializeAnswers } from "../tools/ask-user/serialize-answers.js";
 
 describe("defaultSerializeAnswers", () => {
   const questions = [
