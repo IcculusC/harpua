@@ -112,7 +112,7 @@ importers:
   packages/agent-tools:
     dependencies:
       ml-distance:
-        specifier: ^4.0.1
+        specifier: ~4.0.1
         version: 4.0.1
       node-html-markdown:
         specifier: ^2.0.0
