@@ -1,5 +1,11 @@
 # @harpua/agent-tools
 
+## 1.0.0-next.0
+
+### Major Changes
+
+- 6d6d99e: ESM-only ("type": "module" + exports map). CommonJS consumers need Node >=22.12 (require(esm)).
+
 ## 0.8.2
 
 ### Patch Changes

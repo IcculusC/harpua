@@ -1,6 +1,6 @@
 {
   "name": "@harpua/agent-tools",
-  "version": "0.8.2",
+  "version": "1.0.0-next.0",
   "license": "MIT",
   "type": "module",
   "engines": {
