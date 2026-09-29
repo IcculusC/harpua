@@ -33,17 +33,26 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
 
-      # Trusted publishing (OIDC) needs npm CLI >= 11.5.1. Node 24 (.nvmrc) already bundles
-      # npm 11.19, so this pin is now redundant for the version floor -- it is kept only
-      # because it is the exact path that published the 1.0.0-next releases; drop it
-      # (and this step) in a follow-up once a release has been proven without it.
-      # `changeset publish` -> `pnpm publish` delegates the actual upload to this npm
-      # binary, so the upgraded npm is what performs the OIDC token exchange.
-      # PINNED (not @latest): a broken npm@latest shipped a provenance generator that
-      # can't resolve its bundled `sigstore` module ("Cannot find module 'sigstore'"),
-      # which aborts every publish. 11.5.1 is the OIDC minimum and bundles sigstore.
-      - name: Upgrade npm for trusted publishing
-        run: npm install -g npm@11.5.1
+      # Trusted publishing (OIDC) needs npm CLI >= 11.5.1. `changeset publish` ->
+      # `pnpm publish` delegates the upload to this npm binary, so it performs the OIDC
+      # token exchange. Node 24 (.nvmrc) bundles npm 11.19, so we use it as-is instead of
+      # pinning (a pin to 11.5.1 would downgrade it). Guard the two known failure modes
+      # before anything publishes: an npm below the OIDC minimum, and an npm whose
+      # provenance generator can't resolve its bundled `sigstore` module ("Cannot find
+      # module 'sigstore'", which once aborted every publish mid-release).
+      - name: Check npm for trusted publishing
+        run: |
+          NPM_DIR="$(npm root -g)/npm"
+          node -e '
+            const [dir, v] = process.argv.slice(1);
+            const semver = require(dir + "/node_modules/semver");
+            require.resolve("sigstore", { paths: [dir] });
+            if (!semver.gte(v, "11.5.1")) {
+              console.error(`npm ${v} is below 11.5.1, the trusted-publishing minimum`);
+              process.exit(1);
+            }
+            console.log(`npm ${v}: trusted publishing OK, sigstore resolves`);
+          ' "$NPM_DIR" "$(npm -v)"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
