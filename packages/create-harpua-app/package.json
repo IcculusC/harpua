@@ -2,6 +2,9 @@
   "name": "create-harpua-app",
   "version": "0.1.4",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.12"
+  },
   "description": "Scaffold a runnable NestJS + LangGraph weather agent built on @harpua/langgraph — `pnpm create harpua-app my-agent`",
   "repository": {
     "type": "git",

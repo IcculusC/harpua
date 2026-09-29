@@ -2,6 +2,9 @@
   "name": "@harpua/agent-tools",
   "version": "0.8.2",
   "license": "MIT",
+  "engines": {
+    "node": ">=22.12"
+  },
   "description": "Framework-agnostic prebuilt LangChain tools for agents (works with any LangChain/LangGraph app)",
   "repository": {
     "type": "git",

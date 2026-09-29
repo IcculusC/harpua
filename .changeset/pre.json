@@ -1,0 +1,15 @@
+{
+  "mode": "pre",
+  "tag": "next",
+  "initialVersions": {
+    "@harpua/api": "0.0.0",
+    "@harpua/agent-tools": "0.8.2",
+    "create-harpua-app": "0.1.4",
+    "@harpua/eslint-config": "0.0.0",
+    "@harpua/langgraph": "0.6.3",
+    "@harpua/langgraph-testing": "0.3.0",
+    "@harpua/models": "0.2.0",
+    "@harpua/typescript-config": "0.0.0"
+  },
+  "changesets": []
+}
