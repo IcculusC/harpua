@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage, RemoveMessage } from "@langchain/core/messages";
 import { ModuleRef } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
@@ -89,7 +90,7 @@ describe("CompactionMiddleware (summarize)", () => {
     // view. Standalone provideCompaction + summarize writes the summary to a
     // channel nothing reads — folding there would erase the live instruction
     // invisibly, so the fallback requires a resolvable renderer.
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       const modelOnly = {
         get: (token: unknown) => {
@@ -112,7 +113,7 @@ describe("CompactionMiddleware (summarize)", () => {
     // rejecting the span) would otherwise cost a peak-context summarize
     // attempt EVERY cycle for the rest of the turn — the decline path retries
     // by design, so it needs a per-thread cap.
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       let attempts = 0;
       const throwing = {
@@ -137,7 +138,7 @@ describe("CompactionMiddleware (summarize)", () => {
   });
 
   it("declines a mega-turn fold entirely when the summarizer throws — never a bare drop of the running turn", async () => {
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       const throwing = { withStructuredOutput: () => ({ invoke: async () => { throw new Error("boom"); } }) };
       const mw = new CompactionMiddleware(opts, moduleRefReturning(throwing));
@@ -153,7 +154,7 @@ describe("CompactionMiddleware (summarize)", () => {
   });
 
   it("logs a warning (with the error message) when the summarizer throws, and still falls back to drop", async () => {
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       const throwing = { withStructuredOutput: () => ({ invoke: async () => { throw new Error("unresolvable model token"); } }) };
       const mw = new CompactionMiddleware(opts, moduleRefReturning(throwing));

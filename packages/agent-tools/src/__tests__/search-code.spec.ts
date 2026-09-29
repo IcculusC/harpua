@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from "vitest";
 import { execFileSync } from "node:child_process";
 
 import { searchFilesTool, RG_MISSING_MESSAGE } from "../file-exploration/search-files";
@@ -12,8 +13,8 @@ function fakeMatches(n: number): string {
   return rows.join("\n") + "\n";
 }
 
-function stubRg(result: RgResult): jest.SpyInstance {
-  return jest.spyOn(runRgModule, "runRg").mockResolvedValue(result);
+function stubRg(result: RgResult): MockInstance {
+  return vi.spyOn(runRgModule, "runRg").mockResolvedValue(result);
 }
 
 describe("search_files (injected exec seam)", () => {
@@ -22,7 +23,7 @@ describe("search_files (injected exec seam)", () => {
     root = makeTmpDir();
   });
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
     removeTmpDir(root);
   });
 
@@ -71,7 +72,7 @@ describe("search_files (injected exec seam)", () => {
   });
 
   it("reports no matches distinctly from an error (exit 1)", async () => {
-    jest
+    vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce({ stdout: "", stderr: "", code: 1 }) // search: empty
       .mockResolvedValueOnce({ stdout: "", stderr: "", code: 0 }); // probe: files exist
@@ -100,7 +101,7 @@ describe("search_files (injected exec seam)", () => {
   const BROKE = { stdout: "", stderr: "rg: broke", code: 2 };
 
   it("says nothing was searched when the glob matched no files", async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY) // search
       .mockResolvedValueOnce(EMPTY) // as-searched
@@ -134,7 +135,7 @@ describe("search_files (injected exec seam)", () => {
   // Reporting that as "excluded by ignore rules" is a lie with no fixable cause,
   // and telling the agent to give up abandons a file it could simply read.
   it("names hidden files — not ignore rules — when the search skipped dotfiles", async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY) // search: skips hidden
       .mockResolvedValueOnce(EMPTY) // as-searched: also skips hidden
@@ -168,7 +169,7 @@ describe("search_files (injected exec seam)", () => {
   // cannot exist; telling it to drop the glob hands back a confident PARTIAL
   // answer with the ignored hits silently missing.
   it("blames ignore rules, not the glob, when the matching files are ignored", async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY)
       .mockResolvedValueOnce(EMPTY)
@@ -206,7 +207,7 @@ describe("search_files (injected exec seam)", () => {
   // is the COMMON case, and a chain that lifts one mechanism at a time
   // misattributes it to whichever probe happens to fire first.
   it("names BOTH mechanisms when a file is hidden and ignored at once", async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY)
       .mockResolvedValueOnce(EMPTY)
@@ -232,7 +233,7 @@ describe("search_files (injected exec seam)", () => {
   // Our own `!.git/**` guard is last-match-wins, so it overrides a caller who
   // MEANT .git/**. Blaming their glob for files our guard hid is the same lie.
   it("admits it was our own .git guard, not the caller's glob", async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY)
       .mockResolvedValueOnce(EMPTY)
@@ -258,7 +259,7 @@ describe("search_files (injected exec seam)", () => {
   it("reports nothing-searched with no glob at all when ignore rules exclude everything", async () => {
     // The gate is NOT "was a glob supplied" — an empty tree, or a root whose
     // ignore rules exclude every file, searches nothing with no glob at all.
-    jest
+    vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY)
       .mockResolvedValueOnce(EMPTY)
@@ -273,7 +274,7 @@ describe("search_files (injected exec seam)", () => {
   });
 
   it("still reports 'No matches.' when files WERE searched and the pattern is absent", async () => {
-    const spy = jest
+    const spy = vi
       .spyOn(runRgModule, "runRg")
       .mockResolvedValueOnce(EMPTY)
       // The probe mirroring the search found a file: the negative is honest.
@@ -296,7 +297,7 @@ describe("search_files (injected exec seam)", () => {
     ["the both probe", [EMPTY, EMPTY, EMPTY, EMPTY, BROKE]],
     ["the .git probe", [EMPTY, EMPTY, EMPTY, EMPTY, EMPTY, BROKE]],
   ])("falls back to 'No matches.' when %s fails, inventing no cause", async (_label, seq) => {
-    const spy = jest.spyOn(runRgModule, "runRg");
+    const spy = vi.spyOn(runRgModule, "runRg");
     for (const r of seq) spy.mockResolvedValueOnce(r);
 
     const search = searchFilesTool({ root });
@@ -318,7 +319,7 @@ describe("search_files (injected exec seam)", () => {
   it("gives an install hint when ripgrep is missing (ENOENT)", async () => {
     const err = new Error("spawn rg ENOENT") as NodeJS.ErrnoException;
     err.code = "ENOENT";
-    jest.spyOn(runRgModule, "runRg").mockRejectedValue(err);
+    vi.spyOn(runRgModule, "runRg").mockRejectedValue(err);
     const search = searchFilesTool({ root });
     const out = await runTool(search, { pattern: "const" });
     expect(out).toBe(RG_MISSING_MESSAGE);

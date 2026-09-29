@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SkillRegistry } from "../skills/skill-registry";
 import { useSkillTool } from "../skills/use-skill";
 import { readSkillFileTool } from "../skills/read-skill-file";

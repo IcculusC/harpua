@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { ingest } from "../knowledge/ingest";
 import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
 import { MockEmbeddings } from "../knowledge/mock-embeddings";
@@ -53,7 +54,7 @@ describe("ingest", () => {
 
   it("handles empty inputs without upserting", async () => {
     const store = new InMemoryVectorStore();
-    const upsertSpy = jest.spyOn(store, "upsert");
+    const upsertSpy = vi.spyOn(store, "upsert");
     expect(await ingest([], { embeddings, store })).toEqual({ upserted: 0 });
     expect(await ingest([{ text: "   \n  \n" }], { embeddings, store })).toEqual({ upserted: 0 });
     expect(upsertSpy).not.toHaveBeenCalled();
@@ -70,7 +71,7 @@ describe("ingest", () => {
 
   it("rejects a malformed document at the boundary (zod)", async () => {
     const store = new InMemoryVectorStore();
-    const upsertSpy = jest.spyOn(store, "upsert");
+    const upsertSpy = vi.spyOn(store, "upsert");
     await expect(
       ingest([{ text: 123 as unknown as string }], { embeddings, store }),
     ).rejects.toThrow();

@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage, RemoveMessage } from "@langchain/core/messages";
 import { CompactionMiddleware, provideCompaction } from "../middleware/compaction.middleware";
 import { COMPACTION_OPTS, CompactionOptions } from "../middleware/compaction.options";

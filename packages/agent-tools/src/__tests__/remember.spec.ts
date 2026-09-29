@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { rememberTool } from "../knowledge/remember";
 import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
 import { MockEmbeddings } from "../knowledge/mock-embeddings";
@@ -45,7 +46,7 @@ describe("rememberTool", () => {
 
   it("returns 'nothing to save' for whitespace-only text (no upsert)", async () => {
     const store = new InMemoryVectorStore();
-    const upsertSpy = jest.spyOn(store, "upsert");
+    const upsertSpy = vi.spyOn(store, "upsert");
     const tool = rememberTool({ embeddings, store });
     const out = (await tool.invoke({ text: "   \n  \n" })) as string;
     expect(out).toContain("nothing to save");

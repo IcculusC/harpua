@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Test } from "@nestjs/testing";
 import type { INestApplication } from "@nestjs/common";
 

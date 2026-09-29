@@ -137,5 +137,5 @@ tsc exits 0 only if every `@ts-expect-error` still catches a real error.
 
 ## Iteration loop
 
-Run one spec while iterating: `<pm> exec jest path/to.spec.ts -t 'pattern'`. Full-suite
+Run one spec while iterating: `<pm> exec vitest run path/to.spec.ts -t 'pattern'`. Full-suite
 verification is your project's own protocol, not a single green spec.

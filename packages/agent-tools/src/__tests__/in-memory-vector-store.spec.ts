@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { InMemoryVectorStore } from "../knowledge/in-memory-vector-store";
 import { vectorStoreSchema } from "../knowledge/options";
 

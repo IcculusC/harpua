@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { ModuleRef } from "@nestjs/core";
 import { Logger } from "@nestjs/common";
@@ -136,7 +137,7 @@ describe("epilogue without a renderer", () => {
   } as unknown as ModuleRef;
 
   it("warns once, does not throw, and still folds", async () => {
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       const mw = new CompactionMiddleware(CompactionOptions.parse(optsWithEpilogue), modelOnly);
       const first: any = await mw.beforeModel(ctx(convo()));
@@ -153,7 +154,7 @@ describe("epilogue without a renderer", () => {
   });
 
   it("does not warn about the epilogue when a renderer is registered", async () => {
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       const mw = new CompactionMiddleware(
         CompactionOptions.parse(optsWithEpilogue),
@@ -169,7 +170,7 @@ describe("epilogue without a renderer", () => {
   });
 
   it("does not warn when no epilogue is configured", async () => {
-    const warnSpy = jest.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
+    const warnSpy = vi.spyOn(Logger.prototype, "warn").mockImplementation(() => undefined);
     try {
       const mw = new CompactionMiddleware(
         CompactionOptions.parse({

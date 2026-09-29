@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { AIMessage, ToolMessage } from "@langchain/core/messages";
 import {
   RetryMiddleware,
@@ -13,7 +14,7 @@ describe("RetryMiddleware", () => {
     let backoffCallCount = 0;
     const backoffAttempts: number[] = [];
 
-    const next = jest.fn(async () => {
+    const next = vi.fn(async () => {
       callCount++;
       if (callCount < 3) {
         throw new Error("Temporary failure");
@@ -21,7 +22,7 @@ describe("RetryMiddleware", () => {
       return new AIMessage("Success");
     });
 
-    const backoff = jest.fn(async (attempt: number) => {
+    const backoff = vi.fn(async (attempt: number) => {
       backoffCallCount++;
       backoffAttempts.push(attempt);
     });
@@ -49,11 +50,11 @@ describe("RetryMiddleware", () => {
   });
 
   it("rethrows non-retryable error immediately", async () => {
-    const next = jest.fn(async () => {
+    const next = vi.fn(async () => {
       throw new Error("Non-retryable error");
     });
 
-    const backoff = jest.fn(async () => {});
+    const backoff = vi.fn(async () => {});
 
     const opts: RetryOptions = {
       maxRetries: 3,
@@ -77,11 +78,11 @@ describe("RetryMiddleware", () => {
   it("rethrows after maxRetries exhausted", async () => {
     let backoffCallCount = 0;
 
-    const next = jest.fn(async () => {
+    const next = vi.fn(async () => {
       throw new Error("Persistent error");
     });
 
-    const backoff = jest.fn(async () => {
+    const backoff = vi.fn(async () => {
       backoffCallCount++;
     });
 
@@ -108,7 +109,7 @@ describe("RetryMiddleware", () => {
     let callCount = 0;
     let backoffCallCount = 0;
 
-    const next = jest.fn(async () => {
+    const next = vi.fn(async () => {
       callCount++;
       if (callCount === 1) {
         throw new Error("Tool temporary error");
@@ -116,7 +117,7 @@ describe("RetryMiddleware", () => {
       return new ToolMessage("Tool result");
     });
 
-    const backoff = jest.fn(async () => {
+    const backoff = vi.fn(async () => {
       backoffCallCount++;
     });
 
@@ -144,7 +145,7 @@ describe("RetryMiddleware", () => {
   it("retryable predicate can inspect error", async () => {
     let callCount = 0;
 
-    const next = jest.fn(async () => {
+    const next = vi.fn(async () => {
       callCount++;
       if (callCount === 1) {
         throw { code: "RETRYABLE" };
@@ -155,7 +156,7 @@ describe("RetryMiddleware", () => {
       return new AIMessage("Success");
     });
 
-    const backoff = jest.fn(async () => {});
+    const backoff = vi.fn(async () => {});
 
     const opts: RetryOptions = {
       maxRetries: 3,
@@ -226,8 +227,8 @@ describe("RetryMiddleware", () => {
   });
 
   it("successful call on first attempt does not call backoff", async () => {
-    const next = jest.fn(async () => new AIMessage("Immediate success"));
-    const backoff = jest.fn(async () => {});
+    const next = vi.fn(async () => new AIMessage("Immediate success"));
+    const backoff = vi.fn(async () => {});
 
     const opts: RetryOptions = {
       maxRetries: 3,

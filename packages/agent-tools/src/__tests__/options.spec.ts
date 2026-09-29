@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { searchFilesTool } from "../file-exploration/search-files";
 import { readLinesTool } from "../file-exploration/read-lines";
 import { fileStatsTool } from "../file-exploration/file-stats";

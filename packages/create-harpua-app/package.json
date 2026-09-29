@@ -30,30 +30,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "jest"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": [
-        "ts-jest",
-        {
-          "tsconfig": "<rootDir>/../tsconfig.json"
-        }
-      ]
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node",
-    "testTimeout": 30000
+    "test": "vitest run"
   },
   "dependencies": {
     "zod": "3.25.76"
@@ -61,11 +38,11 @@
   "devDependencies": {
     "@harpua/eslint-config": "workspace:*",
     "@harpua/typescript-config": "workspace:*",
-    "@types/jest": "30.0.0",
+    "@swc/core": "1.16.2",
     "@types/node": "22.15.30",
     "eslint": "9.39.4",
-    "jest": "30.4.2",
-    "ts-jest": "29.4.11",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "unplugin-swc": "2.0.0",
+    "vitest": "5.0.2"
   }
 }

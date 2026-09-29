@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 
@@ -39,7 +40,7 @@ describe("mock arm (zero-config default)", () => {
         return { generations: [{ message: new AIMessage("x"), text: "x" }] };
       }
     }
-    const factory = jest.fn(() => new Sentinel({}));
+    const factory = vi.fn(() => new Sentinel({}));
     const reg: Registration = {
       name: "default",
       envPrefix: "",

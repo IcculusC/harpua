@@ -1,12 +1,14 @@
+import { describe, it, expect, vi, afterEach, type MockInstance } from "vitest";
 import { buildChatModel } from "../model-factory";
 import * as optionalRequire from "../optional-require";
 import type { Registration } from "../interfaces";
 
+const realRequire = optionalRequire.requireOptionalModule;
 const reg: Registration = { name: "default", envPrefix: "" };
 
 /** Simulate the optional peer not being installed. */
-function stubMissing(pkg: string): jest.SpyInstance {
-  return jest
+function stubMissing(pkg: string): MockInstance {
+  return vi
     .spyOn(optionalRequire, "requireOptionalModule")
     .mockImplementation((name: string) => {
       if (name === pkg) {
@@ -14,11 +16,11 @@ function stubMissing(pkg: string): jest.SpyInstance {
         err.code = "MODULE_NOT_FOUND";
         throw err;
       }
-      return jest.requireActual(name);
+      return realRequire(name);
     });
 }
 
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => vi.restoreAllMocks());
 
 describe("missing optional peer → actionable install hint", () => {
   it("openrouter arm names the package and the pnpm add command", () => {

@@ -1,3 +1,4 @@
+import { describe, it, expect, vi } from "vitest";
 import { Test } from "@nestjs/testing";
 import { AIMessage, HumanMessage, SystemMessage } from "@langchain/core/messages";
 import type { Provider, Type } from "@nestjs/common";
@@ -57,7 +58,7 @@ describe("systemPrompt as a function source", () => {
   });
 
   it("still skips the prepend when the request already leads with a SystemMessage", async () => {
-    const source = jest.fn(() => "should not land");
+    const source = vi.fn(() => "should not land");
     const mw = await bootMiddleware(source);
 
     const persisted = new SystemMessage("persisted prompt");

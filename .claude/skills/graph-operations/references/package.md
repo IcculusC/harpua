@@ -9,8 +9,8 @@ Workspaces are globbed by `pnpm-workspace.yaml` (`packages/*`, `apps/*`) and by 
 2. **`package.json`** — mirror `packages/langgraph/package.json`:
    - `"name": "@harpua/<name>"`, `"version": "0.0.0"`, `"private": true`, `"license": "UNLICENSED"`.
    - `"main": "dist/index.js"`, `"types": "dist/index.d.ts"`, `"files": ["dist"]`.
-   - `scripts`: `"build": "tsc -p tsconfig.build.json"`, `"lint": "eslint \"src/**/*.ts\""`, `"test": "jest"`.
-   - Inline `jest` block (ts-jest, `rootDir: src`, `testRegex: ".*\\.spec\\.ts$"`).
+   - `scripts`: `"build": "tsc -p tsconfig.build.json"`, `"lint": "eslint \"src/**/*.ts\""`, `"test": "vitest run"`.
+   - A `vitest.config.ts` (copy `packages/models/vitest.config.ts`: `unplugin-swc` plugin, `include: ["src/**/*.spec.ts"]`, `testTimeout: 30000`); dev-deps `vitest`, `unplugin-swc`, `@swc/core`. Specs import `describe/it/expect/vi` from `"vitest"` explicitly.
    - Dev-dep the workspace configs: `"@harpua/eslint-config": "workspace:*"`, `"@harpua/typescript-config": "workspace:*"`. Internal deps also use `workspace:*` (e.g. `"@harpua/langgraph": "workspace:*"`).
 
 3. **`tsconfig.json`** — `extends: "@harpua/typescript-config/library.json"` (adds `declaration`, `declarationMap`, `outDir: ./dist`). Then decide the module format:

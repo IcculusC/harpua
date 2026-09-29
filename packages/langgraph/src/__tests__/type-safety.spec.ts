@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import * as path from "node:path";
 

@@ -1,3 +1,4 @@
+import { it, expect } from "vitest";
 import { AIMessage, HumanMessage } from "@langchain/core/messages";
 import { composeModelWrap } from "../middleware/model-wrap";
 

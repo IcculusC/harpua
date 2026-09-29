@@ -1,7 +1,7 @@
 /**
  * Type-level test for compaction options + the `z.input` partial-literal
  * ergonomics of `provideCompaction`/`provideManagedContext`. Compiled by tsc
- * (see type-safety.spec.ts / tsconfig.type-test.json), not by jest.
+ * (see type-safety.spec.ts / tsconfig.type-test.json), not by the test runner.
  */
 import type { CompactionOptions } from "../index";
 import { CompactionSummarySchema, provideCompaction, provideManagedContext } from "../index";

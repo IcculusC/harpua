@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { webSearchTool } from "../web-research/web-search";
 import type { FetchFn, FetchResponseLike } from "../web-research/options";
 import { runTool } from "./tmp-tree";

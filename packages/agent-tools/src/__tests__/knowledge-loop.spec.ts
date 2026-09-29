@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { FetchFn, FetchResponseLike } from "../web-research/options";
 import { fetchUrlTool } from "../web-research/fetch-url";
 import { searchKnowledgeTool } from "../knowledge/search-knowledge";

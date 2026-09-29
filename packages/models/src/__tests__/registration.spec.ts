@@ -1,3 +1,4 @@
+import { describe, it, expect, beforeEach } from "vitest";
 import { Test } from "@nestjs/testing";
 
 import { ChatModelModule } from "../chat-model.module";

@@ -1,8 +1,10 @@
+import { describe, it, expect } from "vitest";
 import { StateSchema, MessagesValue } from "@langchain/langgraph";
 import {
   withAgentLoop,
   AGENT_LOOP_DEFAULT,
   AGENT_EXIT_DEFAULT,
+  LoopInfo,
 } from "../middleware/loop-state";
 
 describe("loop-state", () => {
@@ -38,7 +40,6 @@ describe("loop-state", () => {
       tokens: 50,
       startedAt: 100,
     };
-    const { LoopInfo } = jest.requireActual("../middleware/loop-state");
     expect(LoopInfo.parse(preCost)).toEqual({ ...preCost, cost: 0 });
   });
 });

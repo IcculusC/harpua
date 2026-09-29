@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { HumanMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { computeFold } from "../middleware/compaction-cut";
 

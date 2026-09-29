@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { lazyModel, LazyModel, isLazyModel } from "../lazy-model";
 
 class SomeChatModelClass {}
