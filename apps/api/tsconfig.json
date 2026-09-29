@@ -1,7 +1,7 @@
 {
   "extends": "@harpua/typescript-config/nestjs.json",
   "compilerOptions": {
-    "baseUrl": "./",
+    "rootDir": "./src",
     "outDir": "./dist",
     "incremental": true,
     "sourceMap": true
