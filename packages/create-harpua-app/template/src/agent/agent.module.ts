@@ -2,14 +2,14 @@ import { Module } from "@nestjs/common";
 import { LangGraphModule, provideGraphBoundModel } from "@harpua/langgraph";
 import { CHAT_MODEL, ChatModelModule } from "@harpua/models";
 
-import { AgentController } from "./agent.controller";
-import { AgentService } from "./agent.service";
-import { CallModelNode, WeatherAgentGraph } from "./weather-agent.graph";
-import { AGENT_BOUND_MODEL } from "./agent-model.token";
-import { WeatherTools } from "./weather.tools";
-import { OutboxService } from "./outbox.service";
-import { MockChatModel } from "./mock-chat-model";
-import { fetchProvider } from "./fetch.token";
+import { AgentController } from "./agent.controller.js";
+import { AgentService } from "./agent.service.js";
+import { CallModelNode, WeatherAgentGraph } from "./weather-agent.graph.js";
+import { AGENT_BOUND_MODEL } from "./agent-model.token.js";
+import { WeatherTools } from "./weather.tools.js";
+import { OutboxService } from "./outbox.service.js";
+import { MockChatModel } from "./mock-chat-model.js";
+import { fetchProvider } from "./fetch.token.js";
 
 @Module({
   imports: [

@@ -10,6 +10,8 @@ pnpm create harpua-app my-agent
 # or: npx create-harpua-app my-agent
 ```
 
+Requires Node >=22.12. The generated project is ESM (`"type": "module"`, `NodeNext`, `.js` extensions on relative imports) and tests with Vitest.
+
 Then:
 
 ```bash
@@ -25,7 +27,7 @@ curl -XPOST localhost:3000/agent/t1 -H 'content-type: application/json' \
 
 ## What you get
 
-A minimal, complete NestJS 11 project — the LangGraph weather-agent quickstart
+A minimal, complete NestJS 12 project (ESM, `NodeNext`, Node >=22.12) — the LangGraph weather-agent quickstart
 made runnable the idiomatic `@harpua/langgraph` way:
 
 - A **`get_weather` tool** (`WeatherTools`) that calls the keyless

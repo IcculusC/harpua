@@ -45,7 +45,7 @@ Peer dependencies (bring your own versions):
 pnpm add @langchain/langgraph @langchain/core zod @nestjs/common @nestjs/core
 ```
 
-Requires Nest 11 and `@langchain/langgraph` / `@langchain/core` v1.
+Requires Node >=22.12, Nest 12, and `@langchain/langgraph` / `@langchain/core` v1. The package is **ESM-only**; CommonJS consumers load it through `require(esm)` (Node >=22.12). See [MIGRATING-1.0.md](../../MIGRATING-1.0.md) when upgrading from 0.x.
 
 ## The LangGraph quickstart, the Nest way
 
@@ -1275,8 +1275,9 @@ pass one explicitly only when you want persistence or plan to `resume` later.
 
 ## Notes
 
-- **Module format**: the package builds to CommonJS (matching Nest 11's own
-  build output), with declaration files and source maps.
+- **Module format**: ESM-only (`"type": "module"` with an `exports` map), with
+  declaration files and source maps. CommonJS apps can `require()` it on Node
+  >=22.12.
 - **Node scope**: nodes are resolved from the root DI container once, at
   bootstrap, and reused for every invocation — they must be singleton-scoped
   providers. There is no per-request node instantiation. If you need

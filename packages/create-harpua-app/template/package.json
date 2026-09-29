@@ -2,7 +2,11 @@
   "name": "harpua-weather-agent",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "A NestJS + LangGraph weather agent, scaffolded with create-harpua-app",
+  "engines": {
+    "node": ">=22.12"
+  },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "nest build",
@@ -14,9 +18,9 @@
     "prepare": "harpua-skills"
   },
   "dependencies": {
-    "@harpua/agent-tools": "^0.8.1",
-    "@harpua/langgraph": "^0.6.3",
-    "@harpua/models": "^0.2.0",
+    "@harpua/agent-tools": "^1.0.0-next.0",
+    "@harpua/langgraph": "^1.0.0-next.1",
+    "@harpua/models": "^1.0.0-next.1",
     "@langchain/core": "^1",
     "@langchain/langgraph": "^1",
     "@langchain/ollama": "^1",
@@ -31,7 +35,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.39.4",
-    "@harpua/langgraph-testing": "^0.3.0",
+    "@harpua/langgraph-testing": "^1.0.0-next.1",
     "@nestjs/cli": "12.0.8",
     "@nestjs/schematics": "12.0.6",
     "@nestjs/testing": "12.1.1",

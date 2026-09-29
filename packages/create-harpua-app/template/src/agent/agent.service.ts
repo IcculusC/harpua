@@ -9,8 +9,8 @@ import {
   type LangGraphRunnable,
 } from "@harpua/langgraph";
 
-import { WeatherAgentGraph, type AgentState } from "./weather-agent.graph";
-import { textOf } from "./mock-chat-model";
+import { WeatherAgentGraph, type AgentState } from "./weather-agent.graph.js";
+import { textOf } from "./mock-chat-model.js";
 
 export interface AgentTurn {
   /** Assistant text produced by this turn (non-empty AI message contents). */

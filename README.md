@@ -11,7 +11,7 @@ A reusable toolkit for building [LangGraph](https://langchain-ai.github.io/langg
 
 ## Proof harness
 
-- [`apps/api`](apps/api) — a NestJS 11 app exercising the toolkit end-to-end: an agentic chat graph with a deterministic mock LLM (no API keys), tool calls through DI, approval interrupts with resume, thread persistence, an SSE streaming endpoint, and a CLI REPL (`pnpm --filter @harpua/api chat`). It is a test bed, not the product.
+- [`apps/api`](apps/api) — a NestJS 12 app exercising the toolkit end-to-end: an agentic chat graph with a deterministic mock LLM (no API keys), tool calls through DI, approval interrupts with resume, thread persistence, an SSE streaming endpoint, and a CLI REPL (`pnpm --filter @harpua/api chat`). It is a test bed, not the product.
 
 ## Agent skills
 
@@ -19,7 +19,7 @@ A reusable toolkit for building [LangGraph](https://langchain-ai.github.io/langg
 
 ## Requirements
 
-- Node.js >= 20 (developed against v23.10.0)
+- Node.js >= 22.12 (developed against Node 24; see `.nvmrc`). All packages are ESM-only; upgrading from 0.x? Read [MIGRATING-1.0.md](MIGRATING-1.0.md).
 - pnpm 9.15.0 (`packageManager` pinned in `package.json`)
 
 ## Usage

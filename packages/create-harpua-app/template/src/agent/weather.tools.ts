@@ -2,8 +2,8 @@ import { Inject, Injectable } from "@nestjs/common";
 import { z } from "zod";
 import { LangGraphTool } from "@harpua/langgraph";
 
-import { WEATHER_FETCH, type FetchFn } from "./fetch.token";
-import { OutboxService } from "./outbox.service";
+import { WEATHER_FETCH, type FetchFn } from "./fetch.token.js";
+import { OutboxService } from "./outbox.service.js";
 
 const GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";

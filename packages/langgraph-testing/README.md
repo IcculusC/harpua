@@ -12,6 +12,8 @@ composable toolkit. No network, no real LLM, fully deterministic.
 pnpm add -D @harpua/langgraph-testing
 ```
 
+Requires Node >=22.12 and Nest 12. ESM-only (CommonJS consumers use `require(esm)`).
+
 Peer dependencies (you already have most from `@harpua/langgraph`):
 
 ```bash

@@ -1,6 +1,6 @@
 # harpua-weather-agent
 
-A NestJS 11 + LangGraph **weather agent**, scaffolded with
+A NestJS 12 (ESM) + LangGraph **weather agent**, scaffolded with
 [`create-harpua-app`](https://www.npmjs.com/package/create-harpua-app) and built
 on [`@harpua/langgraph`](https://www.npmjs.com/package/@harpua/langgraph).
 

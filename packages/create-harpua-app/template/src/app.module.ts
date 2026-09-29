@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
 import { LangGraphModule } from "@harpua/langgraph";
 
-import { AgentModule } from "./agent/agent.module";
+import { AgentModule } from "./agent/agent.module.js";
 
 @Module({
   imports: [

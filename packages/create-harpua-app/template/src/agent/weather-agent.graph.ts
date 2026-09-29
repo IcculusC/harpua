@@ -14,8 +14,8 @@ import {
   type GraphBoundModel,
 } from "@harpua/langgraph";
 
-import { AGENT_BOUND_MODEL } from "./agent-model.token";
-import { WeatherTools } from "./weather.tools";
+import { AGENT_BOUND_MODEL } from "./agent-model.token.js";
+import { WeatherTools } from "./weather.tools.js";
 
 /** Zod-first agent state: just the running message list. */
 export const AgentStateSchema = new StateSchema({ messages: MessagesValue });

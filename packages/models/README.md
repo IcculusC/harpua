@@ -16,6 +16,8 @@ and an app boots with zero env and zero peers.
 
 ## Install
 
+Requires Node >=22.12 and Nest 12. ESM-only (CommonJS consumers use `require(esm)`).
+
 ```bash
 pnpm add @harpua/models
 # then install ONLY the arm you use (optional peers):
