@@ -15,15 +15,15 @@ import {
   type ScriptedChatModel,
 } from "@harpua/langgraph-testing";
 
-import { AppModule } from "../app.module";
-import { OrdersService } from "./orders.service";
-import { OrderTools } from "./order.tools";
-import { SystemPrompt } from "./system-prompt";
-import { ChatService } from "./chat.service";
-import { CallModelNode, ChatGraph, type ChatState } from "./chat.graph";
+import { AppModule } from "../app.module.js";
+import { OrdersService } from "./orders.service.js";
+import { OrderTools } from "./order.tools.js";
+import { SystemPrompt } from "./system-prompt.js";
+import { ChatService } from "./chat.service.js";
+import { CallModelNode, ChatGraph, type ChatState } from "./chat.graph.js";
 import { CHAT_MODEL } from "@harpua/models";
 import { provideGraphBoundModel } from "@harpua/langgraph";
-import { CHAT_BOUND_MODEL } from "./chat-model.token";
+import { CHAT_BOUND_MODEL } from "./chat-model.token.js";
 
 /* --------------------------------------------------------------------- *
  * Graph-level integration, via @harpua/langgraph-testing.

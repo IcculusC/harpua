@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { SystemMessage } from "@langchain/core/messages";
-import { SystemPrompt } from "./system-prompt";
+import { SystemPrompt } from "./system-prompt.js";
 
 describe("SystemPrompt", () => {
   const originalLanguage = process.env.CHAT_LANGUAGE;

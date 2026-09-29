@@ -11,8 +11,8 @@ import {
   type NodeUpdate,
 } from "@harpua/langgraph";
 
-import { ChatGraph, type ChatState } from "./chat.graph";
-import { textOf } from "./mock-chat-model";
+import { ChatGraph, type ChatState } from "./chat.graph.js";
+import { textOf } from "./mock-chat-model.js";
 
 export interface ChatTurn {
   /** Assistant text produced by this turn (non-empty AI message contents). */
